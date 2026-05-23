@@ -102,3 +102,4 @@ GitHub Pages (static host)
 - **Phase 1 (current):** Static site + Supabase sync. Single shared DM password for Edit Mode.
 - **Phase 2:** Supabase Auth. Per-player accounts. Characters have owner_id — only owner + DM can edit.
 - **Phase 3:** Role-based visibility. DM-only sections hidden from players. Campaign-scoped access.
+
