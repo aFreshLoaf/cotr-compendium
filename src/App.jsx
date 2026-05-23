@@ -1676,10 +1676,16 @@ function RacesPage({ content, activeId, editMode, persistChange }) {
   const race = content.races.find((r) => r.id === activeId) || content.races[0];
   if (!race) return <p style={styles.bodyText}>No races defined.</p>;
 
-  const updateField = (field, value) => {
-    const updated = content.races.map((r) => (r.id === race.id ? { ...r, [field]: value } : r));
+  const updateRace = (fields) => {
+    const updated = content.races.map((r) => r.id === race.id ? { ...r, ...fields } : r);
     persistChange({ ...content, races: updated });
   };
+  const updateTrait = (i, fields) => {
+    const traits = (race.traits || []).map((t, idx) => idx === i ? { ...t, ...fields } : t);
+    updateRace({ traits });
+  };
+  const addTrait = () => updateRace({ traits: [...(race.traits || []), { name: 'New Trait', text: '' }] });
+  const removeTrait = (i) => updateRace({ traits: (race.traits || []).filter((_, idx) => idx !== i) });
 
   const isSubrace = race.parentRace && !race.isParent && race.parentRace !== race.name;
   const isEmpty = !race.description && !race.summary && (!race.traits || race.traits.length === 0);
@@ -1687,47 +1693,58 @@ function RacesPage({ content, activeId, editMode, persistChange }) {
   return (
     <div>
       <h1 style={styles.pageHeading}>{race.name}</h1>
-      {isSubrace && (
-        <div style={{ marginBottom: '14px' }}>
-          <span style={styles.pill}>{race.parentRace} Subrace</span>
-        </div>
-      )}
-      {race.tagline && (
-        <p style={{ ...styles.bodyText, fontStyle: 'italic', color: '#5c4020', fontSize: '16px' }}>{race.tagline}</p>
-      )}
+      {isSubrace && <div style={{ marginBottom: '14px' }}><span style={styles.pill}>{race.parentRace} Subrace</span></div>}
 
       {editMode ? (
-        <textarea
-          style={styles.textarea}
-          value={race.description || ''}
-          onChange={(e) => updateField('description', e.target.value)}
-        />
-      ) : (
-        race.description && <p style={styles.bodyText}>{race.description}</p>
-      )}
+        <input value={race.tagline || ''} placeholder="Tagline — one-line flavor…"
+          onChange={(e) => updateRace({ tagline: e.target.value })}
+          style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px', width: '100%', marginBottom: '10px',
+            fontStyle: 'italic', fontSize: '15px' }} />
+      ) : race.tagline ? (
+        <p style={{ ...styles.bodyText, fontStyle: 'italic', color: '#5c4020', fontSize: '16px' }}>{race.tagline}</p>
+      ) : null}
 
-      {race.summary && !race.description && (
+      {editMode ? (
+        <textarea style={{ ...styles.textarea, minHeight: '120px' }}
+          value={race.description || race.summary || ''}
+          placeholder="Race description…"
+          onChange={(e) => updateRace({ description: e.target.value })} />
+      ) : race.description ? (
+        <p style={styles.bodyText}>{race.description}</p>
+      ) : race.summary ? (
         <p style={styles.bodyText}>{race.summary}</p>
-      )}
-
-      {isEmpty && (
+      ) : isEmpty ? (
         <div style={{ ...styles.card, marginTop: '20px', background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c' }}>
           <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic' }}>
-            This entry has not been written yet. Source material exists in the races document — content will be drafted in a future pass.
+            This entry has not been written yet.
           </p>
         </div>
-      )}
+      ) : null}
 
-      {race.traits && race.traits.length > 0 && (
-        <>
-          <h2 style={styles.sectionHeading}>Traits</h2>
-          {race.traits.map((t, i) => (
-            <div key={i} style={styles.featureCard}>
-              <div style={styles.featureName}>{t.name}</div>
-              <p style={{ ...styles.bodyText, margin: 0 }}>{t.text}</p>
+      <h2 style={styles.sectionHeading}>Traits</h2>
+      {(race.traits || []).map((t, i) => (
+        <div key={i} style={styles.featureCard}>
+          {editMode ? (
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+              <input value={t.name} onChange={(e) => updateTrait(i, { name: e.target.value })}
+                placeholder="Trait name"
+                style={{ ...styles.textarea, flex: 1, minHeight: 'unset', padding: '4px 8px' }} />
+              <button onClick={() => removeTrait(i)}
+                style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px',
+                  padding: '4px 8px', cursor: 'pointer', fontSize: '11px' }}>✕</button>
             </div>
-          ))}
-        </>
+          ) : <div style={styles.featureName}>{t.name}</div>}
+          {editMode ? (
+            <textarea style={{ ...styles.textarea, minHeight: '70px' }} value={t.text || ''}
+              placeholder="Trait mechanics…" onChange={(e) => updateTrait(i, { text: e.target.value })} />
+          ) : <p style={{ ...styles.bodyText, margin: 0 }}>{t.text}</p>}
+        </div>
+      ))}
+      {editMode && (
+        <button onClick={addTrait}
+          style={{ ...styles.button, marginTop: '8px', fontSize: '12px', padding: '6px 16px' }}>
+          + Add Trait
+        </button>
       )}
 
       {race.archetypes && race.archetypes.length > 0 && (
@@ -1742,7 +1759,6 @@ function RacesPage({ content, activeId, editMode, persistChange }) {
         </>
       )}
 
-      {/* If this is a parent race, list its subraces */}
       {race.isParent && (() => {
         const subraces = content.races.filter((r) => r.parentRace === race.parentRace && !r.isParent);
         if (subraces.length === 0) return null;
@@ -1752,19 +1768,25 @@ function RacesPage({ content, activeId, editMode, persistChange }) {
             {subraces.map((sr) => (
               <div key={sr.id} style={styles.featureCard}>
                 <div style={styles.featureName}>{sr.name}</div>
-                {sr.summary && <p style={{ ...styles.bodyText, margin: 0 }}>{sr.summary}</p>}
-                {!sr.summary && <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic', color: '#8b6914' }}>Not yet written.</p>}
+                {sr.summary ? <p style={{ ...styles.bodyText, margin: 0 }}>{sr.summary}</p>
+                  : <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic', color: '#8b6914' }}>Not yet written.</p>}
               </div>
             ))}
           </>
         );
       })()}
 
-      {race.note && (
+      {editMode ? (
+        <div style={{ marginTop: '16px' }}>
+          <div style={{ fontSize: '11px', color: '#8b6914', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Source Note</div>
+          <textarea style={{ ...styles.textarea, minHeight: '60px' }} value={race.note || ''}
+            placeholder="Source notes…" onChange={(e) => updateRace({ note: e.target.value })} />
+        </div>
+      ) : race.note ? (
         <div style={{ ...styles.card, marginTop: '20px', fontStyle: 'italic', color: '#5c4020' }}>
           <strong>Source note:</strong> {race.note}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -1773,82 +1795,59 @@ function ClassesPage({ content, activeId, editMode, persistChange }) {
   const cls = content.classes.find((c) => c.id === activeId) || content.classes[0];
   if (!cls) return <p style={styles.bodyText}>No classes defined.</p>;
 
-  const updateField = (field, value) => {
-    const updated = content.classes.map((c) => (c.id === cls.id ? { ...c, [field]: value } : c));
+  const updateCls = (fields) => {
+    const updated = content.classes.map((c) => c.id === cls.id ? { ...c, ...fields } : c);
     persistChange({ ...content, classes: updated });
   };
+  const updateFeature = (i, fields) => {
+    const features = (cls.features || []).map((f, idx) => idx === i ? { ...f, ...fields } : f);
+    updateCls({ features });
+  };
+  const addFeature = () => updateCls({ features: [...(cls.features || []), { level: 1, name: 'New Feature', text: '' }] });
+  const removeFeature = (i) => updateCls({ features: (cls.features || []).filter((_, idx) => idx !== i) });
 
   return (
     <div>
       <h1 style={styles.pageHeading}>{cls.name}</h1>
-      <div style={{ marginBottom: '14px' }}>
-        <span style={styles.pill}>Primary: {cls.primary}</span>
-        <span style={styles.pill}>Hit Die: {cls.hitDie}</span>
-      </div>
+      {cls.hitDie && <div style={{ marginBottom: '14px' }}><span style={styles.pill}>Hit Die: {cls.hitDie}</span></div>}
 
       {editMode ? (
-        <textarea style={styles.textarea} value={cls.summary} onChange={(e) => updateField('summary', e.target.value)} />
-      ) : (
+        <textarea style={{ ...styles.textarea, minHeight: '100px' }} value={cls.summary || ''}
+          placeholder="Class overview…" onChange={(e) => updateCls({ summary: e.target.value })} />
+      ) : cls.summary ? (
         <p style={styles.bodyText}>{cls.summary}</p>
-      )}
+      ) : null}
 
-      {cls.proficiencies && (
-        <>
-          <h2 style={styles.sectionHeading}>Proficiencies</h2>
-          <div style={styles.card}>
-            <p style={styles.bodyText}><strong>Saving Throws:</strong> {cls.proficiencies.savingThrows}</p>
-            <p style={styles.bodyText}><strong>Skills:</strong> {cls.proficiencies.skills}</p>
-            <p style={styles.bodyText}><strong>Weapons:</strong> {cls.proficiencies.weapons}</p>
-            <p style={{ ...styles.bodyText, margin: 0 }}><strong>Armor:</strong> {cls.proficiencies.armor}</p>
-          </div>
-        </>
-      )}
-
-      {cls.progression && cls.progression.length > 0 && (
-        <>
-          <h2 style={styles.sectionHeading}>Class Progression</h2>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>Lvl</th>
-                  <th style={styles.th}>Prof.</th>
-                  {cls.id === 'esper' && <th style={styles.th}>Talents</th>}
-                  {cls.id === 'esper' && <th style={styles.th}>TP</th>}
-                  {cls.id === 'esper' && <th style={styles.th}>ESP Die</th>}
-                  <th style={styles.th}>Features</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cls.progression.map((row) => (
-                  <tr key={row.level}>
-                    <td style={styles.td}>{row.level}</td>
-                    <td style={styles.td}>+{Math.ceil(row.level / 4) + 1}</td>
-                    {cls.id === 'esper' && <td style={styles.td}>{row.talents}</td>}
-                    {cls.id === 'esper' && <td style={styles.td}>{row.tp}</td>}
-                    {cls.id === 'esper' && <td style={styles.td}>{row.espDie}</td>}
-                    <td style={styles.td}>{row.features}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-
-      <h2 style={styles.sectionHeading}>Core Features</h2>
-      {cls.coreFeatures?.map((f, i) => (
+      <h2 style={styles.sectionHeading}>Features</h2>
+      {(cls.features || []).map((f, i) => (
         <div key={i} style={styles.featureCard}>
-          <div style={styles.featureLevel}>Level {f.level}</div>
-          <div style={styles.featureName}>{f.name}</div>
-          <p style={{ ...styles.bodyText, margin: 0 }}>{f.text}</p>
+          {editMode ? (
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+              <span style={{ fontSize: '11px', color: '#8b6914' }}>Lvl</span>
+              <input type="number" value={f.level} onChange={(e) => updateFeature(i, { level: parseInt(e.target.value) || 1 })}
+                style={{ ...styles.textarea, width: '60px', minHeight: 'unset', padding: '4px 8px' }} />
+              <input value={f.name} onChange={(e) => updateFeature(i, { name: e.target.value })}
+                placeholder="Feature name"
+                style={{ ...styles.textarea, flex: 1, minHeight: 'unset', padding: '4px 8px' }} />
+              <button onClick={() => removeFeature(i)}
+                style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px',
+                  padding: '4px 8px', cursor: 'pointer', fontSize: '11px' }}>✕</button>
+            </div>
+          ) : <>
+            <div style={styles.featureLevel}>Level {f.level}</div>
+            <div style={styles.featureName}>{f.name}</div>
+          </>}
+          {editMode ? (
+            <textarea style={{ ...styles.textarea, minHeight: '80px' }} value={f.text || ''}
+              placeholder="Feature mechanics…" onChange={(e) => updateFeature(i, { text: e.target.value })} />
+          ) : <p style={{ ...styles.bodyText, margin: 0 }}>{f.text}</p>}
         </div>
       ))}
-
-      {cls.notes && (
-        <div style={{ ...styles.card, marginTop: '20px', fontStyle: 'italic', color: '#5c4020' }}>
-          <strong>Source note:</strong> {cls.notes}
-        </div>
+      {editMode && (
+        <button onClick={addFeature}
+          style={{ ...styles.button, marginTop: '8px', fontSize: '12px', padding: '6px 16px' }}>
+          + Add Feature
+        </button>
       )}
     </div>
   );
@@ -1860,6 +1859,26 @@ function SubclassesPage({ content, activeId, editMode, persistChange }) {
 
   const isEmpty = !sub.summary && (!sub.features || sub.features.length === 0);
 
+  const updateSub = (fields) => {
+    const updated = content.subclasses.map((s) => s.id === sub.id ? { ...s, ...fields } : s);
+    persistChange({ ...content, subclasses: updated });
+  };
+
+  const updateFeature = (i, fields) => {
+    const features = sub.features.map((f, idx) => idx === i ? { ...f, ...fields } : f);
+    updateSub({ features });
+  };
+
+  const addFeature = () => {
+    const features = [...(sub.features || []), { level: 3, name: 'New Feature', text: '' }];
+    updateSub({ features });
+  };
+
+  const removeFeature = (i) => {
+    const features = sub.features.filter((_, idx) => idx !== i);
+    updateSub({ features });
+  };
+
   return (
     <div>
       <h1 style={styles.pageHeading}>{sub.name}</h1>
@@ -1869,34 +1888,66 @@ function SubclassesPage({ content, activeId, editMode, persistChange }) {
         {sub.priority === 'second' && <span style={{ ...styles.pill, background: '#c9a55c', color: '#3b2615' }}>Priority Rewrite — Tier 2</span>}
       </div>
 
-      {sub.summary && <p style={styles.bodyText}>{sub.summary}</p>}
-
-      {isEmpty && (
+      {editMode ? (
+        <textarea style={styles.textarea} placeholder="Summary…" value={sub.summary || ''}
+          onChange={(e) => updateSub({ summary: e.target.value })} />
+      ) : sub.summary ? (
+        <p style={styles.bodyText}>{sub.summary}</p>
+      ) : isEmpty ? (
         <div style={{ ...styles.card, marginTop: '20px', background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c' }}>
           <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic' }}>
             This entry has not been written yet. Source material exists in the homebrew documents — content will be drafted in a future pass.
           </p>
         </div>
-      )}
+      ) : null}
 
-      {sub.features && sub.features.length > 0 && (
-        <>
-          <h2 style={styles.sectionHeading}>Features</h2>
-          {sub.features.map((f, i) => (
-            <div key={i} style={styles.featureCard}>
-              <div style={styles.featureLevel}>Level {f.level}</div>
-              <div style={styles.featureName}>{f.name}</div>
-              <p style={{ ...styles.bodyText, margin: 0 }}>{f.text}</p>
+      <h2 style={styles.sectionHeading}>Features</h2>
+      {(sub.features || []).map((f, i) => (
+        <div key={i} style={{ ...styles.featureCard, position: 'relative' }}>
+          {editMode && (
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+              <span style={{ fontSize: '11px', color: '#8b6914' }}>Lvl</span>
+              <input type="number" value={f.level} onChange={(e) => updateFeature(i, { level: parseInt(e.target.value) || 1 })}
+                style={{ ...styles.textarea, width: '60px', minHeight: 'unset', padding: '4px 8px' }} />
+              <input value={f.name} onChange={(e) => updateFeature(i, { name: e.target.value })}
+                placeholder="Feature name" style={{ ...styles.textarea, flex: 1, minHeight: 'unset', padding: '4px 8px' }} />
+              <button onClick={() => removeFeature(i)}
+                style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px',
+                  padding: '4px 8px', cursor: 'pointer', fontSize: '11px', fontFamily: '"Cinzel", serif' }}>✕</button>
             </div>
-          ))}
-        </>
+          )}
+          {!editMode && <>
+            <div style={styles.featureLevel}>Level {f.level}</div>
+            <div style={styles.featureName}>{f.name}</div>
+          </>}
+          {editMode ? (
+            <textarea style={{ ...styles.textarea, minHeight: '80px' }} value={f.text || ''}
+              placeholder="Feature mechanics…"
+              onChange={(e) => updateFeature(i, { text: e.target.value })} />
+          ) : (
+            <p style={{ ...styles.bodyText, margin: 0 }}>{f.text}</p>
+          )}
+        </div>
+      ))}
+      {editMode && (
+        <button onClick={addFeature}
+          style={{ ...styles.button, marginTop: '10px', fontSize: '12px', padding: '6px 16px' }}>
+          + Add Feature
+        </button>
       )}
 
-      {sub.note && (
+      {editMode ? (
+        <div style={{ marginTop: '16px' }}>
+          <div style={{ fontSize: '11px', color: '#8b6914', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Source Note</div>
+          <textarea style={{ ...styles.textarea, minHeight: '60px' }} value={sub.note || ''}
+            placeholder="Source notes, flags, DM rulings…"
+            onChange={(e) => updateSub({ note: e.target.value })} />
+        </div>
+      ) : sub.note ? (
         <div style={{ ...styles.card, marginTop: '20px', fontStyle: 'italic', color: '#5c4020' }}>
           <strong>Source note:</strong> {sub.note}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -1906,6 +1957,33 @@ function CharactersPage({ content, activeId, editMode, persistChange }) {
   if (!ch) return <p style={styles.bodyText}>No characters defined.</p>;
 
   const isEmpty = !ch.summary && (!ch.keyTraits || ch.keyTraits.length === 0);
+
+  const updateCh = (fields) => {
+    const updated = content.characters.map((c) => c.id === ch.id ? { ...c, ...fields } : c);
+    persistChange({ ...content, characters: updated });
+  };
+
+  const updateTrait = (i, val) => {
+    const keyTraits = (ch.keyTraits || []).map((t, idx) => idx === i ? val : t);
+    updateCh({ keyTraits });
+  };
+
+  const addTrait = () => updateCh({ keyTraits: [...(ch.keyTraits || []), ''] });
+  const removeTrait = (i) => updateCh({ keyTraits: (ch.keyTraits || []).filter((_, idx) => idx !== i) });
+
+  const fieldRow = (label, field, placeholder, multiline = false) => (
+    <div style={{ marginBottom: '12px' }}>
+      <div style={{ fontSize: '11px', color: '#8b6914', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</div>
+      {multiline ? (
+        <textarea style={{ ...styles.textarea, minHeight: '100px' }} value={ch[field] || ''}
+          placeholder={placeholder} onChange={(e) => updateCh({ [field]: e.target.value })} />
+      ) : (
+        <input value={ch[field] || ''} placeholder={placeholder}
+          onChange={(e) => updateCh({ [field]: e.target.value })}
+          style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px', width: '100%' }} />
+      )}
+    </div>
+  );
 
   return (
     <div>
@@ -1919,13 +1997,21 @@ function CharactersPage({ content, activeId, editMode, persistChange }) {
         {ch.status === 'freed' && <span style={{ ...styles.pill, background: '#5c8a3a' }}>Freed</span>}
         {ch.category && <span style={{ ...styles.pill, background: '#c9a55c', color: '#3b2615' }}>{ch.category}</span>}
       </div>
-      {(ch.race || ch.class || (ch.patron && ch.patron !== '—' && ch.patron !== '')) && (
+
+      {editMode ? (
+        <div style={{ ...styles.card, marginBottom: '20px' }}>
+          <div style={{ fontFamily: '"Cinzel", serif', fontSize: '12px', color: '#5c1414', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '14px', paddingBottom: '8px', borderBottom: '1px solid rgba(139,105,20,0.3)' }}>Identity</div>
+          {fieldRow('Race', 'race', 'Race or species…')}
+          {fieldRow('Class & Level', 'class', 'e.g. Paladin 5 / Esper 6 (Oath of Renewal)…')}
+          {fieldRow('Patron', 'patron', 'Deity, patron, or —')}
+        </div>
+      ) : (ch.race || ch.class || (ch.patron && ch.patron !== '—' && ch.patron !== '')) ? (
         <div style={{ marginBottom: '14px' }}>
           {ch.race && <span style={styles.pill}>{ch.race}</span>}
           {ch.class && <span style={styles.pill}>{ch.class}</span>}
           {ch.patron && ch.patron !== '—' && ch.patron !== '' && <span style={styles.pill}>Patron: {ch.patron}</span>}
         </div>
-      )}
+      ) : null}
 
       {ch.placeholder && (
         <div style={{ ...styles.card, marginTop: '12px', background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c' }}>
@@ -1935,32 +2021,52 @@ function CharactersPage({ content, activeId, editMode, persistChange }) {
         </div>
       )}
 
-      {ch.summary && <p style={styles.bodyText}>{ch.summary}</p>}
-
-      {!ch.placeholder && isEmpty && (
+      {editMode ? (
+        fieldRow('Summary', 'summary', 'Character summary — who they are, what drives them, their place in the campaign…', true)
+      ) : ch.summary ? (
+        <p style={styles.bodyText}>{ch.summary}</p>
+      ) : !ch.placeholder && isEmpty ? (
         <div style={{ ...styles.card, marginTop: '20px', background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c' }}>
-          <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic' }}>
-            No details have been written for this character yet.
-          </p>
+          <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic' }}>No details written yet.</p>
         </div>
+      ) : null}
+
+      <h2 style={styles.sectionHeading}>Key Traits</h2>
+      {(ch.keyTraits || []).map((t, i) => (
+        <div key={i} style={{ ...styles.featureCard, display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+          {editMode ? (
+            <>
+              <input value={t} onChange={(e) => updateTrait(i, e.target.value)}
+                placeholder="Key trait…"
+                style={{ ...styles.textarea, flex: 1, minHeight: 'unset', padding: '6px 10px' }} />
+              <button onClick={() => removeTrait(i)}
+                style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px',
+                  padding: '4px 8px', cursor: 'pointer', fontSize: '11px', flexShrink: 0 }}>✕</button>
+            </>
+          ) : (
+            <p style={{ ...styles.bodyText, margin: 0 }}>{t}</p>
+          )}
+        </div>
+      ))}
+      {editMode && (
+        <button onClick={addTrait}
+          style={{ ...styles.button, marginTop: '8px', fontSize: '12px', padding: '6px 16px' }}>
+          + Add Trait
+        </button>
       )}
 
-      {ch.keyTraits && ch.keyTraits.length > 0 && (
-        <>
-          <h2 style={styles.sectionHeading}>Key Traits</h2>
-          {ch.keyTraits.map((t, i) => (
-            <div key={i} style={styles.featureCard}>
-              <p style={{ ...styles.bodyText, margin: 0 }}>{t}</p>
-            </div>
-          ))}
-        </>
-      )}
-
-      {ch.note && (
+      {editMode ? (
+        <div style={{ marginTop: '16px' }}>
+          <div style={{ fontSize: '11px', color: '#8b6914', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Source Note</div>
+          <textarea style={{ ...styles.textarea, minHeight: '60px' }} value={ch.note || ''}
+            placeholder="Campaign notes, cross-references, open questions…"
+            onChange={(e) => updateCh({ note: e.target.value })} />
+        </div>
+      ) : ch.note ? (
         <div style={{ ...styles.card, marginTop: '20px', fontStyle: 'italic', color: '#5c4020' }}>
           <strong>Source note:</strong> {ch.note}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
