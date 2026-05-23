@@ -261,20 +261,20 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
     { id: "forest-orokong", name: "Forest Tribe Oro'Kong", parentRace: "Oro'Kong", summary: "Black fur, brown eyes. Natural stealth, arboreal agility.", traits: [], note: "" },
   ],
   classes: [
+    // ── ESPER (full) ──────────────────────────────────────────────────────────
     {
-      id: "esper",
-      name: "Esper",
-      primary: "Intelligence",
-      hitDie: "d6",
-      summary: "The formidable minds of Espers manifest in psionic abilities — surreal yet beautiful, subtle but deadly. Innately influential to Alptorum, the dimension of mind, Espers are both subject to and sovereign over powers and truths inconceivable to common folk. Their unknowable powers can be harnessed in unpredictable and creative ways.",
-      proficiencies: {
-        savingThrows: "Intelligence, Wisdom",
-        skills: "Choose 2: Sleight of Hand, Stealth, Psionics, History, Insight, Persuasion",
-        weapons: "Simple Weapons",
-        armor: "Light Armor",
-      },
+      id: "esper", name: "Esper", primary: "Intelligence", hitDie: "d6",
+      startingHP: "6 + CON modifier",
+      hpPerLevel: "4 + CON modifier per level after 1st",
+      armorTraining: "Light Armor",
+      savingThrows: "Intelligence, Wisdom",
+      skills: "Choose 2: Sleight of Hand, Stealth, Psionics, History, Insight, Persuasion",
+      weapons: "Simple Weapons",
+      startingEquipment: "See Esper class doc.",
+      summary: "The formidable minds of Espers manifest in psionic abilities — surreal yet beautiful, subtle but deadly. Innately influential to Alptorum, the dimension of mind, Espers are both subject to and sovereign over powers and truths inconceivable to common folk.",
+      tableColumns: ["Level","Talents","TP","ESP Die","Features"],
       coreFeatures: [
-        { level: 1, name: "Psionic Ability", text: "ESP Dice scale (1d6 → 1d8 at 5th → 1d10 at 11th → 1d12 at 17th). Thought Points = Esper level, regained on long rest; bonus action to regain 1 (recharges on short/long rest). ESP Save DC = 8 + PB + INT mod. Eyes emit telling purple light when using psionics." },
+        { level: 1, name: "Psionic Ability", text: "ESP Dice scale (1d6 → 1d8 at 5th → 1d10 at 11th → 1d12 at 17th). Thought Points = Esper level, regained on long rest; bonus action to regain 1 (recharges on short/long rest). ESP Save DC = 8 + PB + INT mod." },
         { level: 1, name: "Extrasensory Perception", text: "Proficiency in Perception. Telepathy (30 ft, language required). Clairvoyance (see/hear/smell through a creature's senses within 30 ft for 1 minute, or 1 TP for 600 ft sight-only)." },
         { level: 2, name: "Supersensory Stimulus", text: "Telekinesis (BA, 5×level lbs at 30 ft; shove for 1 ESP die force + 5 ft push). Levitation (BA, hover at full speed; 1 TP for a 30-ft floating field for allies)." },
         { level: 2, name: "Preternatural Talents", text: "Gain talents per the Esper Table. Multiclass talents available with prerequisite levels in both Esper and the partner class." },
@@ -287,40 +287,40 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
         { level: 20, name: "Consummate Mind", text: "Capstone — the Esper's potential fully realized." },
       ],
       progression: [
-        { level: 1, talents: "—", tp: 1, espDie: "d6", features: "Psionic Ability, Extrasensory Perception" },
-        { level: 2, talents: 2, tp: 2, espDie: "d6", features: "Supersensory Stimulus, Preternatural Talents" },
-        { level: 3, talents: 3, tp: 3, espDie: "d6", features: "Esper Sect" },
-        { level: 4, talents: 3, tp: 4, espDie: "d6", features: "ASI, Repulse Reality" },
-        { level: 5, talents: 4, tp: 5, espDie: "d8", features: "Contemplation, Extrasensory Improvement" },
-        { level: 6, talents: 4, tp: 6, espDie: "d8", features: "Sect Feature" },
-        { level: 7, talents: 5, tp: 7, espDie: "d8", features: "Mental Pavise" },
-        { level: 8, talents: 5, tp: 8, espDie: "d8", features: "ASI" },
-        { level: 9, talents: 6, tp: 9, espDie: "d8", features: "Supersensory Improvement" },
-        { level: 10, talents: 6, tp: 10, espDie: "d8", features: "Sect Feature" },
-        { level: 11, talents: 7, tp: 11, espDie: "d10", features: "Total Acumen" },
-        { level: 12, talents: 7, tp: 12, espDie: "d10", features: "ASI" },
-        { level: 13, talents: 8, tp: 13, espDie: "d10", features: "Extrasensory Mastery" },
-        { level: 14, talents: 8, tp: 14, espDie: "d10", features: "Sect Feature, True Cryptaesthesia" },
-        { level: 15, talents: 9, tp: 15, espDie: "d10", features: "Immutable" },
-        { level: 16, talents: 9, tp: 16, espDie: "d10", features: "ASI" },
-        { level: 17, talents: 10, tp: 17, espDie: "d12", features: "—" },
-        { level: 18, talents: 10, tp: 18, espDie: "d12", features: "Sect Feature, Supersensory Mastery" },
-        { level: 19, talents: 11, tp: 19, espDie: "d12", features: "Epic Boon, As Within So Without" },
-        { level: 20, talents: 11, tp: 20, espDie: "d12", features: "Consummate Mind" },
+        { level: 1,  col2: "—",  col3: 1,  col4: "d6",  features: "Psionic Ability, Extrasensory Perception" },
+        { level: 2,  col2: 2,    col3: 2,  col4: "d6",  features: "Supersensory Stimulus, Preternatural Talents" },
+        { level: 3,  col2: 3,    col3: 3,  col4: "d6",  features: "Esper Sect" },
+        { level: 4,  col2: 3,    col3: 4,  col4: "d6",  features: "ASI, Repulse Reality" },
+        { level: 5,  col2: 4,    col3: 5,  col4: "d8",  features: "Contemplation, Extrasensory Improvement" },
+        { level: 6,  col2: 4,    col3: 6,  col4: "d8",  features: "Sect Feature" },
+        { level: 7,  col2: 5,    col3: 7,  col4: "d8",  features: "Mental Pavise" },
+        { level: 8,  col2: 5,    col3: 8,  col4: "d8",  features: "ASI" },
+        { level: 9,  col2: 6,    col3: 9,  col4: "d8",  features: "Supersensory Improvement" },
+        { level: 10, col2: 6,    col3: 10, col4: "d8",  features: "Sect Feature" },
+        { level: 11, col2: 7,    col3: 11, col4: "d10", features: "Total Acumen" },
+        { level: 12, col2: 7,    col3: 12, col4: "d10", features: "ASI" },
+        { level: 13, col2: 8,    col3: 13, col4: "d10", features: "Extrasensory Mastery" },
+        { level: 14, col2: 8,    col3: 14, col4: "d10", features: "Sect Feature, True Cryptaesthesia" },
+        { level: 15, col2: 9,    col3: 15, col4: "d10", features: "Immutable" },
+        { level: 16, col2: 9,    col3: 16, col4: "d10", features: "ASI" },
+        { level: 17, col2: 10,   col3: 17, col4: "d12", features: "—" },
+        { level: 18, col2: 10,   col3: 18, col4: "d12", features: "Sect Feature, Supersensory Mastery" },
+        { level: 19, col2: 11,   col3: 19, col4: "d12", features: "Epic Boon, As Within So Without" },
+        { level: 20, col2: 11,   col3: 20, col4: "d12", features: "Consummate Mind" },
       ],
     },
+    // ── RANGER (CotR Rewrite) ─────────────────────────────────────────────────
     {
-      id: "ranger",
-      name: "Ranger (CotR Rewrite)",
-      primary: "Dexterity / Wisdom",
-      hitDie: "d10",
-      summary: "The Chronicles of the Realms Ranger is a comprehensive rewrite balancing the class as a top-tier martial-magical hybrid. Notable additions include Apex Dread (6th), upgraded Apex Dread (13th), reworked Tenacity (17th), and expanded Prowess (18th) with truesight-on-mark. The Patience mechanic is balanced around its action cost combined with repositioning benefit and charge-stacking — removing any element breaks the balance.",
-      proficiencies: {
-        savingThrows: "Strength, Dexterity",
-        skills: "See full Ranger doc",
-        weapons: "Simple and Martial",
-        armor: "Light, Medium, Shields",
-      },
+      id: "ranger", name: "Ranger (CotR Rewrite)", primary: "Dexterity / Wisdom", hitDie: "d10",
+      startingHP: "10 + CON modifier",
+      hpPerLevel: "6 + CON modifier per level after 1st",
+      armorTraining: "Light Armor, Medium Armor, Shields",
+      savingThrows: "Strength, Dexterity",
+      skills: "See full Ranger doc",
+      weapons: "Simple and Martial Weapons",
+      startingEquipment: "See full Ranger doc.",
+      summary: "The CotR Ranger is a comprehensive rewrite balancing the class as a top-tier martial-magical hybrid. Notable additions: Apex Dread (6th), upgraded Apex Dread (13th), reworked Tenacity (17th), expanded Prowess (18th) with truesight-on-mark. The Patience mechanic is balanced around its action cost + repositioning benefit + charge-stacking.",
+      tableColumns: ["Level","Spells Known","Spell Slots","Slot Level","Features"],
       coreFeatures: [
         { level: 1, name: "Favored Enemy / Marksmanship", text: "See full Ranger document for current 5.5e CotR feature list." },
         { level: 6, name: "Apex Dread", text: "New mid-tier feature filling the previous level-6 dead zone — strikes fear into marked targets." },
@@ -328,9 +328,250 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
         { level: 17, name: "Tenacity (Reworked)", text: "Reworked endurance feature." },
         { level: 18, name: "Prowess (Expanded)", text: "Expanded with truesight against marked targets." },
       ],
-      notes: "Full feature list lives in COTR_Ranger_Final.docx. The compendium will be expanded with the complete table as edits are made.",
+      progression: [],
+      notes: "Full feature list in COTR_Ranger_Final.docx.",
     },
-  ],
+    // ── ARTIFICER ─────────────────────────────────────────────────────────────
+    {
+      id: "artificer", name: "Artificer", primary: "Intelligence", hitDie: "d8",
+      startingHP: "8 + CON modifier",
+      hpPerLevel: "5 + CON modifier per level after 1st",
+      armorTraining: "Light Armor, Medium Armor, Shields",
+      savingThrows: "Constitution, Intelligence",
+      skills: "",
+      weapons: "Simple Weapons, Hand Crossbows, Heavy Crossbows",
+      startingEquipment: "",
+      summary: "",
+      tableColumns: ["Level","Infusions Known","Infused Items","Spell Slots","Features"],
+      coreFeatures: [],
+      progression: [],
+    },
+    // ── BARBARIAN ─────────────────────────────────────────────────────────────
+    {
+      id: "barbarian", name: "Barbarian", primary: "Strength", hitDie: "d12",
+      startingHP: "12 + CON modifier",
+      hpPerLevel: "7 + CON modifier per level after 1st",
+      armorTraining: "Light Armor, Medium Armor, Shields",
+      savingThrows: "Strength, Constitution",
+      skills: "",
+      weapons: "Simple and Martial Weapons",
+      startingEquipment: "",
+      summary: "",
+      tableColumns: ["Level","Rages","Rage Damage","Features"],
+      coreFeatures: [],
+      progression: [],
+    },
+    // ── BARD ──────────────────────────────────────────────────────────────────
+    {
+      id: "bard", name: "Bard", primary: "Charisma", hitDie: "d8",
+      startingHP: "8 + CON modifier",
+      hpPerLevel: "5 + CON modifier per level after 1st",
+      armorTraining: "Light Armor",
+      savingThrows: "Dexterity, Charisma",
+      skills: "",
+      weapons: "Simple Weapons, Hand Crossbows, Longswords, Rapiers, Shortswords",
+      startingEquipment: "",
+      summary: "",
+      tableColumns: ["Level","Bardic Inspiration","Cantrips","Spells Known","Spell Slots","Features"],
+      coreFeatures: [],
+      progression: [],
+    },
+    // ── CLERIC ────────────────────────────────────────────────────────────────
+    {
+      id: "cleric", name: "Cleric", primary: "Wisdom", hitDie: "d8",
+      startingHP: "8 + CON modifier",
+      hpPerLevel: "5 + CON modifier per level after 1st",
+      armorTraining: "Light Armor, Medium Armor, Shields",
+      savingThrows: "Wisdom, Charisma",
+      skills: "",
+      weapons: "Simple Weapons",
+      startingEquipment: "",
+      summary: "",
+      tableColumns: ["Level","Cantrips","Prepared Spells","Spell Slots","Features"],
+      coreFeatures: [],
+      progression: [],
+    },
+    // ── DRUID ─────────────────────────────────────────────────────────────────
+    {
+      id: "druid", name: "Druid", primary: "Wisdom", hitDie: "d8",
+      startingHP: "8 + CON modifier",
+      hpPerLevel: "5 + CON modifier per level after 1st",
+      armorTraining: "Light Armor, Medium Armor, Shields (non-metal)",
+      savingThrows: "Intelligence, Wisdom",
+      skills: "",
+      weapons: "Simple Weapons",
+      startingEquipment: "",
+      summary: "",
+      tableColumns: ["Level","Wild Shape Uses","Cantrips","Prepared Spells","Spell Slots","Features"],
+      coreFeatures: [],
+      progression: [],
+    },
+    // ── EIDOLON ───────────────────────────────────────────────────────────────
+    {
+      id: "eidolon", name: "Eidolon", primary: "Intelligence", hitDie: "d8",
+      startingHP: "8 + CON modifier",
+      hpPerLevel: "5 + CON modifier per level after 1st",
+      armorTraining: "Light Armor",
+      savingThrows: "Intelligence, Charisma",
+      skills: "",
+      weapons: "Simple Weapons",
+      startingEquipment: "",
+      summary: "Custom CotR class. See Eidolon class doc.",
+      tableColumns: ["Level","Features"],
+      coreFeatures: [],
+      progression: [],
+    },
+    // ── FIGHTER ───────────────────────────────────────────────────────────────
+    {
+      id: "fighter", name: "Fighter", primary: "Strength or Dexterity", hitDie: "d10",
+      startingHP: "10 + CON modifier",
+      hpPerLevel: "6 + CON modifier per level after 1st",
+      armorTraining: "Light Armor, Medium Armor, Heavy Armor, Shields",
+      savingThrows: "Strength, Constitution",
+      skills: "",
+      weapons: "Simple and Martial Weapons",
+      startingEquipment: "",
+      summary: "",
+      tableColumns: ["Level","Action Surges","Indomitable","Extra Attacks","Features"],
+      coreFeatures: [],
+      progression: [],
+    },
+    // ── GENSARCH ──────────────────────────────────────────────────────────────
+    {
+      id: "gensarch", name: "Gensarch", primary: "Strength", hitDie: "d10",
+      startingHP: "10 + CON modifier",
+      hpPerLevel: "6 + CON modifier per level after 1st",
+      armorTraining: "Light Armor, Medium Armor, Shields",
+      savingThrows: "Strength, Constitution",
+      skills: "",
+      weapons: "Simple and Martial Weapons",
+      startingEquipment: "",
+      summary: "Custom CotR class. Elemental warrior tradition — subclasses: Air, Earth, Fire, Water, Elamesta.",
+      tableColumns: ["Level","Features"],
+      coreFeatures: [],
+      progression: [],
+    },
+    // ── MECHA ─────────────────────────────────────────────────────────────────
+    {
+      id: "mecha", name: "Mecha", primary: "Strength", hitDie: "d12",
+      startingHP: "12 + CON modifier",
+      hpPerLevel: "7 + CON modifier per level after 1st",
+      armorTraining: "All Armor",
+      savingThrows: "Strength, Constitution",
+      skills: "",
+      weapons: "Simple and Martial Weapons",
+      startingEquipment: "",
+      summary: "Custom CotR class.",
+      tableColumns: ["Level","Features"],
+      coreFeatures: [],
+      progression: [],
+    },
+    // ── MONK ──────────────────────────────────────────────────────────────────
+    {
+      id: "monk", name: "Monk", primary: "Dexterity, Wisdom", hitDie: "d8",
+      startingHP: "8 + CON modifier",
+      hpPerLevel: "5 + CON modifier per level after 1st",
+      armorTraining: "None",
+      savingThrows: "Strength, Dexterity",
+      skills: "",
+      weapons: "Simple Weapons, Shortswords",
+      startingEquipment: "",
+      summary: "",
+      tableColumns: ["Level","Martial Arts","Ki Points","Unarmored Movement","Features"],
+      coreFeatures: [],
+      progression: [],
+    },
+    // ── PALADIN ───────────────────────────────────────────────────────────────
+    {
+      id: "paladin", name: "Paladin", primary: "Strength, Charisma", hitDie: "d10",
+      startingHP: "10 + CON modifier",
+      hpPerLevel: "6 + CON modifier per level after 1st",
+      armorTraining: "Light Armor, Medium Armor, Heavy Armor, Shields",
+      savingThrows: "Wisdom, Charisma",
+      skills: "",
+      weapons: "Simple and Martial Weapons",
+      startingEquipment: "",
+      summary: "",
+      tableColumns: ["Level","Lay on Hands","Channel Divinity","Spell Slots","Features"],
+      coreFeatures: [],
+      progression: [],
+    },
+    // ── ROGUE ─────────────────────────────────────────────────────────────────
+    {
+      id: "rogue", name: "Rogue", primary: "Dexterity", hitDie: "d8",
+      startingHP: "8 + CON modifier",
+      hpPerLevel: "5 + CON modifier per level after 1st",
+      armorTraining: "Light Armor",
+      savingThrows: "Dexterity, Intelligence",
+      skills: "",
+      weapons: "Simple Weapons, Hand Crossbows, Longswords, Rapiers, Shortswords",
+      startingEquipment: "",
+      summary: "",
+      tableColumns: ["Level","Sneak Attack","Features"],
+      coreFeatures: [],
+      progression: [],
+    },
+    // ── SORCERER ──────────────────────────────────────────────────────────────
+    {
+      id: "sorcerer", name: "Sorcerer", primary: "Charisma", hitDie: "d6",
+      startingHP: "6 + CON modifier",
+      hpPerLevel: "4 + CON modifier per level after 1st",
+      armorTraining: "None",
+      savingThrows: "Constitution, Charisma",
+      skills: "",
+      weapons: "Daggers, Darts, Slings, Quarterstaffs, Light Crossbows",
+      startingEquipment: "",
+      summary: "",
+      tableColumns: ["Level","Sorcery Points","Cantrips","Spells Known","Spell Slots","Features"],
+      coreFeatures: [],
+      progression: [],
+    },
+    // ── TELIKIN ───────────────────────────────────────────────────────────────
+    {
+      id: "telikin", name: "TeliKin", primary: "Intelligence", hitDie: "d8",
+      startingHP: "8 + CON modifier",
+      hpPerLevel: "5 + CON modifier per level after 1st",
+      armorTraining: "Light Armor",
+      savingThrows: "Intelligence, Wisdom",
+      skills: "",
+      weapons: "Simple Weapons",
+      startingEquipment: "",
+      summary: "Custom CotR class. Telekinetic combatants — subclasses: Void Guardian, The Void Striker, Void Clasher, Vigilance.",
+      tableColumns: ["Level","Features"],
+      coreFeatures: [],
+      progression: [],
+    },
+    // ── WARLOCK ───────────────────────────────────────────────────────────────
+    {
+      id: "warlock", name: "Warlock", primary: "Charisma", hitDie: "d8",
+      startingHP: "8 + CON modifier",
+      hpPerLevel: "5 + CON modifier per level after 1st",
+      armorTraining: "Light Armor",
+      savingThrows: "Wisdom, Charisma",
+      skills: "",
+      weapons: "Simple Weapons",
+      startingEquipment: "",
+      summary: "",
+      tableColumns: ["Level","Cantrips","Spells Known","Spell Slots","Slot Level","Invocations","Features"],
+      coreFeatures: [],
+      progression: [],
+    },
+    // ── WIZARD ────────────────────────────────────────────────────────────────
+    {
+      id: "wizard", name: "Wizard", primary: "Intelligence", hitDie: "d6",
+      startingHP: "6 + CON modifier",
+      hpPerLevel: "4 + CON modifier per level after 1st",
+      armorTraining: "None",
+      savingThrows: "Intelligence, Wisdom",
+      skills: "",
+      weapons: "Daggers, Darts, Slings, Quarterstaffs, Light Crossbows",
+      startingEquipment: "",
+      summary: "",
+      tableColumns: ["Level","Cantrips","Prepared Spells","Spell Slots","Features"],
+      coreFeatures: [],
+      progression: [],
+    },
+  ]
   // Define the canonical ordering of parent classes for the sidebar grouping
   parentClassOrder: [
     "Artificer", "Barbarian", "Bard", "Cleric", "Druid", "Eidolon", "Esper",
@@ -628,6 +869,27 @@ async function loadContent() {
           patron: cachedCh.patron && cachedCh.patron !== "" ? cachedCh.patron : defaultCh.patron,
         };
       });
+      // Merge classes — preserve user-edited fields, keep structural defaults
+      const cachedClassesById = {};
+      (cached.classes || []).forEach((c) => { cachedClassesById[c.id] = c; });
+      const mergedClasses = DEFAULT_CONTENT.classes.map((defaultCls) => {
+        const cachedCls = cachedClassesById[defaultCls.id];
+        if (!cachedCls) return defaultCls;
+        const preserve = (field) => cachedCls[field] && (Array.isArray(cachedCls[field]) ? cachedCls[field].length > 0 : cachedCls[field] !== "");
+        return {
+          ...defaultCls,
+          summary: preserve('summary') ? cachedCls.summary : defaultCls.summary,
+          coreFeatures: preserve('coreFeatures') ? cachedCls.coreFeatures : defaultCls.coreFeatures,
+          progression: preserve('progression') ? cachedCls.progression : defaultCls.progression,
+          startingHP: preserve('startingHP') ? cachedCls.startingHP : defaultCls.startingHP,
+          hpPerLevel: preserve('hpPerLevel') ? cachedCls.hpPerLevel : defaultCls.hpPerLevel,
+          armorTraining: preserve('armorTraining') ? cachedCls.armorTraining : defaultCls.armorTraining,
+          savingThrows: preserve('savingThrows') ? cachedCls.savingThrows : defaultCls.savingThrows,
+          skills: preserve('skills') ? cachedCls.skills : defaultCls.skills,
+          weapons: preserve('weapons') ? cachedCls.weapons : defaultCls.weapons,
+          startingEquipment: preserve('startingEquipment') ? cachedCls.startingEquipment : defaultCls.startingEquipment,
+        };
+      });
       return {
         ...DEFAULT_CONTENT,
         ...cached,
@@ -640,6 +902,7 @@ async function loadContent() {
         subclasses: mergedSubclasses,
         races: mergedRaces,
         characters: mergedCharacters,
+        classes: mergedClasses,
       };
     }
   } catch (e) {
@@ -1023,7 +1286,7 @@ export default function Compendium() {
   const [expandedClasses, setExpandedClasses] = useState(new Set());
   const [expandedRaces, setExpandedRaces] = useState(new Set());
   const [expandedCampaigns, setExpandedCampaigns] = useState(new Set());
-  const [expandedSections, setExpandedSections] = useState(new Set(['races', 'classes', 'subclasses', 'characters']));
+  const [expandedSections, setExpandedSections] = useState(new Set()); // collapsed by default
 
   const toggleCampaignExpanded = (campaign) => {
     setExpandedCampaigns((prev) => {
@@ -1706,9 +1969,9 @@ function RacesPage({ content, activeId, editMode, persistChange }) {
 
       {editMode ? (
         <textarea style={{ ...styles.textarea, minHeight: '120px' }}
-          value={race.description || race.summary || ''}
-          placeholder="Race description…"
-          onChange={(e) => updateRace({ description: e.target.value })} />
+          value={isSubrace ? (race.summary || '') : (race.description || '')}
+          placeholder={isSubrace ? "Subrace summary…" : "Race description…"}
+          onChange={(e) => updateRace(isSubrace ? { summary: e.target.value } : { description: e.target.value })} />
       ) : race.description ? (
         <p style={styles.bodyText}>{race.description}</p>
       ) : race.summary ? (
@@ -1800,26 +2063,93 @@ function ClassesPage({ content, activeId, editMode, persistChange }) {
     persistChange({ ...content, classes: updated });
   };
   const updateFeature = (i, fields) => {
-    const features = (cls.features || []).map((f, idx) => idx === i ? { ...f, ...fields } : f);
-    updateCls({ features });
+    const coreFeatures = (cls.coreFeatures || []).map((f, idx) => idx === i ? { ...f, ...fields } : f);
+    updateCls({ coreFeatures });
   };
-  const addFeature = () => updateCls({ features: [...(cls.features || []), { level: 1, name: 'New Feature', text: '' }] });
-  const removeFeature = (i) => updateCls({ features: (cls.features || []).filter((_, idx) => idx !== i) });
+  const addFeature = () => updateCls({ coreFeatures: [...(cls.coreFeatures || []), { level: 1, name: 'New Feature', text: '' }] });
+  const removeFeature = (i) => updateCls({ coreFeatures: (cls.coreFeatures || []).filter((_, idx) => idx !== i) });
+
+  const infoField = (label, field, placeholder) => (
+    <div style={{ marginBottom: '10px' }}>
+      <span style={{ fontSize: '11px', color: '#8b6914', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: '3px' }}>{label}</span>
+      {editMode
+        ? <input value={cls[field] || ''} placeholder={placeholder}
+            onChange={(e) => updateCls({ [field]: e.target.value })}
+            style={{ ...styles.textarea, minHeight: 'unset', padding: '5px 8px', width: '100%' }} />
+        : <span style={{ ...styles.bodyText, display: 'block' }}>{cls[field] || <em style={{ color: '#8b6914', fontSize: '12px' }}>—</em>}</span>
+      }
+    </div>
+  );
+
+  const cols = cls.tableColumns || ['Level', 'Features'];
+  const hasProgression = cls.progression && cls.progression.length > 0;
 
   return (
     <div>
       <h1 style={styles.pageHeading}>{cls.name}</h1>
-      {cls.hitDie && <div style={{ marginBottom: '14px' }}><span style={styles.pill}>Hit Die: {cls.hitDie}</span></div>}
+      <div style={{ marginBottom: '14px' }}>
+        {cls.hitDie && <span style={styles.pill}>Hit Die: {cls.hitDie}</span>}
+        {cls.primary && <span style={styles.pill}>Primary: {cls.primary}</span>}
+      </div>
 
       {editMode ? (
-        <textarea style={{ ...styles.textarea, minHeight: '100px' }} value={cls.summary || ''}
+        <textarea style={{ ...styles.textarea, minHeight: '80px', marginBottom: '16px' }} value={cls.summary || ''}
           placeholder="Class overview…" onChange={(e) => updateCls({ summary: e.target.value })} />
       ) : cls.summary ? (
-        <p style={styles.bodyText}>{cls.summary}</p>
+        <p style={{ ...styles.bodyText, marginBottom: '20px' }}>{cls.summary}</p>
       ) : null}
 
-      <h2 style={styles.sectionHeading}>Features</h2>
-      {(cls.features || []).map((f, i) => (
+      {/* ── Hit Points & Starting Info ── */}
+      <h2 style={styles.sectionHeading}>Hit Points & Starting Info</h2>
+      <div style={{ ...styles.card, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+        {infoField('Hit Points at 1st Level', 'startingHP', 'e.g. 10 + CON modifier')}
+        {infoField('Hit Points per Level', 'hpPerLevel', 'e.g. 6 + CON modifier per level after 1st')}
+        {infoField('Armor Training', 'armorTraining', 'e.g. Light Armor, Medium Armor, Shields')}
+        {infoField('Saving Throws', 'savingThrows', 'e.g. Strength, Constitution')}
+        {infoField('Skill Proficiencies', 'skills', 'e.g. Choose 2 from...')}
+        {infoField('Weapon Proficiencies', 'weapons', 'e.g. Simple and Martial Weapons')}
+        {infoField('Starting Equipment', 'startingEquipment', 'Starting equipment choices...')}
+      </div>
+
+      {/* ── Class Table ── */}
+      <h2 style={styles.sectionHeading}>Class Table</h2>
+      {hasProgression ? (
+        <div style={{ overflowX: 'auto', marginBottom: '20px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: '"Palatino Linotype", serif', fontSize: '13px' }}>
+            <thead>
+              <tr style={{ background: '#5c1414', color: '#f5ecd9' }}>
+                {cols.map((col, i) => (
+                  <th key={i} style={{ padding: '8px 12px', textAlign: i === 0 ? 'center' : 'left',
+                    fontFamily: '"Cinzel", serif', fontSize: '11px', letterSpacing: '0.06em', fontWeight: 600 }}>
+                    {col}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {cls.progression.map((row, i) => (
+                <tr key={i} style={{ background: i % 2 === 0 ? 'rgba(255,250,240,0.8)' : 'rgba(201,165,92,0.15)',
+                  borderBottom: '1px solid rgba(139,105,20,0.15)' }}>
+                  <td style={{ padding: '6px 12px', textAlign: 'center', fontWeight: 600, color: '#5c1414' }}>{row.level}</td>
+                  {row.col2 !== undefined && <td style={{ padding: '6px 12px' }}>{row.col2}</td>}
+                  {row.col3 !== undefined && <td style={{ padding: '6px 12px' }}>{row.col3}</td>}
+                  {row.col4 !== undefined && <td style={{ padding: '6px 12px' }}>{row.col4}</td>}
+                  {row.col5 !== undefined && <td style={{ padding: '6px 12px' }}>{row.col5}</td>}
+                  <td style={{ padding: '6px 12px', color: '#3b2615' }}>{row.features}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div style={{ ...styles.card, background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c', marginBottom: '20px' }}>
+          <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic' }}>Class table not yet filled in.</p>
+        </div>
+      )}
+
+      {/* ── Core Features ── */}
+      <h2 style={styles.sectionHeading}>Core Features</h2>
+      {(cls.coreFeatures || []).map((f, i) => (
         <div key={i} style={styles.featureCard}>
           {editMode ? (
             <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
@@ -1843,11 +2173,22 @@ function ClassesPage({ content, activeId, editMode, persistChange }) {
           ) : <p style={{ ...styles.bodyText, margin: 0 }}>{f.text}</p>}
         </div>
       ))}
+      {(cls.coreFeatures || []).length === 0 && !editMode && (
+        <div style={{ ...styles.card, background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c' }}>
+          <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic' }}>No features written yet.</p>
+        </div>
+      )}
       {editMode && (
         <button onClick={addFeature}
           style={{ ...styles.button, marginTop: '8px', fontSize: '12px', padding: '6px 16px' }}>
           + Add Feature
         </button>
+      )}
+
+      {cls.notes && (
+        <div style={{ ...styles.card, marginTop: '20px', fontStyle: 'italic', color: '#5c4020' }}>
+          <strong>Note:</strong> {cls.notes}
+        </div>
       )}
     </div>
   );
