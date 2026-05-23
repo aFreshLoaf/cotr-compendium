@@ -1230,7 +1230,7 @@ export default function Compendium() {
 
   return (
     <div style={styles.page}>
-      <Header content={content} editMode={editMode} setEditMode={setEditMode} onMetaChange={(meta) => persistChange({ ...content, meta })} />
+      <Header content={content} editMode={editMode} onEditToggle={handleEditToggle} onMetaChange={(meta) => persistChange({ ...content, meta })} />
 
       <div style={styles.layout}>
         <aside style={styles.sidebar}>
@@ -1498,7 +1498,7 @@ export default function Compendium() {
 // ============================================================
 // COMPONENTS
 // ============================================================
-function Header({ content, editMode, setEditMode, onMetaChange }) {
+function Header({ content, editMode, onEditToggle, onMetaChange }) {
   return (
     <header style={styles.header}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1508,7 +1508,7 @@ function Header({ content, editMode, setEditMode, onMetaChange }) {
         </div>
         <button
           style={editMode ? styles.button : styles.buttonGhost}
-          onClick={handleEditToggle}
+          onClick={onEditToggle}
         >
           {editMode ? <><Save size={14} /> Done Editing</> : <><Edit3 size={14} /> Edit Mode</>}
         </button>

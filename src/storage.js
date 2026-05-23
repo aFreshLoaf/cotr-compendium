@@ -1,21 +1,12 @@
-import { supabase } from './supabase.js';
+import { supabase, supabaseConfigured } from './supabase.js';
 
-// The single row id used in compendium_content table.
 const ROW_ID = 1;
-
-// DM password — set via env var at build time.
-// This is NOT a real auth system — it's a simple write guard.
-// Anyone with the URL can read. Only someone with the password can write.
-// Phase 3 will replace this with Supabase Auth + RLS.
 const DM_PASSWORD = import.meta.env.VITE_DM_PASSWORD || '';
-
-// ── Session password cache ─────────────────────────────────────────────────
-// We store the verified password in sessionStorage so the DM doesn't have to
-// re-enter it on every save within the same browser session.
 const SESSION_KEY = 'cotr_dm_session';
 
+// ── Auth helpers ───────────────────────────────────────────────────────────
 export function isDMAuthenticated() {
-  if (!DM_PASSWORD) return true; // No password configured — open write (dev mode)
+  if (!DM_PASSWORD) return true;
   return sessionStorage.getItem(SESSION_KEY) === DM_PASSWORD;
 }
 
@@ -33,8 +24,11 @@ export function clearDMSession() {
 }
 
 // ── Load ───────────────────────────────────────────────────────────────────
-// Returns the stored content JSON, or null if the row doesn't exist yet.
 export async function loadFromSupabase() {
+  if (!supabaseConfigured || !supabase) {
+    console.warn('[CotR] Supabase not configured — running in local-only mode.');
+    return null;
+  }
   try {
     const { data, error } = await supabase
       .from('compendium_content')
@@ -54,10 +48,13 @@ export async function loadFromSupabase() {
 }
 
 // ── Save ───────────────────────────────────────────────────────────────────
-// Upserts the full content object. Throws if not DM-authenticated.
 export async function saveToSupabase(content) {
   if (!isDMAuthenticated()) {
     throw new Error('Not authenticated as DM.');
+  }
+  if (!supabaseConfigured || !supabase) {
+    console.warn('[CotR] Supabase not configured — save skipped.');
+    return;
   }
   try {
     const { error } = await supabase
@@ -75,14 +72,20 @@ export async function saveToSupabase(content) {
 }
 
 // ── Real-time subscription ─────────────────────────────────────────────────
-// Call this to receive live updates when another client saves.
-// Returns an unsubscribe function — call it on component unmount.
 export function subscribeToUpdates(onUpdate) {
+  if (!supabaseConfigured || !supabase) {
+    return () => {}; // no-op unsubscribe
+  }
   const channel = supabase
     .channel('compendium_content_changes')
     .on(
       'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'compendium_content', filter: `id=eq.${ROW_ID}` },
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'compendium_content',
+        filter: `id=eq.${ROW_ID}`,
+      },
       (payload) => {
         if (payload.new?.content) {
           onUpdate(payload.new.content);
