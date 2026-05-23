@@ -1092,13 +1092,16 @@ export default function Compendium() {
   };
 
   const handleEditToggle = () => {
+    console.log('[CotR] handleEditToggle called. editMode:', editMode, 'dmAuthed:', dmAuthed);
     if (editMode) {
       setEditMode(false);
       return;
     }
     if (dmAuthed) {
+      console.log('[CotR] Setting editMode to true');
       setEditMode(true);
     } else {
+      console.log('[CotR] Showing password modal');
       setShowPasswordModal(true);
     }
   };
@@ -1491,6 +1494,66 @@ export default function Compendium() {
       <div style={{ ...styles.saveStatus, ...(saveStatus ? styles.saveStatusVisible : {}) }}>
         {saveStatus}
       </div>
+
+      {/* DM Password Modal */}
+      {showPasswordModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(30,15,5,0.7)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999,
+        }}>
+          <div style={{
+            background: '#f5ecd9', border: '2px solid #8b1414', borderRadius: '6px',
+            padding: '32px', width: '360px', boxShadow: '0 8px 40px rgba(0,0,0,0.5)',
+            fontFamily: '"Palatino Linotype", serif',
+          }}>
+            <div style={{
+              fontFamily: '"Cinzel", serif', fontSize: '16px', fontWeight: 700,
+              color: '#5c1414', textTransform: 'uppercase', letterSpacing: '0.1em',
+              marginBottom: '8px',
+            }}>DM Access Required</div>
+            <p style={{ fontSize: '13px', color: '#5c4020', marginBottom: '20px', fontStyle: 'italic' }}>
+              Enter the DM password to enable Edit Mode.
+            </p>
+            <input
+              autoFocus
+              type="password"
+              value={passwordInput}
+              onChange={(e) => { setPasswordInput(e.target.value); setPasswordError(''); }}
+              onKeyDown={handlePasswordKeyDown}
+              placeholder="Password"
+              style={{
+                width: '100%', padding: '10px 14px', border: '1px solid #8b6914',
+                borderRadius: '4px', fontFamily: 'inherit', fontSize: '14px',
+                background: '#fffaf0', color: '#3b2615', marginBottom: '8px',
+                outline: 'none',
+              }}
+            />
+            {passwordError && (
+              <div style={{ color: '#8b1414', fontSize: '12px', marginBottom: '8px' }}>{passwordError}</div>
+            )}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={handlePasswordSubmit}
+                style={{
+                  flex: 1, padding: '10px', background: '#5c1414', color: '#f5ecd9',
+                  border: 'none', borderRadius: '4px', fontFamily: '"Cinzel", serif',
+                  fontSize: '13px', fontWeight: 600, textTransform: 'uppercase',
+                  letterSpacing: '0.08em', cursor: 'pointer',
+                }}
+              >Unlock</button>
+              <button
+                onClick={() => { setShowPasswordModal(false); setPasswordInput(''); setPasswordError(''); }}
+                style={{
+                  padding: '10px 18px', background: 'transparent', color: '#5c4020',
+                  border: '1px solid #8b6914', borderRadius: '4px', fontFamily: '"Cinzel", serif',
+                  fontSize: '13px', cursor: 'pointer',
+                }}
+              >Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
