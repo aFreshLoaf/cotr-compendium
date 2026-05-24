@@ -571,7 +571,7 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
       coreFeatures: [],
       progression: [],
     },
-  ]
+  ],
   // Define the canonical ordering of parent classes for the sidebar grouping
   parentClassOrder: [
     "Artificer", "Barbarian", "Bard", "Cleric", "Druid", "Eidolon", "Esper",
