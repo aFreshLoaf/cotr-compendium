@@ -96,3 +96,64 @@ export function subscribeToUpdates(onUpdate) {
 
   return () => supabase.removeChannel(channel);
 }
+
+// ── Image upload ───────────────────────────────────────────────────────────
+const MEDIA_BUCKET = 'compendium-media';
+
+/**
+ * Upload an image to Supabase Storage and return the public URL.
+ * Path scheme: <category>/<entry-id>-<timestamp>.<ext>
+ */
+export async function uploadImage(file, category, entryId) {
+  if (!isDMAuthenticated()) {
+    throw new Error('Not authenticated as DM.');
+  }
+  if (!supabaseConfigured || !supabase) {
+    throw new Error('Supabase not configured — image uploads require Supabase.');
+  }
+  if (!file) throw new Error('No file provided.');
+
+  // Derive extension from MIME type, default to png
+  const mime = file.type || 'image/png';
+  const ext = mime.split('/')[1]?.split(';')[0] || 'png';
+  const safeEntry = (entryId || 'misc').replace(/[^a-z0-9-]/gi, '-').toLowerCase();
+  const path = `${category}/${safeEntry}-${Date.now()}.${ext}`;
+
+  const { error: uploadErr } = await supabase.storage
+    .from(MEDIA_BUCKET)
+    .upload(path, file, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: mime,
+    });
+
+  if (uploadErr) {
+    console.error('[CotR] Image upload error:', uploadErr.message);
+    throw new Error(uploadErr.message);
+  }
+
+  const { data } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path);
+  return { url: data.publicUrl, path };
+}
+
+/**
+ * Delete an image from Supabase Storage given its full public URL or storage path.
+ * Best-effort — failures are logged but not thrown (orphaned files are harmless).
+ */
+export async function deleteImage(urlOrPath) {
+  if (!isDMAuthenticated()) return;
+  if (!supabaseConfigured || !supabase || !urlOrPath) return;
+
+  // Extract path from full URL if needed
+  let path = urlOrPath;
+  const marker = `/${MEDIA_BUCKET}/`;
+  const idx = urlOrPath.indexOf(marker);
+  if (idx >= 0) path = urlOrPath.substring(idx + marker.length);
+
+  try {
+    const { error } = await supabase.storage.from(MEDIA_BUCKET).remove([path]);
+    if (error) console.warn('[CotR] Image delete warning:', error.message);
+  } catch (err) {
+    console.warn('[CotR] Image delete exception:', err);
+  }
+}

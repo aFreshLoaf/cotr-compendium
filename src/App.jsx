@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { loadFromSupabase, saveToSupabase, subscribeToUpdates, isDMAuthenticated, authenticateDM, clearDMSession } from './storage.js';
-import { Search, Book, Users, Sword, Shield, Sparkles, ScrollText, Edit3, Plus, X, Save, ChevronRight, Home, Skull, Eye, Trash2 } from 'lucide-react';
+import { loadFromSupabase, saveToSupabase, subscribeToUpdates, isDMAuthenticated, authenticateDM, clearDMSession, uploadImage, deleteImage } from './storage.js';
+import { Search, Book, Users, Sword, Shield, Sparkles, ScrollText, Edit3, Plus, X, Save, ChevronRight, Home, Skull, Eye, Trash2, Image as ImageIcon, Upload } from 'lucide-react';
 
 // ============================================================
 // DEFAULT CONTENT — seeded from Mikey's homebrew documents
@@ -1342,6 +1342,7 @@ async function loadContent() {
           pills: cachedSub.pills,
           headings: cachedSub.headings,
           customSections: cachedSub.customSections,
+          media: cachedSub.media,
         };
       });
       // Same for races
@@ -1362,6 +1363,7 @@ async function loadContent() {
           pills: cachedRace.pills,
           headings: cachedRace.headings,
           customSections: cachedRace.customSections,
+          media: cachedRace.media,
         };
       });
       // Same for characters
@@ -1382,6 +1384,7 @@ async function loadContent() {
           pills: cachedCh.pills,
           headings: cachedCh.headings,
           customSections: cachedCh.customSections,
+          media: cachedCh.media,
         };
       });
       // Merge classes — preserve user-edited fields, keep structural defaults
@@ -1409,6 +1412,7 @@ async function loadContent() {
           pills: cachedCls.pills,
           headings: cachedCls.headings,
           customSections: cachedCls.customSections,
+          media: cachedCls.media,
         };
       });
       return {
@@ -1936,7 +1940,7 @@ function EditableHeading({ as = 'h2', value, defaultValue, onChange, editMode, s
 // ============================================================
 // CUSTOM SECTIONS — user-added named sections (text or feature-card)
 // ============================================================
-function CustomSections({ sections, editMode, onChange, headingStyle }) {
+function CustomSections({ sections, editMode, onChange, headingStyle, category, entryId }) {
   const list = sections || [];
   const updateSection = (i, fields) => onChange(list.map((s, idx) => idx === i ? { ...s, ...fields } : s));
   const removeSection = (i) => onChange(list.filter((_, idx) => idx !== i));
@@ -1966,8 +1970,8 @@ function CustomSections({ sections, editMode, onChange, headingStyle }) {
   return (
     <>
       {list.map((sec, i) => (
-        <div key={sec.id || i}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '28px', marginBottom: '12px' }}>
+        <div key={sec.id || i} style={{ marginTop: '28px', clear: 'both' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
             <div style={{ flex: 1 }}>
               <EditableHeading as="h2"
                 value={sec.heading}
@@ -1992,21 +1996,30 @@ function CustomSections({ sections, editMode, onChange, headingStyle }) {
             )}
           </div>
 
-          {sec.type === 'text' ? (
-            editMode ? (
-              <textarea style={{ ...styles.textarea, minHeight: '100px' }} value={sec.body || ''}
-                placeholder="Section content…"
-                onChange={(e) => updateSection(i, { body: e.target.value })} />
-            ) : sec.body ? (
-              <p style={styles.bodyText}>{sec.body}</p>
-            ) : null
-          ) : (
-            <>
-              {(sec.features || []).map((f, fi) => (
-                <div key={fi} style={styles.featureCard}>
-                  {editMode ? (
-                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
-                      <span style={{ fontSize: '11px', color: '#8b6914' }}>Lvl</span>
+          <div style={{ overflow: 'auto' }}>
+            <FloatingImage
+              media={sec.media}
+              editMode={editMode}
+              onChange={(m) => updateSection(i, { media: m })}
+              category={category}
+              entryId={`${entryId}-${sec.id || i}`}
+            />
+
+            {sec.type === 'text' ? (
+              editMode ? (
+                <textarea style={{ ...styles.textarea, minHeight: '100px' }} value={sec.body || ''}
+                  placeholder="Section content…"
+                  onChange={(e) => updateSection(i, { body: e.target.value })} />
+              ) : sec.body ? (
+                <p style={styles.bodyText}>{sec.body}</p>
+              ) : null
+            ) : (
+              <>
+                {(sec.features || []).map((f, fi) => (
+                  <div key={fi} style={styles.featureCard}>
+                    {editMode ? (
+                      <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                        <span style={{ fontSize: '11px', color: '#8b6914' }}>Lvl</span>
                       <input type="number" value={f.level || 1}
                         onChange={(e) => updateFeature(i, fi, { level: parseInt(e.target.value) || 1 })}
                         style={{ ...styles.textarea, width: '60px', minHeight: 'unset', padding: '4px 8px' }} />
@@ -2039,6 +2052,7 @@ function CustomSections({ sections, editMode, onChange, headingStyle }) {
               )}
             </>
           )}
+          </div>
         </div>
       ))}
 
@@ -2054,6 +2068,245 @@ function CustomSections({ sections, editMode, onChange, headingStyle }) {
         </div>
       )}
     </>
+  );
+}
+
+// ============================================================
+// FLOATING IMAGE — book-style illustration with text wrap
+// ============================================================
+// Storage shape: media = { url, path?, shape: 'portrait'|'landscape', scale, offsetX, offsetY }
+// `shape` controls the frame aspect ratio (3:4 portrait, 16:9 landscape).
+// `scale` (1..3) zooms the image within the frame; `offsetX/Y` (-50..50) pans it.
+// All values render via object-fit: cover + object-position.
+
+const IMAGE_FRAMES = {
+  portrait:  { width: 200, height: 280 },
+  landscape: { width: 320, height: 180 },
+};
+
+function FloatingImage({ media, editMode, onChange, category, entryId }) {
+  const [uploading, setUploading] = React.useState(false);
+  const [uploadError, setUploadError] = React.useState('');
+  const [showControls, setShowControls] = React.useState(false);
+  const fileInputRef = React.useRef(null);
+
+  const handleFile = async (file) => {
+    if (!file) return;
+    setUploading(true);
+    setUploadError('');
+    try {
+      const { url, path } = await uploadImage(file, category, entryId);
+      // If replacing an existing image, delete the old one
+      if (media?.path) {
+        deleteImage(media.path).catch(() => {});
+      }
+      onChange({
+        url,
+        path,
+        shape: media?.shape || 'portrait',
+        scale: media?.scale ?? 1,
+        offsetX: media?.offsetX ?? 0,
+        offsetY: media?.offsetY ?? 0,
+      });
+    } catch (err) {
+      setUploadError(err.message || 'Upload failed.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemove = () => {
+    if (media?.path) deleteImage(media.path).catch(() => {});
+    onChange(null);
+    setShowControls(false);
+  };
+
+  // ── Display mode: no image, no edit mode → render nothing ────────────
+  if (!media?.url && !editMode) return null;
+
+  // ── Edit mode, no image: show upload placeholder ─────────────────────
+  if (!media?.url && editMode) {
+    return (
+      <div style={{
+        float: 'left',
+        width: IMAGE_FRAMES.portrait.width,
+        height: IMAGE_FRAMES.portrait.height,
+        marginRight: '16px',
+        marginBottom: '12px',
+        border: '2px dashed #8b6914',
+        borderRadius: '2px',
+        background: 'rgba(201, 165, 92, 0.08)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '8px',
+        cursor: 'pointer',
+        padding: '12px',
+        textAlign: 'center',
+      }}
+      onClick={() => fileInputRef.current?.click()}
+      >
+        <ImageIcon size={32} color="#8b6914" />
+        <div style={{ fontFamily: '"Cinzel", serif', fontSize: '11px',
+          color: '#5c4020', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          {uploading ? 'Uploading…' : 'Add Illustration'}
+        </div>
+        {uploadError && (
+          <div style={{ fontSize: '11px', color: '#8b1414', fontStyle: 'italic' }}>{uploadError}</div>
+        )}
+        <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }}
+          onChange={(e) => handleFile(e.target.files?.[0])} />
+      </div>
+    );
+  }
+
+  // ── Image present: render with float and (in edit mode) controls ─────
+  const shape = media.shape || 'portrait';
+  const frame = IMAGE_FRAMES[shape];
+  const scale = media.scale ?? 1;
+  const offsetX = media.offsetX ?? 0;
+  const offsetY = media.offsetY ?? 0;
+
+  return (
+    <div style={{
+      float: 'left',
+      width: frame.width,
+      marginRight: '16px',
+      marginBottom: '12px',
+      position: 'relative',
+    }}>
+      <div style={{
+        width: frame.width,
+        height: frame.height,
+        overflow: 'hidden',
+        borderRadius: '2px',
+        position: 'relative',
+      }}>
+        <img
+          src={media.url}
+          alt=""
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: `${50 + offsetX}% ${50 + offsetY}%`,
+            transform: `scale(${scale})`,
+            transformOrigin: 'center',
+          }}
+        />
+      </div>
+
+      {editMode && (
+        <>
+          <div style={{ display: 'flex', gap: '4px', marginTop: '6px', flexWrap: 'wrap' }}>
+            <button onClick={() => setShowControls(!showControls)}
+              style={{ ...styles.button, fontSize: '10px', padding: '3px 8px' }}>
+              {showControls ? 'Hide' : 'Adjust'}
+            </button>
+            <button onClick={() => fileInputRef.current?.click()}
+              style={{ ...styles.button, fontSize: '10px', padding: '3px 8px' }}>
+              {uploading ? '…' : 'Replace'}
+            </button>
+            <button onClick={handleRemove}
+              style={{ background: '#8b1414', color: '#f5ecd9', border: 'none',
+                borderRadius: '2px', padding: '3px 8px', cursor: 'pointer',
+                fontSize: '10px', fontFamily: '"Cinzel", serif',
+                letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+              Remove
+            </button>
+          </div>
+          <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }}
+            onChange={(e) => handleFile(e.target.files?.[0])} />
+
+          {showControls && (
+            <div style={{
+              marginTop: '8px',
+              padding: '8px',
+              background: 'rgba(201, 165, 92, 0.15)',
+              border: '1px solid #8b6914',
+              borderRadius: '2px',
+              fontSize: '11px',
+              color: '#3b2615',
+            }}>
+              <div style={{ marginBottom: '8px' }}>
+                <div style={{ fontFamily: '"Cinzel", serif', fontSize: '10px',
+                  textTransform: 'uppercase', letterSpacing: '0.06em',
+                  color: '#5c4020', marginBottom: '3px' }}>Shape</div>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button onClick={() => onChange({ ...media, shape: 'portrait' })}
+                    style={{
+                      flex: 1, padding: '3px 6px', fontSize: '10px', cursor: 'pointer',
+                      border: shape === 'portrait' ? '2px solid #7a1f1f' : '1px solid #8b6914',
+                      background: shape === 'portrait' ? '#7a1f1f' : 'transparent',
+                      color: shape === 'portrait' ? '#f5ecd9' : '#3b2615',
+                      fontFamily: '"Cinzel", serif', textTransform: 'uppercase',
+                      letterSpacing: '0.05em', borderRadius: '2px',
+                    }}>Portrait</button>
+                  <button onClick={() => onChange({ ...media, shape: 'landscape' })}
+                    style={{
+                      flex: 1, padding: '3px 6px', fontSize: '10px', cursor: 'pointer',
+                      border: shape === 'landscape' ? '2px solid #7a1f1f' : '1px solid #8b6914',
+                      background: shape === 'landscape' ? '#7a1f1f' : 'transparent',
+                      color: shape === 'landscape' ? '#f5ecd9' : '#3b2615',
+                      fontFamily: '"Cinzel", serif', textTransform: 'uppercase',
+                      letterSpacing: '0.05em', borderRadius: '2px',
+                    }}>Landscape</button>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between',
+                  fontFamily: '"Cinzel", serif', fontSize: '10px',
+                  textTransform: 'uppercase', letterSpacing: '0.06em',
+                  color: '#5c4020', marginBottom: '3px' }}>
+                  <span>Zoom</span><span>{scale.toFixed(2)}×</span>
+                </div>
+                <input type="range" min="1" max="3" step="0.05" value={scale}
+                  onChange={(e) => onChange({ ...media, scale: parseFloat(e.target.value) })}
+                  style={{ width: '100%' }} />
+              </div>
+
+              <div style={{ marginBottom: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between',
+                  fontFamily: '"Cinzel", serif', fontSize: '10px',
+                  textTransform: 'uppercase', letterSpacing: '0.06em',
+                  color: '#5c4020', marginBottom: '3px' }}>
+                  <span>Pan X</span><span>{offsetX}</span>
+                </div>
+                <input type="range" min="-50" max="50" step="1" value={offsetX}
+                  onChange={(e) => onChange({ ...media, offsetX: parseInt(e.target.value) })}
+                  style={{ width: '100%' }} />
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between',
+                  fontFamily: '"Cinzel", serif', fontSize: '10px',
+                  textTransform: 'uppercase', letterSpacing: '0.06em',
+                  color: '#5c4020', marginBottom: '3px' }}>
+                  <span>Pan Y</span><span>{offsetY}</span>
+                </div>
+                <input type="range" min="-50" max="50" step="1" value={offsetY}
+                  onChange={(e) => onChange({ ...media, offsetY: parseInt(e.target.value) })}
+                  style={{ width: '100%' }} />
+              </div>
+
+              <button onClick={() => onChange({ ...media, scale: 1, offsetX: 0, offsetY: 0 })}
+                style={{ ...styles.button, fontSize: '10px', padding: '3px 8px',
+                  marginTop: '6px', width: '100%' }}>
+                Reset Zoom &amp; Pan
+              </button>
+            </div>
+          )}
+
+          {uploadError && (
+            <div style={{ fontSize: '11px', color: '#8b1414', fontStyle: 'italic', marginTop: '4px' }}>
+              {uploadError}
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 
@@ -2806,31 +3059,43 @@ function RacesPage({ content, activeId, editMode, persistChange }) {
 
       <PillRow pills={pills} editMode={editMode} onChange={(p) => updateRace({ pills: p })} />
 
-      {editMode ? (
-        <input value={race.tagline || ''} placeholder="Tagline — one-line flavor…"
-          onChange={(e) => updateRace({ tagline: e.target.value })}
-          style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px', width: '100%', marginBottom: '10px',
-            fontStyle: 'italic', fontSize: '15px' }} />
-      ) : race.tagline ? (
-        <p style={{ ...styles.bodyText, fontStyle: 'italic', color: '#5c4020', fontSize: '16px' }}>{race.tagline}</p>
-      ) : null}
+      <div style={{ overflow: 'auto' }}>
+        <FloatingImage
+          media={race.media}
+          editMode={editMode}
+          onChange={(m) => updateRace({ media: m })}
+          category="races"
+          entryId={race.id}
+        />
 
-      {editMode ? (
-        <textarea style={{ ...styles.textarea, minHeight: '120px' }}
-          value={isSubrace ? (race.summary || '') : (race.description || '')}
-          placeholder={isSubrace ? "Subrace summary…" : "Race description…"}
-          onChange={(e) => updateRace(isSubrace ? { summary: e.target.value } : { description: e.target.value })} />
-      ) : race.description ? (
-        <p style={styles.bodyText}>{race.description}</p>
-      ) : race.summary ? (
-        <p style={styles.bodyText}>{race.summary}</p>
-      ) : isEmpty ? (
-        <div style={{ ...styles.card, marginTop: '20px', background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c' }}>
-          <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic' }}>
-            This entry has not been written yet.
-          </p>
-        </div>
-      ) : null}
+        {editMode ? (
+          <input value={race.tagline || ''} placeholder="Tagline — one-line flavor…"
+            onChange={(e) => updateRace({ tagline: e.target.value })}
+            style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px', width: '100%', marginBottom: '10px',
+              fontStyle: 'italic', fontSize: '15px' }} />
+        ) : race.tagline ? (
+          <p style={{ ...styles.bodyText, fontStyle: 'italic', color: '#5c4020', fontSize: '16px' }}>{race.tagline}</p>
+        ) : null}
+
+        {editMode ? (
+          <textarea style={{ ...styles.textarea, minHeight: '120px' }}
+            value={isSubrace ? (race.summary || '') : (race.description || '')}
+            placeholder={isSubrace ? "Subrace summary…" : "Race description…"}
+            onChange={(e) => updateRace(isSubrace ? { summary: e.target.value } : { description: e.target.value })} />
+        ) : race.description ? (
+          <p style={styles.bodyText}>{race.description}</p>
+        ) : race.summary ? (
+          <p style={styles.bodyText}>{race.summary}</p>
+        ) : isEmpty ? (
+          <div style={{ ...styles.card, marginTop: '20px', background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c' }}>
+            <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic' }}>
+              This entry has not been written yet.
+            </p>
+          </div>
+        ) : null}
+      </div>
+
+      <div style={{ clear: 'both' }} />
 
       <EditableHeading as="h2"
         value={headings.traits}
@@ -2939,6 +3204,8 @@ function RacesPage({ content, activeId, editMode, persistChange }) {
         editMode={editMode}
         onChange={(cs) => updateRace({ customSections: cs })}
         headingStyle={styles.sectionHeading}
+        category="races"
+        entryId={race.id}
       />
 
       {editMode ? (
@@ -3025,12 +3292,24 @@ function ClassesPage({ content, activeId, editMode, persistChange }) {
 
       <PillRow pills={pills} editMode={editMode} onChange={(p) => updateCls({ pills: p })} />
 
-      {editMode ? (
-        <textarea style={{ ...styles.textarea, minHeight: '80px', marginBottom: '16px' }} value={cls.summary || ''}
-          placeholder="Class overview…" onChange={(e) => updateCls({ summary: e.target.value })} />
-      ) : cls.summary ? (
-        <p style={{ ...styles.bodyText, marginBottom: '20px' }}>{cls.summary}</p>
-      ) : null}
+      <div style={{ overflow: 'auto' }}>
+        <FloatingImage
+          media={cls.media}
+          editMode={editMode}
+          onChange={(m) => updateCls({ media: m })}
+          category="classes"
+          entryId={cls.id}
+        />
+
+        {editMode ? (
+          <textarea style={{ ...styles.textarea, minHeight: '80px', marginBottom: '16px' }} value={cls.summary || ''}
+            placeholder="Class overview…" onChange={(e) => updateCls({ summary: e.target.value })} />
+        ) : cls.summary ? (
+          <p style={{ ...styles.bodyText, marginBottom: '20px' }}>{cls.summary}</p>
+        ) : null}
+      </div>
+
+      <div style={{ clear: 'both' }} />
 
       <EditableHeading as="h2"
         value={headings.startingInfo}
@@ -3189,6 +3468,8 @@ function ClassesPage({ content, activeId, editMode, persistChange }) {
         editMode={editMode}
         onChange={(cs) => updateCls({ customSections: cs })}
         headingStyle={styles.sectionHeading}
+        category="classes"
+        entryId={cls.id}
       />
 
       {editMode ? (
@@ -3247,18 +3528,30 @@ function SubclassesPage({ content, activeId, editMode, persistChange }) {
 
       <PillRow pills={pills} editMode={editMode} onChange={(p) => updateSub({ pills: p })} />
 
-      {editMode ? (
-        <textarea style={styles.textarea} placeholder="Summary…" value={sub.summary || ''}
-          onChange={(e) => updateSub({ summary: e.target.value })} />
-      ) : sub.summary ? (
-        <p style={styles.bodyText}>{sub.summary}</p>
-      ) : isEmpty ? (
-        <div style={{ ...styles.card, marginTop: '20px', background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c' }}>
-          <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic' }}>
-            This entry has not been written yet. Source material exists in the homebrew documents — content will be drafted in a future pass.
-          </p>
-        </div>
-      ) : null}
+      <div style={{ overflow: 'auto' }}>
+        <FloatingImage
+          media={sub.media}
+          editMode={editMode}
+          onChange={(m) => updateSub({ media: m })}
+          category="subclasses"
+          entryId={sub.id}
+        />
+
+        {editMode ? (
+          <textarea style={styles.textarea} placeholder="Summary…" value={sub.summary || ''}
+            onChange={(e) => updateSub({ summary: e.target.value })} />
+        ) : sub.summary ? (
+          <p style={styles.bodyText}>{sub.summary}</p>
+        ) : isEmpty ? (
+          <div style={{ ...styles.card, marginTop: '20px', background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c' }}>
+            <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic' }}>
+              This entry has not been written yet. Source material exists in the homebrew documents — content will be drafted in a future pass.
+            </p>
+          </div>
+        ) : null}
+      </div>
+
+      <div style={{ clear: 'both' }} />
 
       <EditableHeading as="h2"
         value={headings.features}
@@ -3306,6 +3599,8 @@ function SubclassesPage({ content, activeId, editMode, persistChange }) {
         editMode={editMode}
         onChange={(cs) => updateSub({ customSections: cs })}
         headingStyle={styles.sectionHeading}
+        category="subclasses"
+        entryId={sub.id}
       />
 
       {editMode ? (
@@ -3372,38 +3667,50 @@ function CharactersPage({ content, activeId, editMode, persistChange }) {
 
       <PillRow pills={pills} editMode={editMode} onChange={(p) => updateCh({ pills: p })} />
 
-      {editMode ? (
-        <div style={{ ...styles.card, marginBottom: '20px' }}>
-          <div style={{ fontFamily: '"Cinzel", serif', fontSize: '12px', color: '#5c1414', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '14px', paddingBottom: '8px', borderBottom: '1px solid rgba(139,105,20,0.3)' }}>Identity</div>
-          {fieldRow('Race', 'race', 'Race or species…')}
-          {fieldRow('Class & Level', 'class', 'e.g. Paladin 5 / Esper 6 (Oath of Renewal)…')}
-          {fieldRow('Patron', 'patron', 'Deity, patron, or —')}
-        </div>
-      ) : (ch.race || ch.class || (ch.patron && ch.patron !== '—' && ch.patron !== '')) ? (
-        <div style={{ marginBottom: '14px' }}>
-          {ch.race && <span style={styles.pill}>{ch.race}</span>}
-          {ch.class && <span style={styles.pill}>{ch.class}</span>}
-          {ch.patron && ch.patron !== '—' && ch.patron !== '' && <span style={styles.pill}>Patron: {ch.patron}</span>}
-        </div>
-      ) : null}
+      <div style={{ overflow: 'auto' }}>
+        <FloatingImage
+          media={ch.media}
+          editMode={editMode}
+          onChange={(m) => updateCh({ media: m })}
+          category="characters"
+          entryId={ch.id}
+        />
 
-      {ch.placeholder && (
-        <div style={{ ...styles.card, marginTop: '12px', background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c' }}>
-          <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic' }}>
-            <strong>Placeholder.</strong> Name and details to be filled in.
-          </p>
-        </div>
-      )}
+        {editMode ? (
+          <div style={{ ...styles.card, marginBottom: '20px' }}>
+            <div style={{ fontFamily: '"Cinzel", serif', fontSize: '12px', color: '#5c1414', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '14px', paddingBottom: '8px', borderBottom: '1px solid rgba(139,105,20,0.3)' }}>Identity</div>
+            {fieldRow('Race', 'race', 'Race or species…')}
+            {fieldRow('Class & Level', 'class', 'e.g. Paladin 5 / Esper 6 (Oath of Renewal)…')}
+            {fieldRow('Patron', 'patron', 'Deity, patron, or —')}
+          </div>
+        ) : (ch.race || ch.class || (ch.patron && ch.patron !== '—' && ch.patron !== '')) ? (
+          <div style={{ marginBottom: '14px' }}>
+            {ch.race && <span style={styles.pill}>{ch.race}</span>}
+            {ch.class && <span style={styles.pill}>{ch.class}</span>}
+            {ch.patron && ch.patron !== '—' && ch.patron !== '' && <span style={styles.pill}>Patron: {ch.patron}</span>}
+          </div>
+        ) : null}
 
-      {editMode ? (
-        fieldRow('Summary', 'summary', 'Character summary — who they are, what drives them, their place in the campaign…', true)
-      ) : ch.summary ? (
-        <p style={styles.bodyText}>{ch.summary}</p>
-      ) : !ch.placeholder && isEmpty ? (
-        <div style={{ ...styles.card, marginTop: '20px', background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c' }}>
-          <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic' }}>No details written yet.</p>
-        </div>
-      ) : null}
+        {ch.placeholder && (
+          <div style={{ ...styles.card, marginTop: '12px', background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c' }}>
+            <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic' }}>
+              <strong>Placeholder.</strong> Name and details to be filled in.
+            </p>
+          </div>
+        )}
+
+        {editMode ? (
+          fieldRow('Summary', 'summary', 'Character summary — who they are, what drives them, their place in the campaign…', true)
+        ) : ch.summary ? (
+          <p style={styles.bodyText}>{ch.summary}</p>
+        ) : !ch.placeholder && isEmpty ? (
+          <div style={{ ...styles.card, marginTop: '20px', background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c' }}>
+            <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic' }}>No details written yet.</p>
+          </div>
+        ) : null}
+      </div>
+
+      <div style={{ clear: 'both' }} />
 
       <EditableHeading as="h2"
         value={headings.keyTraits}
@@ -3440,6 +3747,8 @@ function CharactersPage({ content, activeId, editMode, persistChange }) {
         editMode={editMode}
         onChange={(cs) => updateCh({ customSections: cs })}
         headingStyle={styles.sectionHeading}
+        category="characters"
+        entryId={ch.id}
       />
 
       {editMode ? (
