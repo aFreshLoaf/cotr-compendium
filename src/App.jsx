@@ -2074,15 +2074,56 @@ function CustomSections({ sections, editMode, onChange, headingStyle, category, 
 // ============================================================
 // FLOATING IMAGE — book-style illustration with text wrap
 // ============================================================
-// Storage shape: media = { url, path?, shape: 'portrait'|'landscape', scale, offsetX, offsetY }
+// Storage shape: media = { url, path?, shape: 'portrait'|'landscape', zoom, posX, posY }
 // `shape` controls the frame aspect ratio (3:4 portrait, 16:9 landscape).
-// `scale` (1..3) zooms the image within the frame; `offsetX/Y` (-50..50) pans it.
-// All values render via object-fit: cover + object-position.
+// `zoom` (1..4) scales the image relative to the frame; at 1× the image fills cover.
+// `posX/posY` (0..100) anchor the visible point within the source image; 50/50 is center.
+// Rendered with a CSS background — gives clean pan range regardless of image aspect ratio.
 
 const IMAGE_FRAMES = {
   portrait:  { width: 200, height: 280 },
   landscape: { width: 320, height: 180 },
 };
+
+const MAX_IMAGE_DIMENSION = 1600; // px on longest edge before upload
+const JPEG_QUALITY = 0.88;
+
+// Downscale + re-encode an image File before upload. Preserves PNG (with alpha) when input has it.
+async function processImageForUpload(file) {
+  if (!file || !file.type.startsWith('image/')) return file;
+
+  const isPng = file.type === 'image/png';
+  const bitmap = await createImageBitmap(file);
+
+  const longest = Math.max(bitmap.width, bitmap.height);
+  const scale = longest > MAX_IMAGE_DIMENSION ? MAX_IMAGE_DIMENSION / longest : 1;
+  const w = Math.round(bitmap.width * scale);
+  const h = Math.round(bitmap.height * scale);
+
+  // If no resize needed AND it's already a reasonable size on disk, skip processing
+  if (scale === 1 && file.size < 500 * 1024) {
+    bitmap.close?.();
+    return file;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  bitmap.close?.();
+
+  // PNG preserves transparency; everything else → JPEG (smaller for photos)
+  const outType = isPng ? 'image/png' : 'image/jpeg';
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, outType, JPEG_QUALITY));
+  if (!blob) return file;
+
+  // Preserve original filename but adjust extension to match output type
+  const name = file.name.replace(/\.[^/.]+$/, '') + (isPng ? '.png' : '.jpg');
+  return new File([blob], name, { type: outType, lastModified: Date.now() });
+}
 
 function FloatingImage({ media, editMode, onChange, category, entryId }) {
   const [uploading, setUploading] = React.useState(false);
@@ -2095,7 +2136,8 @@ function FloatingImage({ media, editMode, onChange, category, entryId }) {
     setUploading(true);
     setUploadError('');
     try {
-      const { url, path } = await uploadImage(file, category, entryId);
+      const processed = await processImageForUpload(file);
+      const { url, path } = await uploadImage(processed, category, entryId);
       // If replacing an existing image, delete the old one
       if (media?.path) {
         deleteImage(media.path).catch(() => {});
@@ -2104,9 +2146,9 @@ function FloatingImage({ media, editMode, onChange, category, entryId }) {
         url,
         path,
         shape: media?.shape || 'portrait',
-        scale: media?.scale ?? 1,
-        offsetX: media?.offsetX ?? 0,
-        offsetY: media?.offsetY ?? 0,
+        zoom: media?.zoom ?? 1,
+        posX: media?.posX ?? 50,
+        posY: media?.posY ?? 50,
       });
     } catch (err) {
       setUploadError(err.message || 'Upload failed.');
@@ -2161,12 +2203,33 @@ function FloatingImage({ media, editMode, onChange, category, entryId }) {
     );
   }
 
-  // ── Image present: render with float and (in edit mode) controls ─────
+  // ── Image present: render via background-image for clean pan/zoom ────
   const shape = media.shape || 'portrait';
   const frame = IMAGE_FRAMES[shape];
-  const scale = media.scale ?? 1;
-  const offsetX = media.offsetX ?? 0;
-  const offsetY = media.offsetY ?? 0;
+  const zoom = media.zoom ?? 1;
+  const posX = media.posX ?? 50;
+  const posY = media.posY ?? 50;
+
+  // background-size is `${zoom * 100}% auto` if portrait, or `auto ${zoom * 100}%` for landscape,
+  // depending on which dimension is the cover-fit constraint. Use `cover` baseline then scale.
+  // Simpler approach: use shorthand 'cover' but encode zoom as a larger size.
+  // size: cover means "fill frame, may crop"; we multiply that by zoom.
+  const bgSize = zoom === 1 ? 'cover' : `${zoom * 100}% ${zoom * 100}%`;
+  // When zoom is 1 + cover, the source naturally bleeds whichever axis is over-spec'd.
+  // To still allow full pan in that case, we switch to explicit sizing at zoom 1 too —
+  // compute which axis is the binding one based on common case (use cover semantics):
+  // Easiest robust solution: always use explicit size 'cover-equivalent × zoom'.
+  // We use background-size with two values where each is max(100%, native) × zoom:
+  // Practical: just use `auto` for one dim won't work for unknown aspect ratios.
+  // Final approach: use object-fit cover on an actual <img>, with transform scale + translate.
+  // The translate range scales with how much overflow exists; we expose 0-100% on each axis.
+
+  // Compute translate in % of the image's own size to clamp to overflow extent.
+  // With object-fit: cover, the rendered image is sized so it fully covers the frame.
+  // Extra overflow = (renderedSize - frameSize). We can't know renderedSize from CSS alone,
+  // but we can use object-position which Chrome computes correctly: just pass percentage.
+  // object-position: X% Y%  means: place the X% point of the image at the X% point of the box.
+  // That naturally pans through the image. Combine with transform scale for zoom-in.
 
   return (
     <div style={{
@@ -2182,17 +2245,21 @@ function FloatingImage({ media, editMode, onChange, category, entryId }) {
         overflow: 'hidden',
         borderRadius: '2px',
         position: 'relative',
+        background: '#3b2615',
       }}>
         <img
           src={media.url}
           alt=""
           style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            objectPosition: `${50 + offsetX}% ${50 + offsetY}%`,
-            transform: `scale(${scale})`,
-            transformOrigin: 'center',
+            objectPosition: `${posX}% ${posY}%`,
+            transform: `scale(${zoom})`,
+            transformOrigin: `${posX}% ${posY}%`,
           }}
         />
       </div>
@@ -2260,10 +2327,10 @@ function FloatingImage({ media, editMode, onChange, category, entryId }) {
                   fontFamily: '"Cinzel", serif', fontSize: '10px',
                   textTransform: 'uppercase', letterSpacing: '0.06em',
                   color: '#5c4020', marginBottom: '3px' }}>
-                  <span>Zoom</span><span>{scale.toFixed(2)}×</span>
+                  <span>Zoom</span><span>{zoom.toFixed(2)}×</span>
                 </div>
-                <input type="range" min="1" max="3" step="0.05" value={scale}
-                  onChange={(e) => onChange({ ...media, scale: parseFloat(e.target.value) })}
+                <input type="range" min="1" max="4" step="0.05" value={zoom}
+                  onChange={(e) => onChange({ ...media, zoom: parseFloat(e.target.value) })}
                   style={{ width: '100%' }} />
               </div>
 
@@ -2272,10 +2339,10 @@ function FloatingImage({ media, editMode, onChange, category, entryId }) {
                   fontFamily: '"Cinzel", serif', fontSize: '10px',
                   textTransform: 'uppercase', letterSpacing: '0.06em',
                   color: '#5c4020', marginBottom: '3px' }}>
-                  <span>Pan X</span><span>{offsetX}</span>
+                  <span>Horizontal</span><span>{posX}%</span>
                 </div>
-                <input type="range" min="-50" max="50" step="1" value={offsetX}
-                  onChange={(e) => onChange({ ...media, offsetX: parseInt(e.target.value) })}
+                <input type="range" min="0" max="100" step="1" value={posX}
+                  onChange={(e) => onChange({ ...media, posX: parseInt(e.target.value) })}
                   style={{ width: '100%' }} />
               </div>
 
@@ -2284,17 +2351,17 @@ function FloatingImage({ media, editMode, onChange, category, entryId }) {
                   fontFamily: '"Cinzel", serif', fontSize: '10px',
                   textTransform: 'uppercase', letterSpacing: '0.06em',
                   color: '#5c4020', marginBottom: '3px' }}>
-                  <span>Pan Y</span><span>{offsetY}</span>
+                  <span>Vertical</span><span>{posY}%</span>
                 </div>
-                <input type="range" min="-50" max="50" step="1" value={offsetY}
-                  onChange={(e) => onChange({ ...media, offsetY: parseInt(e.target.value) })}
+                <input type="range" min="0" max="100" step="1" value={posY}
+                  onChange={(e) => onChange({ ...media, posY: parseInt(e.target.value) })}
                   style={{ width: '100%' }} />
               </div>
 
-              <button onClick={() => onChange({ ...media, scale: 1, offsetX: 0, offsetY: 0 })}
+              <button onClick={() => onChange({ ...media, zoom: 1, posX: 50, posY: 50 })}
                 style={{ ...styles.button, fontSize: '10px', padding: '3px 8px',
                   marginTop: '6px', width: '100%' }}>
-                Reset Zoom &amp; Pan
+                Reset Zoom &amp; Position
               </button>
             </div>
           )}
@@ -2412,10 +2479,18 @@ export default function Compendium() {
     });
     // Subscribe to real-time updates from other clients
     const unsubscribe = subscribeToUpdates((remoteContent) => {
-      setContent((current) => mergeContent(remoteContent, current));
+      // While editing, ignore remote updates to avoid clobbering in-progress edits
+      setContent((current) => editModeRef.current ? current : mergeContent(remoteContent, current));
     });
     return unsubscribe;
   }, []);
+
+  // Track editMode in a ref so the realtime callback always sees the current value
+  const editModeRef = React.useRef(false);
+  React.useEffect(() => { editModeRef.current = editMode; }, [editMode]);
+
+  // Track whether the current in-memory content differs from what's persisted
+  const [dirty, setDirty] = useState(false);
 
   // Merge incoming remote content with local defaults (same smart-merge logic as loadContent)
   const mergeContent = (cached, _current) => {
@@ -2431,16 +2506,23 @@ export default function Compendium() {
   };
 
   const handleEditToggle = () => {
-    console.log('[CotR] handleEditToggle called. editMode:', editMode, 'dmAuthed:', dmAuthed);
     if (editMode) {
+      // Leaving edit mode — warn if dirty
+      if (dirty) {
+        const proceed = window.confirm('You have unsaved changes. Discard them?');
+        if (!proceed) return;
+        // Discard: reload from server
+        loadContent().then((c) => {
+          setContent(c);
+          setDirty(false);
+        });
+      }
       setEditMode(false);
       return;
     }
     if (dmAuthed) {
-      console.log('[CotR] Setting editMode to true');
       setEditMode(true);
     } else {
-      console.log('[CotR] Showing password modal');
       setShowPasswordModal(true);
     }
   };
@@ -2462,12 +2544,50 @@ export default function Compendium() {
     if (e.key === 'Escape') { setShowPasswordModal(false); setPasswordInput(''); setPasswordError(''); }
   };
 
-  const persistChange = async (newContent) => {
+  // Staged edit — updates local content only; does NOT write to Supabase.
+  // Used by all edit-mode handlers throughout the page components.
+  const persistChange = (newContent) => {
     setContent(newContent);
-    const ok = await saveContent(newContent);
-    setSaveStatus(ok ? 'Saved' : 'Save failed');
-    setTimeout(() => setSaveStatus(''), 1500);
+    setDirty(true);
   };
+
+  // Flush staged content to Supabase. Triggered by the Save button.
+  const handleSave = async () => {
+    if (!dirty) return;
+    setSaveStatus('Saving…');
+    const ok = await saveContent(content);
+    if (ok) {
+      setDirty(false);
+      setSaveStatus('Saved');
+    } else {
+      setSaveStatus('Save failed');
+    }
+    setTimeout(() => setSaveStatus(''), 2000);
+  };
+
+  // Discard staged changes — reload from Supabase
+  const handleDiscard = async () => {
+    if (!dirty) return;
+    const proceed = window.confirm('Discard all unsaved changes?');
+    if (!proceed) return;
+    setSaveStatus('Reloading…');
+    const c = await loadContent();
+    setContent(c);
+    setDirty(false);
+    setSaveStatus('');
+  };
+
+  // Warn before closing tab with unsaved changes
+  useEffect(() => {
+    const handler = (e) => {
+      if (dirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [dirty]);
 
   // Search filter
   const searchResults = useMemo(() => {
@@ -2572,7 +2692,16 @@ export default function Compendium() {
 
   return (
     <div style={styles.page}>
-      <Header content={content} editMode={editMode} onEditToggle={handleEditToggle} onMetaChange={(meta) => persistChange({ ...content, meta })} />
+      <Header
+        content={content}
+        editMode={editMode}
+        dirty={dirty}
+        saving={saveStatus === 'Saving…'}
+        onEditToggle={handleEditToggle}
+        onSave={handleSave}
+        onDiscard={handleDiscard}
+        onMetaChange={(meta) => persistChange({ ...content, meta })}
+      />
 
       <div style={styles.layout}>
         <aside style={styles.sidebar}>
@@ -2903,7 +3032,7 @@ export default function Compendium() {
 // ============================================================
 // COMPONENTS
 // ============================================================
-function Header({ content, editMode, onEditToggle, onMetaChange }) {
+function Header({ content, editMode, dirty, onEditToggle, onSave, onDiscard, onMetaChange, saving }) {
   return (
     <header style={styles.header}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -2911,12 +3040,44 @@ function Header({ content, editMode, onEditToggle, onMetaChange }) {
           <h1 style={styles.title}>{content.meta.title}</h1>
           <div style={styles.subtitle}>{content.meta.subtitle}</div>
         </div>
-        <button
-          style={editMode ? styles.button : styles.buttonGhost}
-          onClick={onEditToggle}
-        >
-          {editMode ? <><Save size={14} /> Done Editing</> : <><Edit3 size={14} /> Edit Mode</>}
-        </button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {editMode && (
+            <>
+              <button
+                style={{
+                  ...styles.button,
+                  background: dirty ? '#c9a55c' : 'rgba(245, 236, 217, 0.15)',
+                  color: dirty ? '#3b2615' : 'rgba(245, 236, 217, 0.5)',
+                  cursor: dirty ? 'pointer' : 'default',
+                  opacity: dirty ? 1 : 0.6,
+                }}
+                onClick={onSave}
+                disabled={!dirty || saving}
+                title={dirty ? 'Save changes to the database' : 'No changes to save'}
+              >
+                <Save size={14} /> {saving ? 'Saving…' : (dirty ? 'Save' : 'Saved')}
+              </button>
+              <button
+                style={{
+                  ...styles.buttonGhost,
+                  opacity: dirty ? 1 : 0.5,
+                  cursor: dirty ? 'pointer' : 'default',
+                }}
+                onClick={onDiscard}
+                disabled={!dirty}
+                title="Discard unsaved changes"
+              >
+                <X size={14} /> Discard
+              </button>
+            </>
+          )}
+          <button
+            style={editMode ? styles.button : styles.buttonGhost}
+            onClick={onEditToggle}
+          >
+            {editMode ? <><Eye size={14} /> View Mode</> : <><Edit3 size={14} /> Edit Mode</>}
+          </button>
+        </div>
       </div>
     </header>
   );
