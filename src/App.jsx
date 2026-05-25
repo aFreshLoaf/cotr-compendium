@@ -2426,7 +2426,7 @@ export default function Compendium() {
   const [search, setSearch] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
-  const [expandedClasses, setExpandedClasses] = useState(new Set());
+  const [expandedClasses, setExpandedClasses] = useState(null);
   const [expandedRaces, setExpandedRaces] = useState(new Set());
   const [expandedCampaigns, setExpandedCampaigns] = useState(new Set());
   const [expandedSections, setExpandedSections] = useState(new Set()); // collapsed by default
@@ -2458,13 +2458,13 @@ export default function Compendium() {
     });
   };
 
-  const toggleClassExpanded = (parentClass) => {
-    setExpandedClasses((prev) => {
-      const next = new Set(prev);
-      if (next.has(parentClass)) next.delete(parentClass);
-      else next.add(parentClass);
-      return next;
-    });
+  // Click on a class header: navigate to that class AND expand its subclasses.
+  // Clicking the same class again navigates back to the class page (subclass list stays open).
+  // Clicking a different class collapses the previous and opens the new one.
+  const openClass = (parentClass) => {
+    const cls = content.classes.find((c) => c.name === parentClass);
+    if (cls) goTo('classes', cls.id);
+    setExpandedClasses(parentClass);
   };
 
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -2647,24 +2647,28 @@ export default function Compendium() {
     setSection(sect);
     setActiveId(id);
     setSearch('');
-    // Auto-expand the top-level section in the sidebar
-    if (['races', 'classes', 'subclasses', 'characters'].includes(sect)) {
+    // Auto-expand the unified Classes & Subclasses section when navigating to either
+    if (sect === 'classes' || sect === 'subclasses') {
+      setExpandedSections((prev) => {
+        const next = new Set(prev);
+        next.add('classes-and-subclasses');
+        return next;
+      });
+    } else if (['races', 'characters'].includes(sect)) {
       setExpandedSections((prev) => {
         const next = new Set(prev);
         next.add(sect);
         return next;
       });
     }
-    // Auto-expand the parent class group when navigating to a subclass
+    // Accordion: ensure the right parent class is expanded
+    if (sect === 'classes' && id) {
+      const cls = content.classes.find((c) => c.id === id);
+      if (cls) setExpandedClasses(cls.name);
+    }
     if (sect === 'subclasses' && id) {
       const sub = content.subclasses.find((s) => s.id === id);
-      if (sub) {
-        setExpandedClasses((prev) => {
-          const next = new Set(prev);
-          next.add(sub.parentClass);
-          return next;
-        });
-      }
+      if (sub) setExpandedClasses(sub.parentClass);
     }
     // Auto-expand the parent race group when navigating to a race/subrace
     if (sect === 'races' && id) {
@@ -2746,33 +2750,13 @@ export default function Compendium() {
           })()}
 
           <SectionToggle
-            label="Classes"
+            label="Classes & Subclasses"
             count={content.classes.length}
-            expanded={expandedSections.has('classes')}
-            onClick={() => toggleSectionExpanded('classes')}
+            expanded={expandedSections.has('classes-and-subclasses')}
+            onClick={() => toggleSectionExpanded('classes-and-subclasses')}
           />
-          {expandedSections.has('classes') && content.classes.map((c) => {
-            const isActive = section === 'classes' && activeId === c.id;
-            return (
-              <div
-                key={c.id}
-                style={{ ...styles.parentGroup, ...(isActive ? styles.parentGroupActive : {}) }}
-                onClick={() => goTo('classes', c.id)}
-              >
-                {c.name}
-              </div>
-            );
-          })}
-
-          <SectionToggle
-            label="Subclasses"
-            count={content.subclasses.length}
-            expanded={expandedSections.has('subclasses')}
-            onClick={() => toggleSectionExpanded('subclasses')}
-          />
-          {expandedSections.has('subclasses') && content.parentClassOrder.map((parentClass) => {
+          {expandedSections.has('classes-and-subclasses') && content.parentClassOrder.map((parentClass) => {
             const subsForClass = content.subclasses.filter((s) => s.parentClass === parentClass);
-            if (subsForClass.length === 0) return null;
             // Sort: anti-divine pinned first (authoritative), then alphabetical
             const sortedSubs = [...subsForClass].sort((a, b) => {
               const aAd = !!a.antiDivine;
@@ -2781,8 +2765,11 @@ export default function Compendium() {
               if (!aAd && bAd) return 1;
               return (a.name || '').localeCompare(b.name || '');
             });
-            const isExpanded = expandedClasses.has(parentClass);
-            const hasActive = section === 'subclasses' && sortedSubs.some((s) => s.id === activeId);
+            const isExpanded = expandedClasses === parentClass;
+            const classEntry = content.classes.find((c) => c.name === parentClass);
+            const isClassActive = section === 'classes' && classEntry && activeId === classEntry.id;
+            const hasActiveSubclass = section === 'subclasses' && sortedSubs.some((s) => s.id === activeId);
+            const hasActive = isClassActive || hasActiveSubclass;
 
             // ── Render a single subclass row, including any nested knighthoods ────
             const renderSub = (s) => {
@@ -2838,7 +2825,7 @@ export default function Compendium() {
                     ...styles.parentGroup,
                     ...(hasActive ? styles.parentGroupActive : {}),
                   }}
-                  onClick={() => toggleClassExpanded(parentClass)}
+                  onClick={() => openClass(parentClass)}
                 >
                   <ChevronRight
                     size={12}
