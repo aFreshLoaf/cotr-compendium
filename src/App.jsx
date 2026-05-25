@@ -582,25 +582,25 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
     "Sorcerer", "TeliKin", "Warlock", "Wizard"
   ],
   subclasses: [
-    { id: "aerial-sniper", name: "Aerial Sniper", parentClass: "Gensarch", summary: "A wind-based subclass that creates ranged air blasts and vacuum attacks to strike enemies from a distance.", features: [
+    { id: "aerial-sniper", name: "Aerial Sniper", parentClass: "Gensarch", element: "Air", summary: "A wind-based subclass that creates ranged air blasts and vacuum attacks to strike enemies from a distance.", features: [
       { level: 3, name: "Air Bolts", text: "Action: ranged wind blast 120 ft, Dex modifier to attack, 1d10 thunder/slashing/piercing magical damage." },
       { level: 7, name: "Compressed Air Bolt", text: "Once/short rest: charge one turn, fire 3d10 damage in 5 ft wide, 60 ft line; Dex save half." },
       { level: 11, name: "Static Dome", text: "+2 AC, resistance to ranged weapon damage for 1 minute. Recharge on short rest." },
       { level: 15, name: "Vacuum Shot", text: "Once/long rest: attack up to 3 enemies in a line; each takes Elemental Damage Die + 3d10 thunder, ignores cover/armor." }
     ], note: "" },
-    { id: "air-acrobat", name: "Air Acrobat", parentClass: "Gensarch", summary: "An aerial subclass that gains flying speed, momentum-powered strikes, and evasive aerial reactions.", features: [
+    { id: "air-acrobat", name: "Air Acrobat", parentClass: "Gensarch", element: "Air", summary: "An aerial subclass that gains flying speed, momentum-powered strikes, and evasive aerial reactions.", features: [
       { level: 3, name: "Soaring Style", text: "Fly speed 10 ft (20 ft at 7th, 30 ft at 15th); airborne attacks have disadvantage until first hit." },
       { level: 7, name: "Momentum Strike", text: "Move 20+ ft before attack: deal double proficiency bonus additional damage and force Str save or push 15 ft." },
       { level: 11, name: "Reactive Lift", text: "Reaction: fly 15 ft up when targeted by melee; if attack misses, make opportunity attack as part of reaction." },
       { level: 15, name: "Hurricane Pivot", text: "When hit by an AOE or spell, expend 1 Genn Die to spin-dash leap, halving the damage and moving 30 ft in any direction." }
     ], note: "" },
-    { id: "air-blade", name: "Air Blade", parentClass: "Gensarch", summary: "A swift melee subclass that chains rapid attacks with wind-enhanced slashing strikes.", features: [
+    { id: "air-blade", name: "Air Blade", parentClass: "Gensarch", element: "Air", summary: "A swift melee subclass that chains rapid attacks with wind-enhanced slashing strikes.", features: [
       { level: 3, name: "Whirlwind Strikes", text: "Bonus action extra unarmed/light weapon attack; hit deals Elemental Damage Die slashing damage." },
       { level: 7, name: "Cyclone Dance", text: "Once per turn, 2+ hits force Dex save or target knocked prone or disarmed (your choice)." },
       { level: 11, name: "Gale Step", text: "Move up to 40 ft between attacks; hits don't trigger opportunity attacks (misses impose disadvantage instead)." },
       { level: 15, name: "Blade Tempest", text: "Once per long rest, flurry of four attacks as one action (extra attacks still available after). Each hit adds 1 Genn Die slashing damage." }
     ], note: "" },
-    { id: "air-guard", name: "Air Guard", parentClass: "Gensarch", summary: "A defensive subclass that redirects incoming attacks and reflects damage back to attackers with wind.", features: [
+    { id: "air-guard", name: "Air Guard", parentClass: "Gensarch", element: "Air", summary: "A defensive subclass that redirects incoming attacks and reflects damage back to attackers with wind.", features: [
       { level: 3, name: "Wind Redirection", text: "Reaction when hit within 10 ft: reduce damage by 1d8+DEX+WIS. If reduced to 0 damage, send wind blast: Str save or attacker pushed 10 ft." },
       { level: 7, name: "Reflective Burst", text: "On successful redirect, spend 1 Genn Die to reflect full damage back to attacker as thunder damage." },
       { level: 11, name: "Cyclone Parry", text: "Reaction when missed by melee: move 20 ft via gust (no opportunity attacks); creatures adjacent to you take Elemental Damage Die in thunder." },
@@ -619,7 +619,7 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
       { level: 10, name: "Elemental Mastery", text: "Combine two stones as one action for fusion effects: Fire+Air=15-ft radius Dex save 6d6 fire + push 10 ft; Water+Earth=10-ft radius Str save 6d6 bludgeoning + prone; Necrotic+Radiant=30 ft 4d6 each (no save). Once per long rest or expend 3rd+ spell slot." },
       { level: 14, name: "Stone of Ultimate Power", text: "Once per long rest: action, 30-ft radius Dex save. Fail = 10d6 split among up to 3 chosen types. Success = half. Allies in area gain temp HP = INT modifier + one Mana Stone die." }
     ], note: "" },
-    { id: "godslayer-artificer", name: "Godslayer", parentClass: "Artificer", summary: "Artificers who craft anti-divine weapons, armor, and bombs to hunt and destroy celestials and fiends.", features: [
+    { id: "godslayer-artificer", name: "Godslayer", parentClass: "Artificer", antiDivine: true, summary: "Artificers who craft anti-divine weapons, armor, and bombs to hunt and destroy celestials and fiends.", features: [
       { level: 3, name: "Tool & Weapon Proficiency", text: "Proficiency with smith's and tinker's tools; proficiency in martial weapons and light, medium, and heavy armor." },
       { level: 3, name: "Specialist Spells", text: "Always prepared: 3rd Protection from Evil and Good, Divine Favor; 5th Magic Weapon, Silence; 9th Dispel Magic, Spirit Guardians; 13th Banishment, Death Ward; 17th Dispel Evil and Good, Holy Weapon." },
       { level: 3, name: "Divine Armaments", text: "Long rest: craft up to 2 Divine Armaments. Options: Divine Slayer Weapon (+1d10 force vs celestials/fiends/divine; 2d10 at 9th, 3d10 at 15th), Aegis of the Defiant (resistance to radiant/necrotic/force; advantage on charm/fright/paralysis saves vs divine), Divine Warding Amulet (+2 AC, advantage on saves vs celestial/fiend spells). Usable within 120 ft." },
@@ -647,7 +647,7 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
       { level: 10, name: "Speed of the Gods", text: "Movement speed +15 ft; Dash as bonus action; gain Deflect Missiles feature." },
       { level: 14, name: "Wrathful Anger", text: "On rage entry: resistance to all damage, immunity to lightning/thunder; fly speed = walking; +1d12 lightning on weapon hits; melee hit forces Str save or prone; throw lightning bolt (2d10+STR, 60 ft normal/disadvantage 61-120 ft); action to storm in 20-ft radius Dex save 2d10 lightning. Once per long rest for the storm." }
     ], note: "" },
-    { id: "path-of-the-godslayer", name: "Path of the Godslayer", parentClass: "Barbarian", summary: "Barbarians who channel their rage to defy and combat divine beings, resisting celestial and fiendish power.", features: [
+    { id: "path-of-the-godslayer", name: "Path of the Godslayer", parentClass: "Barbarian", antiDivine: true, summary: "Barbarians who channel their rage to defy and combat divine beings, resisting celestial and fiendish power.", features: [
       { level: 3, name: "Divine Defiance", text: "Resistance to radiant/necrotic while raging; add rage bonus to attacks vs celestials, fiends, deity-linked creatures; advantage on saves vs divine/celestial sources." },
       { level: 6, name: "Wrathful Retaliation", text: "Reaction when hit within 5 ft while raging: deal force damage equal to Barbarian level + Constitution modifier." },
       { level: 10, name: "Juggernaut's Resilience", text: "While raging, resistance to all damage except psychic. If reduced to 0 HP and not killed outright, reaction to make Con save (DC 10 + half damage taken); success = drop to 1 HP instead. Uses = Con modifier (min 1), recharge long rest." },
@@ -672,7 +672,7 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
       { level: 10, name: "Relentless Onslaught", text: "3 attacks total when using Attack action. On hit while raging, choose: Push (Str save or 1d8 + push 10 ft), Hamper (1d8 extra + -10 ft speed), or Crushing Blow (Str save or 1d8 extra + prone)." },
       { level: 14, name: "Devastating Flurry", text: "When using Blitz, make additional attacks equal to half proficiency bonus (rounded up). On crit, deal extra damage die and target makes Con save DC 8+PB+STR or stunned until end of your next turn." }
     ], note: "" },
-    { id: "college-of-godslaying", name: "College of Godslaying", parentClass: "Bard", summary: "Bards who weaponize divine lore to weaken and destroy celestials, fiends, and gods through song and spell.", features: [
+    { id: "college-of-godslaying", name: "College of Godslaying", parentClass: "Bard", antiDivine: true, summary: "Bards who weaponize divine lore to weaken and destroy celestials, fiends, and gods through song and spell.", features: [
       { level: 3, name: "Bonus Proficiencies", text: "Gain proficiency with medium armor, shields, martial weapons, and Religion skill." },
       { level: 3, name: "Divine Scorn", text: "Reaction+Bardic Inspiration: subtract Inspiration die from creature's roll; on miss deal that much radiant/necrotic damage. Inspiration die adds to damage vs celestials/fiends once per turn." },
       { level: 6, name: "Hymn of Defiance", text: "Action: 30-ft aura 1 min. Celestials/fiends Wisdom save vs spell DC or can't cast spells until next turn; bypasses magic resistance. Allies gain resistance to radiant/necrotic and advantage on divine saves. Uses = Charisma modifier (min 1), recharge long rest." },
@@ -708,7 +708,7 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
       { level: 8, name: "Potent Spellcasting", text: "Add Wisdom modifier to damage dealt with cleric cantrips." },
       { level: 17, name: "Archangel's Wrath", text: "Channel Divinity now summons up to 3 archangels, each attacking a different creature within 30 ft for 4d10 + cleric level radiant. Bonus action: sprout wings, gain +1 AC and fly speed equal to movement speed." }
     ], note: "" },
-    { id: "domain-of-godslaying", name: "Domain of Godslaying", parentClass: "Cleric", summary: "Clerics who draw power from Death itself to oppose and slay divine entities using necrotic and elemental forces.", features: [
+    { id: "domain-of-godslaying", name: "Domain of Godslaying", parentClass: "Cleric", antiDivine: true, summary: "Clerics who draw power from Death itself to oppose and slay divine entities using necrotic and elemental forces.", features: [
       { level: 1, name: "Domain Spells", text: "Level 1: Wrathful Smite, Inflict Wounds. Level 3: Ray of Enfeeblement, Silence. Level 5: Spirit Guardians, Bestow Curse. Level 7: Blight, Banishment. Level 9: Destructive Wave, Dispel Evil and Good." },
       { level: 1, name: "Bonus Proficiencies", text: "Gain proficiency with heavy armor and martial weapons." },
       { level: 1, name: "Death's Gift", text: "On weapon hit, deal bonus necrotic damage equal to Wisdom modifier. Uses equal to proficiency bonus per long rest." },
@@ -735,64 +735,64 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
       { level: 8, name: "Divine Strike", text: "Once per turn on weapon hit: +1d8 radiant (2d8 at 14th)." },
       { level: 17, name: "Platinum Dragon's Wrath", text: "Action, 1 minute: resistance to fire/cold/lightning/thunder/radiant/physical; when taking damage, attacker within 60 ft takes half as radiant; action to exhale 60-ft cone Dex save 8d10 radiant. Once per long rest." }
     ], note: "" },
-    { id: "domain-of-defiance", name: "Domain of Defiance", parentClass: "Druid", summary: "Druids who reject divine influence and wield primal power to disrupt and punish divine magic.", features: [
+    { id: "circle-of-defiance", name: "Circle of Defiance", parentClass: "Druid", antiDivine: true, summary: "Druids who reject divine influence and wield primal power to disrupt and punish divine magic.", features: [
       { level: 2, name: "Circle Spells", text: "Level 3: Detect Evil and Good, Magic Missile. Level 5: Counterspell, Dispel Magic. Level 7: Banishment, Guardian of Nature. Level 9: Dispel Evil and Good, Wall of Force. Always prepared, don't count against prepared spells." },
       { level: 2, name: "Primal Defiance", text: "Learn Thaumaturgy. Creatures with divine ancestry have disadvantage on saves against your spells. Channel the Wild: reaction to a creature casting a spell within 60 ft — expend Wild Shape use; creature makes Con save vs spell DC or spell fizzles and it takes force damage = druid level. Success = spell casts normally. Once per short or long rest." },
       { level: 6, name: "Savage Transformation", text: "Wild Shape forms count as magical. +1d6 necrotic damage vs divine creatures in beast form. Gain temp HP = 2x druid level on transform. Add Wisdom modifier to one proficient save type while transformed." },
       { level: 10, name: "Nature's Rejection", text: "Resistance to radiant damage; immune to charm/fright from celestials/fiends. Action, expend spell slot: one celestial/fiend/divine caster within 60 ft makes Wisdom save vs spell DC or can't regain HP for 1 minute. Once per long rest." },
       { level: 14, name: "Avatar of the Primordial Wild", text: "Bonus action, 1 minute. Attacks bypass resistances/immunities. Divine creatures within 30 ft have disadvantage on saves vs your spells/abilities. +2d10 necrotic on hits vs celestials/fiends. Temp HP = half max HP on entry; reaction to regain HP = half necrotic from last attack. Once per long rest." }
     ], note: "" },
-    { id: "domain-of-dragons", name: "Domain of Dragons", parentClass: "Druid", summary: "Druids who revere dragons, transforming into dragon-like forms and exhaling destructive elemental breath.", features: [
+    { id: "circle-of-dragons", name: "Circle of Dragons", parentClass: "Druid", summary: "Druids who revere dragons, transforming into dragon-like forms and exhaling destructive elemental breath.", features: [
       { level: 2, name: "Circle Spells", text: "Always prepared: 3rd Dragon's Breath, Scorching Ray; 5th Protection from Energy, Fireball; 7th Elemental Bane, Stoneskin; 9th Flame Strike, Hold Monster. Also learn Thaumaturgy." },
       { level: 2, name: "Draconic Wild Shape", text: "Wild Shape into a drake form: Medium, AC 14+WIS, HP = druid level+WIS+PB, speed 30/fly 30. Choose one immunity: acid/cold/fire/lightning/poison. Bite: 1d8+WIS piercing (spell attack). Lasts half druid level hours." },
       { level: 6, name: "Dragon's Breath", text: "Action: 30-ft cone, Dex save, 6d6 damage of chosen type (7d6 at 10th, 8d6 at 14th, 12d8 at 20th). Uses = WIS modifier (min 1) per long rest." },
       { level: 10, name: "Draconic Resilience", text: "Resistance to chosen Dragon's Breath damage type. +2 AC while unarmored." },
       { level: 14, name: "Dragon Form", text: "Wild Shape into adult dragon of chosen type (Large, AC 18, HP = druid level x10, speed 40/fly 80, STR 24, CON 22). Multiattack: bite (2d10+WIS) and two claws (2d6+WIS). Breath Weapon recharge 5-6: 60-ft cone, Dex save, 12d6." }
     ], note: "" },
-    { id: "domain-of-poison", name: "Domain of Poison", parentClass: "Druid", summary: "Druids who harness toxic power through poison-infused Wild Shapes and venomous strikes.", features: [
+    { id: "circle-of-poison", name: "Circle of Poison", parentClass: "Druid", summary: "Druids who harness toxic power through poison-infused Wild Shapes and venomous strikes.", features: [
       { level: 2, name: "Circle Spells", text: "Learn Poison Spray cantrip. Always prepared: 3rd Ray of Sickness, Melf's Acid Arrow; 5th Stinking Cloud, Poisonous Cloud; 7th Blight, Giant Insect; 9th Cloudkill, Contagion." },
       { level: 2, name: "Toxic Wild Shape", text: "Wild Shape into any beast with poisonous attack or trait (within normal Wild Shape limits)." },
       { level: 6, name: "Venomous Strike", text: "On melee weapon hit or unarmed strike, expend Wild Shape use: +3d8 poison; target makes Con save vs spell DC or poisoned 1 minute (repeat save each turn)." },
       { level: 10, name: "Poisonous Form", text: "Resistance to poison; advantage on saves vs poisoned. While Wild Shape: bonus action, 10-ft radius exhale, Con save, druid level poison damage (half on success). Once per short or long rest." },
       { level: 14, name: "Aspect of the Purple Worm", text: "Expend all Wild Shape uses to become purple worm for 10 rounds or until 0 HP. Normal form bonus: 1-minute Poisonous Bite (+2d10 poison), Toxic Aura (disadvantage on saves vs poisoned within 10 ft), Venomous Resilience (immunity to poison/poisoned). Once per long rest." }
     ], note: "" },
-    { id: "domain-of-the-fey", name: "Domain of the Fey", parentClass: "Druid", summary: "Druids bonded to the Feywild who wield force damage, spatial manipulation, and reality-bending power.", features: [
+    { id: "circle-of-the-fey", name: "Circle of the Fey", parentClass: "Druid", summary: "Druids bonded to the Feywild who wield force damage, spatial manipulation, and reality-bending power.", features: [
       { level: 2, name: "Feywild's Wrath", text: "Learn Eldritch Blast cantrip (druid cantrip, add WIS to damage). Forceful Nature: reroll any 1 on force damage dice, must keep new roll." },
       { level: 6, name: "Feywild's Fury", text: "Forceful Spells: when casting force spell, deal +druid level force damage. Uses = WIS modifier (min 1) per long rest. Fey Resilience: resistance to force damage; advantage vs charmed." },
       { level: 10, name: "Feywild's Embrace", text: "Fey Step: bonus action, teleport 30 ft, optionally deal WIS modifier force to creatures within 5 ft of origin. Uses = WIS modifier (min 1) per long rest. Fey Presence: cast Misty Step without slot once per short or long rest." },
       { level: 14, name: "Feywild's Power", text: "Feywild's Strike: when dealing force damage, target makes Con save DC 8+PB+WIS or stunned until end of your next turn. Once per short or long rest. Force Mastery: deal max force damage instead of rolling. Once per long rest." }
     ], note: "" },
-    { id: "domain-of-lycanthropy", name: "Domain of Lycanthropy", parentClass: "Druid", summary: "Druids who embrace lycanthropy as a sacred gift, transforming into powerful hybrid lycan forms tied to specific were-creatures.", features: [
+    { id: "circle-of-lycanthropy", name: "Circle of Lycanthropy", parentClass: "Druid", summary: "Druids who embrace lycanthropy as a sacred gift, transforming into powerful hybrid lycan forms tied to specific were-creatures.", features: [
       { level: 2, name: "Moonbound Initiation", text: "Wild Shape may become a Lycan Form (hybrid humanoid-beast): retain equipment, retain spellcasting, gain temp HP = 5 + druid level, retain speech and ally recognition. Lasts 1 hour or until 0 HP. Choose one form: Werewolf (+10 ft speed, advantage Perception smell/hearing, bonus Pounce), Werebear (+2 AC, advantage Str, resistance nonmagical physical), Weretiger (advantage Stealth/Acrobatics, +1d8 if moved 10+ ft, climb speed), Wereboar (temp HP each turn, advantage fright/charm saves, charge prone), Were-Shark (double swim, breathe water, advantage vs creatures < half HP), Were-Dragon (+2 AC, Frightful Presence 1/transform, +1d6 elemental, 5d6 breath 15-ft cone), Were-Rat (Stealth/Sleight advantage, Plague Bite, move through spaces), Were-Raven (fly speed, advantage Perception/Insight, Omen Sight, +1d6 necrotic). Unarmed attacks: Bite 1d10+WIS piercing, Claw 1d8+WIS slashing, magical." },
       { level: 6, name: "Primal Bloodline", text: "Cast spells while in Lycan Form. On natural weapon hit, deal +1d10 elemental (acid/cold/lightning/necrotic) once per turn. Advantage on Initiative; cannot be surprised while conscious." },
       { level: 10, name: "Predator's Ascension", text: "Regeneration = WIS modifier at start of turn (if above 0 HP). Advantage on saves vs spells. Moonbound Leap: bonus action, leap 30 ft no opportunity attacks; if adjacent to creature on landing, make one natural weapon attack." },
       { level: 14, name: "Avatar of the Moon Curse", text: "Once per long rest on transform: resistance to all damage except radiant; advantage on all attack rolls; +20 ft movement. On reducing creature to 0 HP: move half speed and make one additional attack. The Beast Remembers: no exhaustion on leaving form; witnesses make Wis save or frightened 1 minute." }
     ], note: "" },
-    { id: "catapult", name: "Catapult", parentClass: "Gensarch", summary: "A ranged subclass that hurls elemental stones and boulders to bombard enemies at extreme range.", features: [
+    { id: "catapult", name: "Catapult", parentClass: "Gensarch", element: "Earth", summary: "A ranged subclass that hurls elemental stones and boulders to bombard enemies at extreme range.", features: [
       { level: 3, name: "Stone Barrage", text: "Action: hurl stones equal to Proficiency Bonus, each dealing 1d8 bludgeoning. Or fire single boulder for (1d8 x Proficiency Bonus) to one target." },
       { level: 7, name: "Explosive Impact", text: "Once per turn on stone hit, cause shockwave: creatures within 5 ft of target make Dex save or take half original damage." },
       { level: 11, name: "Shatter Slam", text: "Action: volley at 20-ft radius, Dex save or 4d8 bludgeoning. Once per short rest." },
       { level: 15, name: "Siege Mode", text: "Stone attacks ignore cover and have range 300 ft. Add CON modifier to number of stones thrown. Once per long rest: massive stone burst, 8d8 in 30-ft cone, push all creatures 15 ft." }
     ], note: "" },
-    { id: "earth-shaker", name: "Earth Shaker", parentClass: "Gensarch", summary: "A ground-shaking subclass that controls the battlefield through tremors and seismic force.", features: [
+    { id: "earth-shaker", name: "Earth Shaker", parentClass: "Gensarch", element: "Earth", summary: "A ground-shaking subclass that controls the battlefield through tremors and seismic force.", features: [
       { level: 3, name: "Tremor Step", text: "After moving 15 ft, bonus action quake: creatures within 5 ft make Dex save or fall prone and take 1d6 bludgeoning." },
       { level: 7, name: "Ground Control", text: "Action: 20 ft radius becomes difficult terrain; enemies move half speed, disadvantage on Strength checks." },
       { level: 11, name: "Seismic Shockwave", text: "Once per short rest: 15 ft cone slam, Strength save or 4d6 bludgeoning and knocked prone." },
       { level: 15, name: "Quaking Core", text: "Gain tremorsense 30 ft; creatures within 10 ft take Elemental Damage Die bludgeoning at turn start if touching the ground." }
     ], note: "" },
-    { id: "earth-smith", name: "Earth Smith", parentClass: "Gensarch", summary: "A subclass that summons magical stone weapons and armor from the ground to fight as a living siege engine.", features: [
+    { id: "earth-smith", name: "Earth Smith", parentClass: "Gensarch", element: "Earth", summary: "A subclass that summons magical stone weapons and armor from the ground to fight as a living siege engine.", features: [
       { level: 3, name: "Stoneforging", text: "Bonus action: summon magical weapon/armor from ground. Weapons are magical and count for resistance. Control floating weapons = Proficiency Bonus + Con modifier (armor creation reduces cap to Proficiency Bonus only). Floating weapons can move 30 ft and attack using bonus action." },
       { level: 7, name: "Guardian Armory", text: "Controlled weapons can make opportunity attacks when enemies move near them. Grant one floating weapon to ally within 30 ft to fight as if attuned." },
       { level: 11, name: "Weapon Dance", text: "Once per turn, bonus action: command all floating weapons to attack simultaneously, each dealing Elemental Damage Die." },
       { level: 15, name: "Living Arsenal", text: "Summon temporary golem-like form for 1 minute, merging with weapons. Gain +2 AC, resistance to nonmagical bludgeoning/piercing/slashing; each of your attacks strikes with a second weapon for +2d8 force." }
     ], note: "" },
-    { id: "stone-shield", name: "Stone Shield", parentClass: "Gensarch", summary: "A defensive subclass that summons floating stone shields to protect allies and control the battlefield.", features: [
+    { id: "stone-shield", name: "Stone Shield", parentClass: "Gensarch", element: "Earth", summary: "A defensive subclass that summons floating stone shields to protect allies and control the battlefield.", features: [
       { level: 3, name: "Guardian Shields", text: "Bonus action: summon floating stone shields up to Proficiency Bonus in number; each grants +2 AC to you or ally within 30 ft." },
       { level: 7, name: "Reactive Wall", text: "Reaction: raise earth wall (5 ft wide, 10 ft tall) between attacker and target, providing three-quarters cover and absorbing 10 + Con mod damage before breaking." },
       { level: 11, name: "Shield Redirect", text: "Reaction when attacker misses ally protected by your shield: push attacker 10 ft away or knock prone." },
       { level: 15, name: "Fortress of Stone", text: "Action: 15 ft radius dome; allies inside gain +2 AC, resistance to all damage; enemies treat area as difficult terrain. Lasts 1 minute, once per long rest." }
     ], note: "" },
-    { id: "deity-nightmare-sect", name: "Deity Nightmare Sect", parentClass: "Esper", summary: "Psionic warriors who hunt divine entities by stripping their powers, draining their mental acuity, and destroying their influence.", features: [
+    { id: "deity-nightmare-sect", name: "Deity Nightmare Sect", parentClass: "Esper", antiDivine: true, summary: "Psionic warriors who hunt divine entities by stripping their powers, draining their mental acuity, and destroying their influence.", features: [
       { level: 3, name: "Divine Disruption", text: "Bonus action: target within 60 ft loses one chosen trait (Resistances, Immunities, Legendary Actions, or Innate Spellcasting) until end of its next turn. INT save DC 8+PB+INT; divine creatures disadvantage. Uses = PB per long rest." },
       { level: 3, name: "Psionic Memory Drain", text: "Reaction when creature within 30 ft makes INT/WIS/CHA check or save: INT save DC 8+PB+INT; fail = drain 1d6 from roll (1d8 at 10th) and gain 2x that as temp HP. Uses = INT modifier (min 1) per long rest." },
       { level: 6, name: "Divine Amnesia", text: "Action: creature within 60 ft makes WIS save DC 8+PB+INT; fail = forgets one ability/spell/action until end of your next turn. Divine creatures disadvantage. 2 uses per long rest (3 at 14th)." },
@@ -813,7 +813,7 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
       { level: 10, name: "Conscious Instinct", text: "Resistance to psychic damage; advantage vs charm/fright. When creature reads your thoughts, INT save DC 8+PB+INT; fail = 2d10 psychic and effect fails." },
       { level: 14, name: "Dominance Unleashed", text: "Action: 30-ft radius INT save DC 8+PB+INT; fail = stunned 1 minute (repeat save end of turn). Once per long rest." }
     ], note: "Previously extracted as 'Mind Ravager' under parentClass Psion — this is the canonical sect name." },
-    { id: "order-of-hidden-hand", name: "Order of the Hidden Hand", parentClass: "Esper", summary: "A secretive psionic order — details not present in the source document.", features: [], note: "NEEDS MANUAL REVIEW — this subclass is listed in the canonical list but has no content in the source document." },
+    { id: "order-of-hidden-hand", name: "Order of the Hidden Hand", parentClass: "Esper", activeRework: true, summary: "A secretive psionic order — details not present in the source document.", features: [], note: "NEEDS MANUAL REVIEW — this subclass is listed in the canonical list but has no content in the source document." },
     { id: "psionic-executioner-sect", name: "Psionic Executioner Sect", parentClass: "Esper", summary: "Psions who wage lethal mental duels, paralyzing enemies through battles of will and psychic force.", features: [
       { level: 3, name: "Mind Lock", text: "Action, concentration up to 2 rounds: target INT save vs Psionic DC; fail = drawn into mindscape for a mental duel (contested INT checks; spend Psionic Energy dice to add to your roll). Win 3 rounds: target loses 1d6 INT (restored after long rest) and is paralyzed 1 minute. Lose: you take 2d6 psychic per failed contest. Uses = INT modifier x2 (min 2) per long rest. Also gain proficiency with martial weapons and all armor; +1d6 psychic on melee attacks." },
       { level: 6, name: "Mental Fortress", text: "Resistance to psychic damage; advantage vs charmed/frightened. Advantage on contested INT checks while in Mind Lock." },
@@ -826,7 +826,7 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
       { level: 15, name: "Blood Puppet", text: "Action: target within 30 ft Con save DC 8+PB+CON; fail = you control it on its next turn (repeat save at end of each turn). Once per long rest." },
       { level: 18, name: "Blood Mastery", text: "Bloodthirsty Strikes dice double (2d6→2d8→2d10). Sanguine Control and Blood Puppet target two creatures instead of one. Immunity to necrotic; advantage vs paralyzed/stunned." }
     ], note: "" },
-    { id: "dragon-knight", name: "Dragon Knight", parentClass: "Fighter", summary: "A fighter subclass divided into six Chromatic Dragon Knighthoods, each granting elemental powers tied to a chosen dragon type.", features: [
+    { id: "dragon-knight", name: "Dragon Knight", parentClass: "Fighter", knighthoods: ["Knighthood of Inferno", "Knighthood of Tempest", "Knighthood of Verglas", "Knighthood of Elixir", "Knighthood of Decay", "Knighthood of Encephalon"], summary: "A fighter subclass divided into six Chromatic Dragon Knighthoods, each granting elemental powers tied to a chosen dragon type.", features: [
       { level: 3, name: "Draconic Heritage", text: "Choose Knighthood: Inferno (Red/Fire), Tempest (Blue/Lightning), Verglas (White/Cold), Elixir (Green/Poison), Decay (Black/Acid), Encephalon (Purple/Psychic). Permanent. HP max +1 per class level; resistance to chosen damage type. Dragon's Breath: action, 15-ft cone, Dex save DC 8+PB+CON, 4d8 damage with knighthood-specific secondary effect (scales to 6d8 at 10th, 10d8 at 18th). Uses = Con modifier, recharge long rest." },
       { level: 7, name: "Draconic Strength", text: "Critical hits on 19-20. On hit, deal +2d8 dragon-type damage (3d8 at 12th). Uses = proficiency bonus, recharge long rest." },
       { level: 10, name: "Dragon's Might", text: "Knighthood-specific passive effect on hit (Inferno: creatures within 5 ft take 1d6 fire; Tempest: 1d6 lightning to second target within 10 ft; Verglas: target has disadvantage on next attack; Elixir: Con save or poisoned 1 min; Decay: creatures within 5 ft take 1d6 acid; Encephalon: 1d4 psychic to all within 10 ft). +2 AC bonus regardless of armor." },
@@ -840,7 +840,7 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
       { level: 15, name: "Event Horizon", text: "Action: 60-ft radius centered on point within 120 ft, 1 minute. Start of each turn, chosen creatures Str save DC 8+PB+STR or restrained until start of next turn. Ranged attacks through area have disadvantage. Once per long rest." },
       { level: 18, name: "Singularity Strike / 1000 Blades", text: "Singularity Strike: action, one attack, expend 3 Graviton Dice, +8d10 force damage; creatures within 10 ft Str save or pushed + prone. Uses = STR modifier (min 1) per long rest. 1000 Blades Strike: expend all remaining Graviton Dice, +12d10 weapon-type damage to one target, counts as magical. Once per long rest." }
     ], note: "" },
-    { id: "mortal-guardian", name: "Mortal Guardian", parentClass: "Fighter", summary: "Fighters who reject divine tyranny, becoming specialists in hunting celestials and rallying mortal allies against divine power.", features: [
+    { id: "mortal-guardian", name: "Mortal Guardian", parentClass: "Fighter", antiDivine: true, summary: "Fighters who reject divine tyranny, becoming specialists in hunting celestials and rallying mortal allies against divine power.", features: [
       { level: 3, name: "Celestial Anathema", text: "Resistance to radiant and necrotic damage. Hunter's Mark vs Celestials: bonus action to mark, +1d6 force on attacks until end of next turn or target drops (2d6 at 10th)." },
       { level: 7, name: "Unyielding Resolve", text: "Divine Defiance: reaction grants self and allies within 30 ft advantage on saves vs celestial/divine abilities. Inspire Resistance: bonus action, up to 3 allies within 30 ft gain temp HP = fighter level until your next turn. Once per short or long rest." },
       { level: 10, name: "Godslayer's Will", text: "Ignore Resistance: once per turn, ignore nonmagical bludgeoning/piercing/slashing resistance on celestials (immunity at 18th). Aura of Mortal Fury: celestial/divine creature within 30 ft targeting you takes 2d8 psychic + disadvantage on next attack (Wis save DC 8+PB+WIS to negate). Uses = WIS modifier per long rest." },
@@ -854,31 +854,31 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
       { level: 15, name: "Blinding Speed", text: "Take two reactions per round. When taking Dash action, opportunity attacks against you have disadvantage until your next turn." },
       { level: 18, name: "Master of Evasion", text: "Advantage on Dex saves. When attacker misses you, reaction to make one melee attack against them. Movement speed +10 ft additional (total +20 ft)." }
     ], note: "(Only female characters can use this subclass, per the source document.)" },
-    { id: "dancing-flames", name: "Dancing Flames", parentClass: "Gensarch", summary: "A tactical melee subclass that chains Flame Tactics for escalating fire damage and critical hit threats.", features: [
+    { id: "dancing-flames", name: "Dancing Flames", parentClass: "Gensarch", element: "Fire", summary: "A tactical melee subclass that chains Flame Tactics for escalating fire damage and critical hit threats.", features: [
       { level: 3, name: "Flame Tactics", text: "On melee hit, apply one tactic per turn: Trip (Str save or prone), Push (Str save or pushed 10 ft), or Lick (target takes 1d6 fire at start of its next turn)." },
       { level: 7, name: "Ember Step", text: "Movement leaves 5-ft wide flame trail; enemies take 1d8 fire per 5 ft moved through." },
       { level: 11, name: "Kindling Fury", text: "Each active Flame Tactic adds +2 fire damage to next attack. At 3 active tactics, attacks crit on 19-20." },
       { level: 15, name: "Flame Waltz", text: "Once per turn on reducing creature to 0 HP, teleport 30 ft and make another melee attack as part of same action." }
     ], note: "" },
-    { id: "devouring-flames", name: "Devouring Flames", parentClass: "Gensarch", summary: "A fire subclass focused on consuming enemies with passion-fueled flame bursts and area explosions.", features: [
+    { id: "devouring-flames", name: "Devouring Flames", parentClass: "Gensarch", element: "Fire", summary: "A fire subclass focused on consuming enemies with passion-fueled flame bursts and area explosions.", features: [
       { level: 3, name: "Passion Burn", text: "Spend 1 Passion Die (1d10) for extra damage; enemies make Wisdom save or gain disadvantage on attacks against others. Passion Dice = proficiency bonus, refresh on short rest." },
       { level: 7, name: "Flame Expansion", text: "Action: 15 ft cone, Dex save, 6d6 fire damage (half on success). Scales to 30/60 ft and 8d6/10d6." },
       { level: 11, name: "Infernal Bloom", text: "When spending a Passion Die, all creatures within 10 ft take 2d10 fire damage, no save." },
       { level: 15, name: "Burnout Burst", text: "Once per long rest, expend all Passion Dice; creatures within 30 ft take 1d10 per die + Elemental Damage Die." }
     ], note: "" },
-    { id: "electric-flames", name: "Electric Flames", parentClass: "Gensarch", summary: "A subclass that converts fire into lightning energy, arcing to multiple targets and paralyzing enemies.", features: [
+    { id: "electric-flames", name: "Electric Flames", parentClass: "Gensarch", element: "Fire", summary: "A subclass that converts fire into lightning energy, arcing to multiple targets and paralyzing enemies.", features: [
       { level: 3, name: "Searing Surge", text: "Choose to deal lightning instead of fire for any elemental attack or Genn feature. On lightning hit, roll 1d6: on 6, target is shocked, granting advantage on your next attack against them." },
       { level: 7, name: "Arc Flash", text: "Once per turn on lightning hit, a second creature within 10 ft takes half the original damage." },
       { level: 11, name: "Paralytic Flame", text: "On lightning damage, target makes Con save or paralyzed until end of its next turn. Once per turn per creature." },
       { level: 15, name: "Living Voltage", text: "Resistance to lightning and fire. Once per long rest, activate Overcharge 1 minute: attacks deal +1d6 lightning; creatures within 10 ft take 1d6 lightning automatically at start of their turn." }
     ], note: "" },
-    { id: "flames-of-life", name: "Flames of Life", parentClass: "Gensarch", summary: "A subclass that channels flame for healing, restoration, and resurrection.", features: [
+    { id: "flames-of-life", name: "Flames of Life", parentClass: "Gensarch", element: "Fire", summary: "A subclass that channels flame for healing, restoration, and resurrection.", features: [
       { level: 3, name: "Healing Flame", text: "Spend a Genn Die to heal creature within 30 ft for roll + Charisma modifier instead of dealing damage." },
       { level: 7, name: "Warm Ember", text: "Allies within 10 ft regain 1 HP each turn if unconscious; once per long rest revive dead creature with 1 HP." },
       { level: 11, name: "Mass Ignite Heal", text: "Once per long rest, up to 20 creatures within 60 ft regain 2d6+Cha HP and gain fire resistance for 1 minute." },
       { level: 15, name: "Phoenix Core", text: "On reaching 0 HP, explode healing allies 3d10 and dealing 3d10 fire to enemies; return with Genn Die+Cha HP. Once per long rest." }
     ], note: "" },
-    { id: "elamesta", name: "Elamesta", parentClass: "Gensarch", summary: "The rarest Gensharch form — an elemental convergence who freely blends features from all four elements.", features: [
+    { id: "elamesta", name: "Elamesta", parentClass: "Gensarch", narrativeUnique: true, element: "Elamesta", summary: "The rarest Gensharch form — an elemental convergence who freely blends features from all four elements.", features: [
       { level: 3, name: "Elemental Fusion", text: "Roll 1d100 at character creation; on 15 or lower, born as Elamesta (cannot be chosen otherwise). Choose one Level 3 feature from any elemental subclass path. Also choose one fighting style (Gust Fighting, Firmed Art, Blazed Hand, or Flow Combat). Elemental Damage Die can be any elemental type; switch element and resistances on long rest." },
       { level: 7, name: "Adaptive Form", text: "Choose one Level 7 feature from a different elemental path. Gain resistance to a second elemental type from that path. Advantage on saves vs effects of that element." },
       { level: 11, name: "Elemental Mastery", text: "Choose one Level 11 feature from a third elemental path. Use Genn Dice as any elemental type freely. On natural 20 attack, trigger two elemental effects at once." },
@@ -886,7 +886,7 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
       { level: 18, name: "Storm of the Fourfold Soul", text: "Once per long rest, 1-minute 60-ft radius elemental storm: each turn choose two elements, deal 6d8 of each to enemies (Dex save half); include Water/Flames of Life to also heal allies 4d6. Terrain becomes difficult. Gain fly speed 80 ft. Use one subclass ability per chosen path as bonus action or reaction." },
       { level: 20, name: "Avatar of Convergence", text: "Genn Dice become d8s. Two Elemental Damage Dice per turn. Always under effects of all four fighting styles. Resistance becomes immunity to any two chosen elements, resistance to all others." }
     ], note: "Elamesta cannot be chosen — it is randomly determined at character creation on a 1d100 roll of 15 or lower." },
-    { id: "way-of-the-divine-bane", name: "Way of the Divine Bane", parentClass: "Monk", summary: "Monks who master ki techniques to resist, weaken, and banish divine and celestial powers.", features: [
+    { id: "way-of-the-divine-bane", name: "Way of the Divine Bane", parentClass: "Monk", antiDivine: true, summary: "Monks who master ki techniques to resist, weaken, and banish divine and celestial powers.", features: [
       { level: 3, name: "Celestial Antipathy", text: "Melee attacks deal +1d6 radiant/necrotic to celestials/fiends/divine creatures (2d6 at 11th). Cast Detect Evil and Good without ki a number of times equal to Wisdom modifier per long rest." },
       { level: 6, name: "Aura of Defiance", text: "Gain resistance to radiant and necrotic damage. Disruptive Ki: reaction when celestial/fiend/divine creature within 30 ft casts a spell or uses magical ability, spend 2 ki; creature makes Wisdom save DC 8+PB+WIS or loses the spell/ability and can't cast or use magical abilities until start of its next turn." },
       { level: 11, name: "Celestial Shatter", text: "Once per turn on hit vs celestial/fiend/divine creature with unarmed strike, channel ki: creature makes Con save DC 8+PB+WIS or stunned until end of your next turn + disadvantage on WIS/CHA saves until end of its next turn. Uses = Wisdom modifier per long rest." },
@@ -981,7 +981,7 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
       { level: 15, name: "Arcane Mastery", text: "Cast any wizard spell of 4th level or lower without a spell slot once per long rest." },
       { level: 20, name: "Avatar of Magic", text: "1-minute transformation: resistance to spell damage; add Charisma modifier to paladin spell damage." }
     ], note: "" },
-    { id: "oath-of-the-god-slayer", name: "Oath of the God Slayer", parentClass: "Paladin", summary: "Paladins sworn to Death itself, dedicated to destroying gods and freeing mortals from divine control.", features: [
+    { id: "oath-of-the-god-slayer", name: "Oath of the God Slayer", parentClass: "Paladin", antiDivine: true, summary: "Paladins sworn to Death itself, dedicated to destroying gods and freeing mortals from divine control.", features: [
       { level: 3, name: "Oath Spells", text: "Level 3: Inflict Wounds, Protection from Evil and Good. Level 5: Ray of Enfeeblement, Magic Weapon. Level 9: Vampiric Touch, Spirit Guardians. Level 13: Blight, Death Ward. Level 17: Destructive Wave, Anti-Life Shell." },
       { level: 3, name: "Channel Divinity: Mark of Mortality", text: "Action: curse creature within 30 ft for 1 minute. It cannot regain HP, has disadvantage on saves vs frightened/paralyzed, and takes +1d8 necrotic from all sources (2d8 vs celestials)." },
       { level: 3, name: "Channel Divinity: Siphon Vitality", text: "Bonus action: draw life from creature within 30 ft with < half HP. It takes necrotic = 2x paladin level; you regain that much HP." },
@@ -999,7 +999,7 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
       { level: 13, name: "Surge of Serenity", text: "Action, 2 dice, 30-ft Charisma save. Allies on success: calm emotions + remove one negative condition. Enemies on failure: calm emotions effect + disadvantage on next saving throw." },
       { level: 15, name: "Soul Stitcher", text: "Reaction when creature within 60 ft drops to 0 HP, expend 2 dice; restore to consciousness with HP = sum of dice + INT modifier. If under fear/charm/despair, creature stands automatically with advantage on attacks until end of next turn." }
     ], note: "" },
-    { id: "deity-hunter-conclave", name: "Deity Hunter Conclave", parentClass: "Ranger", summary: "A ranger who hunts divine beings, piercing celestial defenses and turning divine powers against oppressive gods and celestials.", features: [
+    { id: "deity-hunter-conclave", name: "Deity Hunter Conclave", parentClass: "Ranger", antiDivine: true, summary: "A ranger who hunts divine beings, piercing celestial defenses and turning divine powers against oppressive gods and celestials.", features: [
       { level: 3, name: "Divine Nemesis", text: "Choose Celestials, Fiends, or Aberrations; gain tracking advantage and +2d6 (4d6 at 11th) radiant/necrotic damage against them." },
       { level: 3, name: "Sacred Sight", text: "Cast Detect Evil and Good at will; darkvision 120 ft; see through magical darkness, invisibility, and illusions." },
       { level: 7, name: "Divine Resistance", text: "Resistance to radiant/necrotic damage; immune to charm/fright from chosen type; reaction grants advantage on saves (uses = proficiency bonus per long rest)." },
@@ -1063,7 +1063,7 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
       { level: 14, name: "Empowered Shadow Blade", text: "Shadow Blade damage increases to 4d4. On hit, expend spell slot for +2d8 necrotic per slot level (max 8d8 at 4th+)." },
       { level: 18, name: "Death Knight's Embrace", text: "Immunity to necrotic; Shadow Blade damage becomes 6d4. On reducing creature to 0 HP with Shadow Blade, regain HP equal to psychic damage dealt." }
     ], note: "" },
-    { id: "divine-wrath", name: "Divine Wrath", parentClass: "Sorcerer", summary: "Sorcerers marked by divine judgment wield radiant or necrotic fury to defy and overthrow celestial powers.", features: [
+    { id: "divine-wrath", name: "Divine Wrath", parentClass: "Sorcerer", antiDivine: true, summary: "Sorcerers marked by divine judgment wield radiant or necrotic fury to defy and overthrow celestial powers.", features: [
       { level: 1, name: "Divine Defiance", text: "Resistance to radiant and necrotic damage; reaction to add Charisma modifier to saves vs charm/frighten; advantage if source is celestial or deity-granted." },
       { level: 1, name: "Wrathful Smite", text: "Spend 1 sorcery point to add Charisma modifier as radiant or necrotic damage to spells hitting celestials; ignores resistance/immunity." },
       { level: 6, name: "Divine Spell Rebellion", text: "Reaction + 2 sorcery points to disrupt cleric/paladin spell within 30 ft; caster makes Charisma save or spell fizzles, granting you temp HP = twice spell's level." },
@@ -1087,35 +1087,35 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
       { level: 18, name: "Devour Reality", text: "Action, concentration 1 minute: choose point within 120 ft; 20-ft radius sphere of Void energy. Creatures of your choice must make Con save or take 10d10 force (half on success); area heavily obscured; non-you spellcasting requires check vs spell save DC. Once per long rest." },
       { level: 18, name: "Greater Void Surges", text: "Void Surges now trigger on d4 roll of 2-4 (was 3-4), and use a d100 (100 effects) instead of d20, with more powerful and dynamic effects." }
     ], note: "" },
-    { id: "void-vigilance", name: "Void Vigilance", parentClass: "TeliKin", summary: "Seers of the Void who gain supernatural foresight, immunity to surprise, and precognitive combat abilities.", features: [
+    { id: "void-vigilance", name: "Void Vigilance", parentClass: "TeliKin", activeRework: true, summary: "Seers of the Void who gain supernatural foresight, immunity to surprise, and precognitive combat abilities.", features: [
       { level: 3, name: "Void Sight", text: "See through walls, darkness, invisibility within 60 ft; immune to flanking/surprise. Range increases to 120 ft at 10th, 300 ft at 18th." },
       { level: 6, name: "Precognition", text: "Gain advantage on one attack/save/check or impose disadvantage on one attack targeting you. Uses = Intelligence modifier (min 1), recharge long rest." },
       { level: 10, name: "Foresight Strike", text: "When attacking, make one extra weapon attack with advantage; on hit, deals additional 3d8 psychic damage." },
       { level: 14, name: "Glimpse the Tides", text: "Action: grant self or ally within 30 ft advantage on next 5 attack rolls/saves, or impose disadvantage on next 5 attacks targeting them. Uses = half TeliKin level (rounded up), recharge long rest." },
       { level: 18, name: "Void Perception", text: "Feature text cut off in source document. NEEDS MANUAL REVIEW." }
     ], note: "Level 18 Void Perception feature text is cut off in the source document and requires manual completion." },
-    { id: "void-clasher", name: "Void Clasher", parentClass: "TeliKin", summary: "A teleportation-focused subclass that strikes from multiple angles using Void portals, illusions, and rapid blinks.", features: [
+    { id: "void-clasher", name: "Void Clasher", parentClass: "TeliKin", activeRework: true, summary: "A teleportation-focused subclass that strikes from multiple angles using Void portals, illusions, and rapid blinks.", features: [
       { level: 3, name: "Void Rush", text: "Teleport up to 10 feet before/after attacks; grants advantage if teleporting before. Uses = Intelligence modifier, recharge long rest." },
       { level: 6, name: "Phantom Assault", text: "Summon two spectral images within 10 feet for 1 minute; enemies have disadvantage on opportunity attacks and attacks if image within 5 feet. Once per long rest, twice at 14th level." },
       { level: 10, name: "Defensive Blink", text: "Reaction: impose disadvantage on an attack roll by teleporting; if it misses, teleport up to 15 feet and regain one Void Rush use." },
       { level: 14, name: "Cascade of Blades", text: "Make attacks equal to half Intelligence modifier (min 1) with advantage, dealing force damage; teleport 10 ft after each attack. Once per long rest." },
       { level: 18, name: "Shadow Slip", text: "Use Void Rush as bonus action without expending a use; Dodge as bonus action after Void Rush; missed melee attackers take force damage equal to Intelligence modifier." }
     ], note: "" },
-    { id: "void-guardian", name: "Void Guardian", parentClass: "TeliKin", summary: "Void Guardians use Void energy to protect allies, evade attacks, and create spectral barriers.", features: [
+    { id: "void-guardian", name: "Void Guardian", parentClass: "TeliKin", activeRework: true, summary: "Void Guardians use Void energy to protect allies, evade attacks, and create spectral barriers.", features: [
       { level: 3, name: "Defensive Reposition", text: "Reaction: teleport up to 30 ft to visible space when targeted by attack, no opportunity attacks. Uses = Intelligence modifier (min 1), recharge long rest." },
       { level: 6, name: "Void Armor", text: "Bonus action: +2 AC and resistance to nonmagical bludgeoning/piercing/slashing for 1 minute. On ranged miss while active, roll d20; on 16+, redirect attack to a creature within 30 ft using original roll. At 14th: extend to two willing allies within 10 ft. Once per short or long rest (twice from 18th)." },
       { level: 10, name: "Shield Wall", text: "Action: spectral wall up to 30 ft long, 10 ft high, 5 ft thick centered on a point within 60 ft — provides three-quarters cover for 1 minute. Creatures passing through make Str save vs spell DC or speed reduced to 0 for the rest of their turn. Once per long rest (twice from 18th)." },
       { level: 14, name: "Guardian's Resolve", text: "Reaction when you or ally within 10 ft takes damage: reduce it by Intelligence modifier + half TeliKin level (rounded up). Uses = proficiency bonus per long rest." },
       { level: 18, name: "Bastion of Shields", text: "Action: 15-ft radius sphere centered on you, moves with you, lasts 1 minute. You and allies inside gain resistance to all damage except psychic, advantage on saves vs multi-target effects. Allies can use reaction to create Void Shield (full cover vs cone/line/area). Once per long rest." }
     ], note: "" },
-    { id: "void-striker", name: "Void Striker", parentClass: "TeliKin", summary: "TeliKin who harness the Void offensively, wielding ethereal weapon arsenals through spatial portals.", features: [
+    { id: "void-striker", name: "Void Striker", parentClass: "TeliKin", activeRework: true, summary: "TeliKin who harness the Void offensively, wielding ethereal weapon arsenals through spatial portals.", features: [
       { level: 3, name: "Void Strike", text: "Once per turn: summon spectral weapon copy from pocket dimension, make attack vs creature within 30 ft using INT modifier for attack and damage. Uses = INT modifier (min 1) per long rest." },
       { level: 6, name: "Ethereal Armament", text: "Bonus action: summon ethereal weapon (magical, INT for attack/damage, lasts 1 minute). At 10th: enlarge to massive floating weapon, action to attack creature within 30 ft for 2d12 force." },
       { level: 10, name: "Voidstorm", text: "Action: summon up to 3 spectral weapons around you for 1 minute; any creature starting turn within 10 ft or moving into range takes 1d8+INT force. Once per long rest (twice from 14th)." },
       { level: 14, name: "Void Infusion", text: "On hit with summoned/ethereal weapon, deal +3d8 force. First use per turn costs no action; additional uses cost reaction. Uses = proficiency bonus per long rest." },
       { level: 18, name: "Arsenal of the Void", text: "Action: summon all pocket dimension weapons 1 minute; 2d6 force to creatures within 15 ft or entering. Action: target up to 3 creatures within 30 ft, Dex save vs spell DC: fail = 6d8 force, half on success. Once per long rest." }
     ], note: "" },
-    { id: "pact-of-the-god-slayer", name: "Pact of the God Slayer", parentClass: "Warlock", summary: "A warlock who forged a pact with an ancient god-slaying force, gaining power to resist and destroy divine beings.", features: [
+    { id: "pact-of-the-god-slayer", name: "Pact of the God Slayer", parentClass: "Warlock", antiDivine: true, summary: "A warlock who forged a pact with an ancient god-slaying force, gaining power to resist and destroy divine beings.", features: [
       { level: 1, name: "Expanded Spell List", text: "Level 1: Divine Favor, Protection from Evil and Good. Level 2: Magic Weapon, Zone of Truth. Level 3: Dispel Magic, Crusader's Mantle. Level 4: Freedom of Movement, Guardian of Faith. Level 5: Dispel Evil and Good, Holy Weapon." },
       { level: 1, name: "Divine Defiance", text: "Resistance to radiant damage. Reaction when creature within 30 ft deals radiant/necrotic to you: force Wisdom save DC 8+CHA+PB; fail = take damage = half warlock level (rounded up) + CHA modifier (radiant or necrotic, your choice)." },
       { level: 1, name: "Physical Defiance", text: "Proficiency in simple and martial weapons; use Charisma instead of Strength or Dexterity for damage." },
@@ -1123,7 +1123,7 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
       { level: 10, name: "Shield of Defiance", text: "Immunity to charm/fright from celestials. Reaction when creature within 30 ft uses legendary action or resistance: expend spell slot; creature makes Wisdom save vs spell save DC or action/resistance negated and it takes radiant/necrotic = warlock level." },
       { level: 14, name: "Divine Banishment", text: "Action: target celestial or divine creature within 60 ft makes Charisma save vs spell DC; fail = banished to a realm beyond the divine for 1 minute (no legendary actions/resistances while banished); success = 6d10 radiant or necrotic + stunned until end of your next turn. Once per long rest." }
     ], note: "" },
-    { id: "pact-of-the-evalune", name: "Pact of the Evalune", parentClass: "Warlock", summary: "Warlocks pacted with the Evalune who gain all-consuming sight, drain power from fallen casters, and radiate devouring magical force.", features: [
+    { id: "pact-of-the-evalune", name: "Pact of the Evalune", parentClass: "Warlock", narrativeLocked: true, summary: "Warlocks pacted with the Evalune who gain all-consuming sight, drain power from fallen casters, and radiate devouring magical force.", features: [
       { level: 1, name: "Expanded Spell List", text: "1st: Detect Magic, Inflict Wounds; 2nd: Mirror Image, See Invisibility; 3rd: Counterspell, Spirit Guardians; 4th: Phantasmal Killer, Dimension Door; 5th: Dispel Evil and Good, Contagion." },
       { level: 1, name: "Devourer's Sight", text: "Eyes turn deep purple; darkvision 120 ft; see through magical darkness; perceive magical auras. At 6th: Truesight 30 ft. At 14th: Truesight 60 ft, see through illusions and shapechanged true forms." },
       { level: 6, name: "Essence Eater", text: "On reducing spellcaster or divine creature to 0 HP, regain spell slot up to 5th level. Uses = proficiency bonus per long rest." },
@@ -1144,38 +1144,38 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
       { level: 10, name: "Elemental Mastery", text: "Draconic Dice become d8s. Elemental Breath: action, expend dice, choose element and shape (30-ft cone or 60-ft line), Dex save vs spell DC: fail = CHA modifier + 2x Draconic Dice total; 3+ dice spent = disadvantage on next save. Multi-Element Resistance: choose two Tiamat elements for resistance on long rest (same = immunity)." },
       { level: 14, name: "Quintessence of Tiamat", text: "Draconic Dice become d10s. Overflowing Elemental Might: roll each die twice and choose result (not extra dice). Draconic Supremacy: Elemental Scales last 10 minutes; add more dice during duration freely. Ignore resistance to Tiamat element damage from subclass features; immunity creatures take half. Adaptive Resistance: start of each turn, shift one resistance/immunity to another element (if at least 1 die remaining)." }
     ], note: "" },
-    { id: "ice-blade", name: "Ice Blade", parentClass: "Gensarch", summary: "A subclass focused on creating frozen weapons to restrain and damage enemies with cold.", features: [
+    { id: "ice-blade", name: "Ice Blade", parentClass: "Gensarch", element: "Water", summary: "A subclass focused on creating frozen weapons to restrain and damage enemies with cold.", features: [
       { level: 3, name: "Frozen Weaponry", text: "Bonus action: create ice weapon dealing cold damage; hits reduce target speed by 10 ft until end of their next turn." },
       { level: 7, name: "Frost Bind", text: "Once per turn on hit, Strength save or restrained until end of next turn; DC = 8 + Prof + Str/Wis." },
       { level: 11, name: "Shatter Lance", text: "Action: 30 ft line, 5 ft wide; Dex save or 5d8 cold damage, speed halved 1 minute (repeat save ends effect)." },
       { level: 15, name: "Glacial Guard", text: "Resistance to cold damage; reaction to reduce incoming damage from any source by Elemental Damage Die." }
     ], note: "" },
-    { id: "radiant-wave", name: "Radiant Wave", parentClass: "Gensarch", summary: "A support-focused subclass that uses Genn Dice to heal allies and restore HP to multiple creatures.", features: [
+    { id: "radiant-wave", name: "Radiant Wave", parentClass: "Gensarch", element: "Water", summary: "A support-focused subclass that uses Genn Dice to heal allies and restore HP to multiple creatures.", features: [
       { level: 3, name: "Healing Flow", text: "Use a Genn Die to heal a creature within 30 ft: HP = die roll + Wisdom modifier." },
       { level: 7, name: "Rejuvenating Tide", text: "Bonus action: spend a Genn Die to heal up to 3 creatures within 15 ft; HP = half die + Wisdom modifier. Uses = proficiency bonus per long rest." },
       { level: 11, name: "Purifying Current", text: "Allies you heal also gain until end of their next turn: advantage on their next saving throw and 1d6 temporary hit points." },
       { level: 15, name: "Overflow", text: "Once per long rest, when healing with a Genn Die, duplicate the effect to a second creature within 30 ft at no cost. On a critical heal (max die roll), the target gains resistance to all damage for 1 round." }
     ], note: "" },
-    { id: "water-cannon", name: "Water Cannon", parentClass: "Gensarch", summary: "A ranged subclass that fires powerful water blasts, splitting damage and unleashing sweeping tidal arcs.", features: [
+    { id: "water-cannon", name: "Water Cannon", parentClass: "Gensarch", element: "Water", summary: "A ranged subclass that fires powerful water blasts, splitting damage and unleashing sweeping tidal arcs.", features: [
       { level: 3, name: "Pressure Burst", text: "Ranged water attack (90 ft): 1d12+WIS bludgeoning or cold. Str save or pushed 10 ft. Counts as an attack (usable twice with Extra Attack)." },
       { level: 7, name: "Hydro Scatter", text: "On Water Cannon hit, choose one creature within 10 ft of target — it takes half the original damage." },
       { level: 11, name: "Tidal Arc", text: "Once per short rest: 60-ft cone, Dex save: 8d8 cold or bludgeoning + knocked prone on fail." },
       { level: 15, name: "Aqua Barrage", text: "Make 3 Water Cannon attacks per action. All 3 hitting same target deal bonus Elemental Damage Die damage and target is stunned until start of your next turn (Con save to resist)." }
     ], note: "" },
-    { id: "wave-step", name: "Wave Step", parentClass: "Gensarch", summary: "A water-style subclass that controls the battlefield through fluid movement, redirection, and vortex attacks.", features: [
+    { id: "wave-step", name: "Wave Step", parentClass: "Gensarch", element: "Water", summary: "A water-style subclass that controls the battlefield through fluid movement, redirection, and vortex attacks.", features: [
       { level: 3, name: "Flow Movement", text: "Dash/Disengage leaves water trail; enemies entering trail make Dex save or fall prone; ignore difficult terrain." },
       { level: 7, name: "Crushing Flow", text: "Genn Die damage lets you push 15 ft or pull 10 ft; collision deals 1d8 extra damage." },
       { level: 11, name: "Whirlpool Spin", text: "Once per turn when missed by melee: attacker makes Str save or pulled 10 ft and knocked prone; move 10 ft freely." },
       { level: 15, name: "Tidal Collapse", text: "Once per long rest: 20 ft radius, 40 ft cylinder; Str save or pulled to center, prone, 6d10 bludgeoning; difficult terrain 1 minute." }
     ], note: "" },
-    { id: "school-of-bladebinding", name: "School of Bladebinding", parentClass: "Wizard", summary: "Wizards who store spells within a bound blade and release them through melee strikes.", features: [
+    { id: "school-of-bladebinding", name: "School of Bladebinding", parentClass: "Wizard", activeRework: true, summary: "Wizards who store spells within a bound blade and release them through melee strikes.", features: [
       { level: 2, name: "Bladebound Magic", text: "Proficiency with martial weapons and all armor. Chosen melee weapon becomes spellbook and focus; spells engrave magically. INT and STR or DEX (your choice) are main attributes. Transferring to new weapon takes 1 hour." },
       { level: 2, name: "Spellstrike", text: "Spend spell slots at day start to pre-cast and store spells in blade. Store limit: 3 spell levels at 2nd. On melee hit, release one stored spell as part of the attack. Stored spells need no components; don't harm caster." },
       { level: 6, name: "Arcane Armor", text: "Reaction while wearing medium armor: add INT modifier to AC for one attack. Storage increases to 6 spell levels." },
       { level: 10, name: "Spellbound Rush", text: "After casting spell from blade, move up to 10 ft without provoking OA. Storage increases to 10 spell levels." },
       { level: 14, name: "Runic Overcharge", text: "When casting from blade, deal +INT modifier force damage to target(s). Storage increases to 12 spell levels. Once per long rest: release two stored spells simultaneously in one melee attack." }
     ], note: "" },
-    { id: "school-of-desecration", name: "School of Desecration", parentClass: "Wizard", summary: "Wizards who unravel divine magic, disrupt celestial power, and seek to purge the Weave of godly influence.", features: [
+    { id: "school-of-desecration", name: "School of Desecration", parentClass: "Wizard", antiDivine: true, summary: "Wizards who unravel divine magic, disrupt celestial power, and seek to purge the Weave of godly influence.", features: [
       { level: 2, name: "Desecrator's Insight", text: "Gain Religion proficiency and expertise; detect celestials/fiends/undead and divine spells within 60 ft. Uses = proficiency bonus per long rest." },
       { level: 2, name: "Anti-Divine Ward", text: "Cast Protection from Evil and Good without spell slot, self only, no concentration, 10 min. Uses = Intelligence modifier (min 1) per long rest." },
       { level: 6, name: "Unravel Divinity", text: "Reaction: when creature makes divine spell/feature check, force Wisdom save vs your DC or it's negated; you take force damage = wizard level. Uses = proficiency bonus per long rest." },
@@ -1199,7 +1199,7 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
     { id: "school-of-vacuus", name: "School of Vacuus", parentClass: "Wizard", summary: "Wizards who master Void energy to manipulate, disrupt, and control enemies using reality-warping forces.", features: [
       { level: 2, name: "Void Knowledge", text: "Change damage type of spells to force or psychic. Void Lashes cantrip (class cantrip): 1d12 force/psychic (Dex save, half on success), scaling to 4d12 at 17th level, splittable across targets." }
     ], note: "Disruptive Presence benefit of Void Knowledge is cut off in the source document. NEEDS MANUAL REVIEW." },
-    { id: "god-slayer-archetype", name: "God Slayer Archetype", parentClass: "Rogue", summary: "Rogues who specialize in hunting and destroying divine beings, bypassing celestial resistances and empowering strikes with radiant or necrotic energy.", features: [
+    { id: "godslayer-archetype", name: "Godslayer Archetype", parentClass: "Rogue", antiDivine: true, summary: "Rogues who specialize in hunting and destroying divine beings, bypassing celestial resistances and empowering strikes with radiant or necrotic energy.", features: [
       { level: 3, name: "Divine Nemesis", text: "Sneak Attack deals +1d6 radiant/necrotic (2d6 at 9th, 3d6 at 13th, 4d6 at 17th); attacks bypass non-magical resistance." },
       { level: 3, name: "Divine Scent", text: "Gain Religion proficiency; add Intelligence modifier x2 to checks about celestial or divine entities." },
       { level: 9, name: "Divine Defiance", text: "Resistance to radiant and necrotic. Reaction when creature within 30 ft deals radiant/necrotic to you: force Wisdom save; fail = take radiant or necrotic = half rogue level + Dex modifier." },
@@ -1482,7 +1482,8 @@ const styles = {
   },
   layout: {
     display: 'flex',
-    minHeight: 'calc(100vh - 100px)',
+    height: 'calc(100vh - 100px)',
+    overflow: 'hidden',
   },
   sidebar: {
     width: '260px',
@@ -1490,10 +1491,9 @@ const styles = {
     borderRight: '3px solid #8b6914',
     padding: '20px 0',
     overflowY: 'auto',
-    position: 'sticky',
-    top: 0,
-    height: 'calc(100vh - 100px)',
+    height: '100%',
     boxShadow: 'inset -2px 0 4px rgba(0,0,0,0.1)',
+    flexShrink: 0,
   },
   navItem: {
     padding: '10px 20px',
@@ -1529,6 +1529,10 @@ const styles = {
     flex: 1,
     padding: '32px 48px',
     overflowY: 'auto',
+    height: '100%',
+    boxSizing: 'border-box',
+  },
+  mainInner: {
     maxWidth: '900px',
   },
   pageHeading: {
@@ -1751,6 +1755,20 @@ const styles = {
     background: 'rgba(122, 31, 31, 0.08)',
     color: '#7a1f1f',
   },
+  subGroup: {
+    padding: '4px 20px 4px 44px',
+    cursor: 'default',
+    fontSize: '11px',
+    color: '#5c4020',
+    fontWeight: 700,
+    fontFamily: '"Cinzel", serif',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    marginTop: '4px',
+  },
   subclassChild: {
     padding: '4px 20px 4px 56px',
     cursor: 'pointer',
@@ -1766,6 +1784,16 @@ const styles = {
     fontWeight: 700,
     fontStyle: 'normal',
     background: 'rgba(122, 31, 31, 0.1)',
+  },
+  subclassGrandchild: {
+    padding: '3px 20px 3px 68px',
+    cursor: 'pointer',
+    fontSize: '11px',
+    color: '#8b6914',
+    fontStyle: 'italic',
+    transition: 'all 0.15s ease',
+    display: 'flex',
+    alignItems: 'center',
   },
   emptyMarker: {
     color: '#a08550',
@@ -2324,7 +2352,7 @@ export default function Compendium() {
                   return (
                     <div
                       key={parentRace}
-                      style={{ ...styles.navSub, ...(isActive ? styles.navSubActive : {}) }}
+                      style={{ ...styles.parentGroup, ...(isActive ? styles.parentGroupActive : {}) }}
                       onClick={() => goTo('races', parent.id)}
                     >
                       {parent.name}
@@ -2341,15 +2369,18 @@ export default function Compendium() {
             expanded={expandedSections.has('classes')}
             onClick={() => toggleSectionExpanded('classes')}
           />
-          {expandedSections.has('classes') && content.classes.map((c) => (
-            <div
-              key={c.id}
-              style={{ ...styles.navSub, ...(section === 'classes' && activeId === c.id ? styles.navSubActive : {}) }}
-              onClick={() => goTo('classes', c.id)}
-            >
-              {c.name}
-            </div>
-          ))}
+          {expandedSections.has('classes') && content.classes.map((c) => {
+            const isActive = section === 'classes' && activeId === c.id;
+            return (
+              <div
+                key={c.id}
+                style={{ ...styles.parentGroup, ...(isActive ? styles.parentGroupActive : {}) }}
+                onClick={() => goTo('classes', c.id)}
+              >
+                {c.name}
+              </div>
+            );
+          })}
 
           <SectionToggle
             label="Subclasses"
@@ -2360,23 +2391,64 @@ export default function Compendium() {
           {expandedSections.has('subclasses') && content.parentClassOrder.map((parentClass) => {
             const subsForClass = content.subclasses.filter((s) => s.parentClass === parentClass);
             if (subsForClass.length === 0) return null;
-            // Sort: anti-divine / god-slaying subclasses pinned first, others alphabetical
-            const isAntiDivine = (name) => {
-              const n = (name || '').toLowerCase();
-              return n.includes('godslay') || n.includes('god slay') || n.includes('god-slay')
-                  || n.includes('desecrat') || n.includes('divine wrath') || n.includes('divine bane')
-                  || n.includes('heavenly flame') || n.includes('soul destruction')
-                  || n.includes('archangel') || n.includes('deity hunter') || n.includes('deity nightmare');
-            };
+            // Sort: anti-divine pinned first (authoritative), then alphabetical
             const sortedSubs = [...subsForClass].sort((a, b) => {
-              const aAd = isAntiDivine(a.name);
-              const bAd = isAntiDivine(b.name);
+              const aAd = !!a.antiDivine;
+              const bAd = !!b.antiDivine;
               if (aAd && !bAd) return -1;
               if (!aAd && bAd) return 1;
               return (a.name || '').localeCompare(b.name || '');
             });
             const isExpanded = expandedClasses.has(parentClass);
             const hasActive = section === 'subclasses' && sortedSubs.some((s) => s.id === activeId);
+
+            // ── Render a single subclass row, including any nested knighthoods ────
+            const renderSub = (s) => {
+              const isActive = section === 'subclasses' && activeId === s.id;
+              const isEmpty = !s.summary && (!s.features || s.features.length === 0);
+              const hasKnighthoods = Array.isArray(s.knighthoods) && s.knighthoods.length > 0;
+              return (
+                <div key={s.id}>
+                  <div
+                    style={{ ...styles.subclassChild, ...(isActive ? styles.subclassChildActive : {}) }}
+                    onClick={() => goTo('subclasses', s.id)}
+                  >
+                    <span>{s.name}</span>
+                    {s.priority === 'highest' && <span style={styles.pillPriority}>P1</span>}
+                    {s.priority === 'second' && <span style={styles.pillPriority}>P2</span>}
+                    {s.activeRework && <span style={{ ...styles.pillPriority, background: '#8b6914', color: '#f5ecd9' }}>WIP</span>}
+                    {s.narrativeLocked && <span style={{ ...styles.pillPriority, background: '#5c4020', color: '#f5ecd9' }}>DM</span>}
+                    {s.narrativeUnique && <span style={{ ...styles.pillPriority, background: '#c9a55c', color: '#3b2615' }}>1/1</span>}
+                    {isEmpty && <span style={styles.emptyMarker}>· empty</span>}
+                  </div>
+                  {hasKnighthoods && isActive && s.knighthoods.map((k) => (
+                    <div key={k} style={styles.subclassGrandchild}>{k}</div>
+                  ))}
+                </div>
+              );
+            };
+
+            // ── Gensarch gets element subgroupings ────────────────────────────
+            const isGensarch = parentClass === 'Gensarch';
+            let body = null;
+            if (isExpanded) {
+              if (isGensarch) {
+                const elementOrder = ['Air', 'Earth', 'Fire', 'Water', 'Elamesta'];
+                body = elementOrder.map((elem) => {
+                  const subs = sortedSubs.filter((s) => s.element === elem);
+                  if (subs.length === 0) return null;
+                  return (
+                    <div key={elem}>
+                      <div style={styles.subGroup}>{elem} Gensarch</div>
+                      {subs.map(renderSub)}
+                    </div>
+                  );
+                });
+              } else {
+                body = sortedSubs.map(renderSub);
+              }
+            }
+
             return (
               <div key={parentClass}>
                 <div
@@ -2398,22 +2470,7 @@ export default function Compendium() {
                     {sortedSubs.length}
                   </span>
                 </div>
-                {isExpanded && sortedSubs.map((s) => {
-                  const isActive = section === 'subclasses' && activeId === s.id;
-                  const isEmpty = !s.summary && (!s.features || s.features.length === 0);
-                  return (
-                    <div
-                      key={s.id}
-                      style={{ ...styles.subclassChild, ...(isActive ? styles.subclassChildActive : {}) }}
-                      onClick={() => goTo('subclasses', s.id)}
-                    >
-                      <span>{s.name}</span>
-                      {s.priority === 'highest' && <span style={styles.pillPriority}>P1</span>}
-                      {s.priority === 'second' && <span style={styles.pillPriority}>P2</span>}
-                      {isEmpty && <span style={styles.emptyMarker}>· empty</span>}
-                    </div>
-                  );
-                })}
+                {body}
               </div>
             );
           })}
@@ -2503,21 +2560,23 @@ export default function Compendium() {
         </aside>
 
         <main style={styles.main}>
-          {searchResults ? (
-            <SearchResults results={searchResults} onClick={goTo} query={search} />
-          ) : section === 'home' ? (
-            <HomePage content={content} goTo={goTo} />
-          ) : section === 'campaign' ? (
-            <CampaignPage content={content} editMode={editMode} persistChange={persistChange} />
-          ) : section === 'races' ? (
-            <RacesPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} />
-          ) : section === 'classes' ? (
-            <ClassesPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} />
-          ) : section === 'subclasses' ? (
-            <SubclassesPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} />
-          ) : section === 'characters' ? (
-            <CharactersPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} />
-          ) : null}
+          <div style={styles.mainInner}>
+            {searchResults ? (
+              <SearchResults results={searchResults} onClick={goTo} query={search} />
+            ) : section === 'home' ? (
+              <HomePage content={content} goTo={goTo} />
+            ) : section === 'campaign' ? (
+              <CampaignPage content={content} editMode={editMode} persistChange={persistChange} />
+            ) : section === 'races' ? (
+              <RacesPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} />
+            ) : section === 'classes' ? (
+              <ClassesPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} />
+            ) : section === 'subclasses' ? (
+              <SubclassesPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} />
+            ) : section === 'characters' ? (
+              <CharactersPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} />
+            ) : null}
+          </div>
         </main>
       </div>
 
