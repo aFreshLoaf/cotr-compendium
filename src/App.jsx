@@ -579,25 +579,25 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
     "Sorcerer", "TeliKin", "Warlock", "Wizard"
   ],
   subclasses: [
-    { id: "aerial-sniper", name: "Aerial Sniper", parentClass: "Air Gensharch", summary: "A wind-based subclass that creates ranged air blasts and vacuum attacks to strike enemies from a distance.", features: [
+    { id: "aerial-sniper", name: "Aerial Sniper", parentClass: "Gensarch", summary: "A wind-based subclass that creates ranged air blasts and vacuum attacks to strike enemies from a distance.", features: [
       { level: 3, name: "Air Bolts", text: "Action: ranged wind blast 120 ft, Dex modifier to attack, 1d10 thunder/slashing/piercing magical damage." },
       { level: 7, name: "Compressed Air Bolt", text: "Once/short rest: charge one turn, fire 3d10 damage in 5 ft wide, 60 ft line; Dex save half." },
       { level: 11, name: "Static Dome", text: "+2 AC, resistance to ranged weapon damage for 1 minute. Recharge on short rest." },
       { level: 15, name: "Vacuum Shot", text: "Once/long rest: attack up to 3 enemies in a line; each takes Elemental Damage Die + 3d10 thunder, ignores cover/armor." }
     ], note: "" },
-    { id: "air-acrobat", name: "Air Acrobat", parentClass: "Air Gensharch", summary: "An aerial subclass that gains flying speed, momentum-powered strikes, and evasive aerial reactions.", features: [
+    { id: "air-acrobat", name: "Air Acrobat", parentClass: "Gensarch", summary: "An aerial subclass that gains flying speed, momentum-powered strikes, and evasive aerial reactions.", features: [
       { level: 3, name: "Soaring Style", text: "Fly speed 10 ft (20 ft at 7th, 30 ft at 15th); airborne attacks have disadvantage until first hit." },
       { level: 7, name: "Momentum Strike", text: "Move 20+ ft before attack: deal double proficiency bonus additional damage and force Str save or push 15 ft." },
       { level: 11, name: "Reactive Lift", text: "Reaction: fly 15 ft up when targeted by melee; if attack misses, make opportunity attack as part of reaction." },
       { level: 15, name: "Hurricane Pivot", text: "When hit by an AOE or spell, expend 1 Genn Die to spin-dash leap, halving the damage and moving 30 ft in any direction." }
     ], note: "" },
-    { id: "air-blade", name: "Air Blade", parentClass: "Air Gensharch", summary: "A swift melee subclass that chains rapid attacks with wind-enhanced slashing strikes.", features: [
+    { id: "air-blade", name: "Air Blade", parentClass: "Gensarch", summary: "A swift melee subclass that chains rapid attacks with wind-enhanced slashing strikes.", features: [
       { level: 3, name: "Whirlwind Strikes", text: "Bonus action extra unarmed/light weapon attack; hit deals Elemental Damage Die slashing damage." },
       { level: 7, name: "Cyclone Dance", text: "Once per turn, 2+ hits force Dex save or target knocked prone or disarmed (your choice)." },
       { level: 11, name: "Gale Step", text: "Move up to 40 ft between attacks; hits don't trigger opportunity attacks (misses impose disadvantage instead)." },
       { level: 15, name: "Blade Tempest", text: "Once per long rest, flurry of four attacks as one action (extra attacks still available after). Each hit adds 1 Genn Die slashing damage." }
     ], note: "" },
-    { id: "air-guard", name: "Air Guard", parentClass: "Air Gensharch", summary: "A defensive subclass that redirects incoming attacks and reflects damage back to attackers with wind.", features: [
+    { id: "air-guard", name: "Air Guard", parentClass: "Gensarch", summary: "A defensive subclass that redirects incoming attacks and reflects damage back to attackers with wind.", features: [
       { level: 3, name: "Wind Redirection", text: "Reaction when hit within 10 ft: reduce damage by 1d8+DEX+WIS. If reduced to 0 damage, send wind blast: Str save or attacker pushed 10 ft." },
       { level: 7, name: "Reflective Burst", text: "On successful redirect, spend 1 Genn Die to reflect full damage back to attacker as thunder damage." },
       { level: 11, name: "Cyclone Parry", text: "Reaction when missed by melee: move 20 ft via gust (no opportunity attacks); creatures adjacent to you take Elemental Damage Die in thunder." },
@@ -765,25 +765,25 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
       { level: 10, name: "Predator's Ascension", text: "Regeneration = WIS modifier at start of turn (if above 0 HP). Advantage on saves vs spells. Moonbound Leap: bonus action, leap 30 ft no opportunity attacks; if adjacent to creature on landing, make one natural weapon attack." },
       { level: 14, name: "Avatar of the Moon Curse", text: "Once per long rest on transform: resistance to all damage except radiant; advantage on all attack rolls; +20 ft movement. On reducing creature to 0 HP: move half speed and make one additional attack. The Beast Remembers: no exhaustion on leaving form; witnesses make Wis save or frightened 1 minute." }
     ], note: "" },
-    { id: "catapult", name: "Catapult", parentClass: "Earth Gensharch", summary: "A ranged subclass that hurls elemental stones and boulders to bombard enemies at extreme range.", features: [
+    { id: "catapult", name: "Catapult", parentClass: "Gensarch", summary: "A ranged subclass that hurls elemental stones and boulders to bombard enemies at extreme range.", features: [
       { level: 3, name: "Stone Barrage", text: "Action: hurl stones equal to Proficiency Bonus, each dealing 1d8 bludgeoning. Or fire single boulder for (1d8 x Proficiency Bonus) to one target." },
       { level: 7, name: "Explosive Impact", text: "Once per turn on stone hit, cause shockwave: creatures within 5 ft of target make Dex save or take half original damage." },
       { level: 11, name: "Shatter Slam", text: "Action: volley at 20-ft radius, Dex save or 4d8 bludgeoning. Once per short rest." },
       { level: 15, name: "Siege Mode", text: "Stone attacks ignore cover and have range 300 ft. Add CON modifier to number of stones thrown. Once per long rest: massive stone burst, 8d8 in 30-ft cone, push all creatures 15 ft." }
     ], note: "" },
-    { id: "earth-shaker", name: "Earth Shaker", parentClass: "Earth Gensharch", summary: "A ground-shaking subclass that controls the battlefield through tremors and seismic force.", features: [
+    { id: "earth-shaker", name: "Earth Shaker", parentClass: "Gensarch", summary: "A ground-shaking subclass that controls the battlefield through tremors and seismic force.", features: [
       { level: 3, name: "Tremor Step", text: "After moving 15 ft, bonus action quake: creatures within 5 ft make Dex save or fall prone and take 1d6 bludgeoning." },
       { level: 7, name: "Ground Control", text: "Action: 20 ft radius becomes difficult terrain; enemies move half speed, disadvantage on Strength checks." },
       { level: 11, name: "Seismic Shockwave", text: "Once per short rest: 15 ft cone slam, Strength save or 4d6 bludgeoning and knocked prone." },
       { level: 15, name: "Quaking Core", text: "Gain tremorsense 30 ft; creatures within 10 ft take Elemental Damage Die bludgeoning at turn start if touching the ground." }
     ], note: "" },
-    { id: "earth-smith", name: "Earth Smith", parentClass: "Earth Gensharch", summary: "A subclass that summons magical stone weapons and armor from the ground to fight as a living siege engine.", features: [
+    { id: "earth-smith", name: "Earth Smith", parentClass: "Gensarch", summary: "A subclass that summons magical stone weapons and armor from the ground to fight as a living siege engine.", features: [
       { level: 3, name: "Stoneforging", text: "Bonus action: summon magical weapon/armor from ground. Weapons are magical and count for resistance. Control floating weapons = Proficiency Bonus + Con modifier (armor creation reduces cap to Proficiency Bonus only). Floating weapons can move 30 ft and attack using bonus action." },
       { level: 7, name: "Guardian Armory", text: "Controlled weapons can make opportunity attacks when enemies move near them. Grant one floating weapon to ally within 30 ft to fight as if attuned." },
       { level: 11, name: "Weapon Dance", text: "Once per turn, bonus action: command all floating weapons to attack simultaneously, each dealing Elemental Damage Die." },
       { level: 15, name: "Living Arsenal", text: "Summon temporary golem-like form for 1 minute, merging with weapons. Gain +2 AC, resistance to nonmagical bludgeoning/piercing/slashing; each of your attacks strikes with a second weapon for +2d8 force." }
     ], note: "" },
-    { id: "stone-shield", name: "Stone Shield", parentClass: "Earth Gensharch", summary: "A defensive subclass that summons floating stone shields to protect allies and control the battlefield.", features: [
+    { id: "stone-shield", name: "Stone Shield", parentClass: "Gensarch", summary: "A defensive subclass that summons floating stone shields to protect allies and control the battlefield.", features: [
       { level: 3, name: "Guardian Shields", text: "Bonus action: summon floating stone shields up to Proficiency Bonus in number; each grants +2 AC to you or ally within 30 ft." },
       { level: 7, name: "Reactive Wall", text: "Reaction: raise earth wall (5 ft wide, 10 ft tall) between attacker and target, providing three-quarters cover and absorbing 10 + Con mod damage before breaking." },
       { level: 11, name: "Shield Redirect", text: "Reaction when attacker misses ally protected by your shield: push attacker 10 ft away or knock prone." },
@@ -851,31 +851,31 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
       { level: 15, name: "Blinding Speed", text: "Take two reactions per round. When taking Dash action, opportunity attacks against you have disadvantage until your next turn." },
       { level: 18, name: "Master of Evasion", text: "Advantage on Dex saves. When attacker misses you, reaction to make one melee attack against them. Movement speed +10 ft additional (total +20 ft)." }
     ], note: "(Only female characters can use this subclass, per the source document.)" },
-    { id: "dancing-flames", name: "Dancing Flames", parentClass: "Fire Gensharch", summary: "A tactical melee subclass that chains Flame Tactics for escalating fire damage and critical hit threats.", features: [
+    { id: "dancing-flames", name: "Dancing Flames", parentClass: "Gensarch", summary: "A tactical melee subclass that chains Flame Tactics for escalating fire damage and critical hit threats.", features: [
       { level: 3, name: "Flame Tactics", text: "On melee hit, apply one tactic per turn: Trip (Str save or prone), Push (Str save or pushed 10 ft), or Lick (target takes 1d6 fire at start of its next turn)." },
       { level: 7, name: "Ember Step", text: "Movement leaves 5-ft wide flame trail; enemies take 1d8 fire per 5 ft moved through." },
       { level: 11, name: "Kindling Fury", text: "Each active Flame Tactic adds +2 fire damage to next attack. At 3 active tactics, attacks crit on 19-20." },
       { level: 15, name: "Flame Waltz", text: "Once per turn on reducing creature to 0 HP, teleport 30 ft and make another melee attack as part of same action." }
     ], note: "" },
-    { id: "devouring-flames", name: "Devouring Flames", parentClass: "Fire Gensharch", summary: "A fire subclass focused on consuming enemies with passion-fueled flame bursts and area explosions.", features: [
+    { id: "devouring-flames", name: "Devouring Flames", parentClass: "Gensarch", summary: "A fire subclass focused on consuming enemies with passion-fueled flame bursts and area explosions.", features: [
       { level: 3, name: "Passion Burn", text: "Spend 1 Passion Die (1d10) for extra damage; enemies make Wisdom save or gain disadvantage on attacks against others. Passion Dice = proficiency bonus, refresh on short rest." },
       { level: 7, name: "Flame Expansion", text: "Action: 15 ft cone, Dex save, 6d6 fire damage (half on success). Scales to 30/60 ft and 8d6/10d6." },
       { level: 11, name: "Infernal Bloom", text: "When spending a Passion Die, all creatures within 10 ft take 2d10 fire damage, no save." },
       { level: 15, name: "Burnout Burst", text: "Once per long rest, expend all Passion Dice; creatures within 30 ft take 1d10 per die + Elemental Damage Die." }
     ], note: "" },
-    { id: "electric-flames", name: "Electric Flames", parentClass: "Fire Gensharch", summary: "A subclass that converts fire into lightning energy, arcing to multiple targets and paralyzing enemies.", features: [
+    { id: "electric-flames", name: "Electric Flames", parentClass: "Gensarch", summary: "A subclass that converts fire into lightning energy, arcing to multiple targets and paralyzing enemies.", features: [
       { level: 3, name: "Searing Surge", text: "Choose to deal lightning instead of fire for any elemental attack or Genn feature. On lightning hit, roll 1d6: on 6, target is shocked, granting advantage on your next attack against them." },
       { level: 7, name: "Arc Flash", text: "Once per turn on lightning hit, a second creature within 10 ft takes half the original damage." },
       { level: 11, name: "Paralytic Flame", text: "On lightning damage, target makes Con save or paralyzed until end of its next turn. Once per turn per creature." },
       { level: 15, name: "Living Voltage", text: "Resistance to lightning and fire. Once per long rest, activate Overcharge 1 minute: attacks deal +1d6 lightning; creatures within 10 ft take 1d6 lightning automatically at start of their turn." }
     ], note: "" },
-    { id: "flames-of-life", name: "Flames of Life", parentClass: "Fire Gensharch", summary: "A subclass that channels flame for healing, restoration, and resurrection.", features: [
+    { id: "flames-of-life", name: "Flames of Life", parentClass: "Gensarch", summary: "A subclass that channels flame for healing, restoration, and resurrection.", features: [
       { level: 3, name: "Healing Flame", text: "Spend a Genn Die to heal creature within 30 ft for roll + Charisma modifier instead of dealing damage." },
       { level: 7, name: "Warm Ember", text: "Allies within 10 ft regain 1 HP each turn if unconscious; once per long rest revive dead creature with 1 HP." },
       { level: 11, name: "Mass Ignite Heal", text: "Once per long rest, up to 20 creatures within 60 ft regain 2d6+Cha HP and gain fire resistance for 1 minute." },
       { level: 15, name: "Phoenix Core", text: "On reaching 0 HP, explode healing allies 3d10 and dealing 3d10 fire to enemies; return with Genn Die+Cha HP. Once per long rest." }
     ], note: "" },
-    { id: "elamesta", name: "Elamesta", parentClass: "Gensharch", summary: "The rarest Gensharch form — an elemental convergence who freely blends features from all four elements.", features: [
+    { id: "elamesta", name: "Elamesta", parentClass: "Gensarch", summary: "The rarest Gensharch form — an elemental convergence who freely blends features from all four elements.", features: [
       { level: 3, name: "Elemental Fusion", text: "Roll 1d100 at character creation; on 15 or lower, born as Elamesta (cannot be chosen otherwise). Choose one Level 3 feature from any elemental subclass path. Also choose one fighting style (Gust Fighting, Firmed Art, Blazed Hand, or Flow Combat). Elemental Damage Die can be any elemental type; switch element and resistances on long rest." },
       { level: 7, name: "Adaptive Form", text: "Choose one Level 7 feature from a different elemental path. Gain resistance to a second elemental type from that path. Advantage on saves vs effects of that element." },
       { level: 11, name: "Elemental Mastery", text: "Choose one Level 11 feature from a third elemental path. Use Genn Dice as any elemental type freely. On natural 20 attack, trigger two elemental effects at once." },
@@ -1000,7 +1000,7 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
       { level: 10, name: "Conscious Instinct", text: "Resistance to psychic damage; advantage vs charm/fright. When creature reads your thoughts, force INT save DC 8+PB+INT; fail = 2d10 psychic damage and effect fails." },
       { level: 14, name: "Dominance Unleashed", text: "Action: 30-ft radius INT save DC 8+PB+INT; fail = stunned 1 minute (save repeats end of turn). Once per long rest." }
     ], note: "" },
-    { id: "order-of-the-mender", name: "Order of the Mender", parentClass: "Psion", summary: "A healer-empath subclass that mends wounds and minds while manipulating emotions on the battlefield.", features: [
+    { id: "order-of-the-mender", name: "Order of the Mender", parentClass: "Esper", summary: "A healer-empath subclass that mends wounds and minds while manipulating emotions on the battlefield.", features: [
       { level: 3, name: "Pulse of Relief", text: "Bonus action, expend 1 Psionic Energy die; target within 30 ft regains HP = die + INT modifier, plus temp HP = half Psion level; ends frightened/charmed conditions." },
       { level: 5, name: "Empathic Reversal", text: "Reaction: expend 1 Psionic Energy die to redirect emotion condition to new target within 60 ft; WIS save or suffer same condition; fail by 5+ also staggered." },
       { level: 7, name: "Sympathetic Link", text: "Action, expend 1 die; link with willing creature within 30 ft for 1 minute; split damage, redirect healing; one link at a time." },
@@ -1166,25 +1166,25 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
       { level: 10, name: "Elemental Mastery", text: "Draconic Dice become d8s. Elemental Breath: action, expend dice, choose element and shape (30-ft cone or 60-ft line), Dex save vs spell DC: fail = CHA modifier + 2x Draconic Dice total; 3+ dice spent = disadvantage on next save. Multi-Element Resistance: choose two Tiamat elements for resistance on long rest (same = immunity)." },
       { level: 14, name: "Quintessence of Tiamat", text: "Draconic Dice become d10s. Overflowing Elemental Might: roll each die twice and choose result (not extra dice). Draconic Supremacy: Elemental Scales last 10 minutes; add more dice during duration freely. Ignore resistance to Tiamat element damage from subclass features; immunity creatures take half. Adaptive Resistance: start of each turn, shift one resistance/immunity to another element (if at least 1 die remaining)." }
     ], note: "" },
-    { id: "ice-blade", name: "Ice Blade", parentClass: "Water Gensharch", summary: "A subclass focused on creating frozen weapons to restrain and damage enemies with cold.", features: [
+    { id: "ice-blade", name: "Ice Blade", parentClass: "Gensarch", summary: "A subclass focused on creating frozen weapons to restrain and damage enemies with cold.", features: [
       { level: 3, name: "Frozen Weaponry", text: "Bonus action: create ice weapon dealing cold damage; hits reduce target speed by 10 ft until end of their next turn." },
       { level: 7, name: "Frost Bind", text: "Once per turn on hit, Strength save or restrained until end of next turn; DC = 8 + Prof + Str/Wis." },
       { level: 11, name: "Shatter Lance", text: "Action: 30 ft line, 5 ft wide; Dex save or 5d8 cold damage, speed halved 1 minute (repeat save ends effect)." },
       { level: 15, name: "Glacial Guard", text: "Resistance to cold damage; reaction to reduce incoming damage from any source by Elemental Damage Die." }
     ], note: "" },
-    { id: "radiant-wave", name: "Radiant Wave", parentClass: "Water Gensharch", summary: "A support-focused subclass that uses Genn Dice to heal allies and restore HP to multiple creatures.", features: [
+    { id: "radiant-wave", name: "Radiant Wave", parentClass: "Gensarch", summary: "A support-focused subclass that uses Genn Dice to heal allies and restore HP to multiple creatures.", features: [
       { level: 3, name: "Healing Flow", text: "Use a Genn Die to heal a creature within 30 ft: HP = die roll + Wisdom modifier." },
       { level: 7, name: "Rejuvenating Tide", text: "Bonus action: spend a Genn Die to heal up to 3 creatures within 15 ft; HP = half die + Wisdom modifier. Uses = proficiency bonus per long rest." },
       { level: 11, name: "Purifying Current", text: "Allies you heal also gain until end of their next turn: advantage on their next saving throw and 1d6 temporary hit points." },
       { level: 15, name: "Overflow", text: "Once per long rest, when healing with a Genn Die, duplicate the effect to a second creature within 30 ft at no cost. On a critical heal (max die roll), the target gains resistance to all damage for 1 round." }
     ], note: "" },
-    { id: "water-cannon", name: "Water Cannon", parentClass: "Water Gensharch", summary: "A ranged subclass that fires powerful water blasts, splitting damage and unleashing sweeping tidal arcs.", features: [
+    { id: "water-cannon", name: "Water Cannon", parentClass: "Gensarch", summary: "A ranged subclass that fires powerful water blasts, splitting damage and unleashing sweeping tidal arcs.", features: [
       { level: 3, name: "Pressure Burst", text: "Ranged water attack (90 ft): 1d12+WIS bludgeoning or cold. Str save or pushed 10 ft. Counts as an attack (usable twice with Extra Attack)." },
       { level: 7, name: "Hydro Scatter", text: "On Water Cannon hit, choose one creature within 10 ft of target — it takes half the original damage." },
       { level: 11, name: "Tidal Arc", text: "Once per short rest: 60-ft cone, Dex save: 8d8 cold or bludgeoning + knocked prone on fail." },
       { level: 15, name: "Aqua Barrage", text: "Make 3 Water Cannon attacks per action. All 3 hitting same target deal bonus Elemental Damage Die damage and target is stunned until start of your next turn (Con save to resist)." }
     ], note: "" },
-    { id: "wave-step", name: "Wave Step", parentClass: "Water Gensharch", summary: "A water-style subclass that controls the battlefield through fluid movement, redirection, and vortex attacks.", features: [
+    { id: "wave-step", name: "Wave Step", parentClass: "Gensarch", summary: "A water-style subclass that controls the battlefield through fluid movement, redirection, and vortex attacks.", features: [
       { level: 3, name: "Flow Movement", text: "Dash/Disengage leaves water trail; enemies entering trail make Dex save or fall prone; ignore difficult terrain." },
       { level: 7, name: "Crushing Flow", text: "Genn Die damage lets you push 15 ft or pull 10 ft; collision deals 1d8 extra damage." },
       { level: 11, name: "Whirlpool Spin", text: "Once per turn when missed by melee: attacker makes Str save or pulled 10 ft and knocked prone; move 10 ft freely." },
@@ -1373,9 +1373,13 @@ async function loadContent() {
         if (!cachedSub) return defaultSub;
         return {
           ...defaultSub,
+          name: cachedSub.name && cachedSub.name !== "" ? cachedSub.name : defaultSub.name,
           summary: cachedSub.summary && cachedSub.summary !== "" ? cachedSub.summary : defaultSub.summary,
           features: cachedSub.features && cachedSub.features.length > 0 ? cachedSub.features : defaultSub.features,
           note: cachedSub.note && cachedSub.note !== "" ? cachedSub.note : defaultSub.note,
+          pills: cachedSub.pills,
+          headings: cachedSub.headings,
+          customSections: cachedSub.customSections,
         };
       });
       // Same for races
@@ -1386,11 +1390,16 @@ async function loadContent() {
         if (!cachedRace) return defaultRace;
         return {
           ...defaultRace,
+          name: cachedRace.name && cachedRace.name !== "" ? cachedRace.name : defaultRace.name,
           tagline: cachedRace.tagline && cachedRace.tagline !== "" ? cachedRace.tagline : defaultRace.tagline,
           description: cachedRace.description && cachedRace.description !== "" ? cachedRace.description : defaultRace.description,
+          summary: cachedRace.summary && cachedRace.summary !== "" ? cachedRace.summary : defaultRace.summary,
           traits: cachedRace.traits && cachedRace.traits.length > 0 ? cachedRace.traits : defaultRace.traits,
           archetypes: cachedRace.archetypes && cachedRace.archetypes.length > 0 ? cachedRace.archetypes : defaultRace.archetypes,
           note: cachedRace.note && cachedRace.note !== "" ? cachedRace.note : defaultRace.note,
+          pills: cachedRace.pills,
+          headings: cachedRace.headings,
+          customSections: cachedRace.customSections,
         };
       });
       // Same for characters
@@ -1401,12 +1410,16 @@ async function loadContent() {
         if (!cachedCh) return defaultCh;
         return {
           ...defaultCh,
+          name: cachedCh.name && cachedCh.name !== "" ? cachedCh.name : defaultCh.name,
           summary: cachedCh.summary && cachedCh.summary !== "" ? cachedCh.summary : defaultCh.summary,
           keyTraits: cachedCh.keyTraits && cachedCh.keyTraits.length > 0 ? cachedCh.keyTraits : defaultCh.keyTraits,
           note: cachedCh.note && cachedCh.note !== "" ? cachedCh.note : defaultCh.note,
           race: cachedCh.race && cachedCh.race !== "" ? cachedCh.race : defaultCh.race,
           class: cachedCh.class && cachedCh.class !== "" ? cachedCh.class : defaultCh.class,
           patron: cachedCh.patron && cachedCh.patron !== "" ? cachedCh.patron : defaultCh.patron,
+          pills: cachedCh.pills,
+          headings: cachedCh.headings,
+          customSections: cachedCh.customSections,
         };
       });
       // Merge classes — preserve user-edited fields, keep structural defaults
@@ -1418,9 +1431,11 @@ async function loadContent() {
         const preserve = (field) => cachedCls[field] && (Array.isArray(cachedCls[field]) ? cachedCls[field].length > 0 : cachedCls[field] !== "");
         return {
           ...defaultCls,
+          name: preserve('name') ? cachedCls.name : defaultCls.name,
           summary: preserve('summary') ? cachedCls.summary : defaultCls.summary,
           coreFeatures: preserve('coreFeatures') ? cachedCls.coreFeatures : defaultCls.coreFeatures,
           progression: preserve('progression') ? cachedCls.progression : defaultCls.progression,
+          tableColumns: preserve('tableColumns') ? cachedCls.tableColumns : defaultCls.tableColumns,
           startingHP: preserve('startingHP') ? cachedCls.startingHP : defaultCls.startingHP,
           hpPerLevel: preserve('hpPerLevel') ? cachedCls.hpPerLevel : defaultCls.hpPerLevel,
           armorTraining: preserve('armorTraining') ? cachedCls.armorTraining : defaultCls.armorTraining,
@@ -1428,6 +1443,10 @@ async function loadContent() {
           skills: preserve('skills') ? cachedCls.skills : defaultCls.skills,
           weapons: preserve('weapons') ? cachedCls.weapons : defaultCls.weapons,
           startingEquipment: preserve('startingEquipment') ? cachedCls.startingEquipment : defaultCls.startingEquipment,
+          notes: preserve('notes') ? cachedCls.notes : defaultCls.notes,
+          pills: cachedCls.pills,
+          headings: cachedCls.headings,
+          customSections: cachedCls.customSections,
         };
       });
       return {
@@ -1810,6 +1829,280 @@ const styles = {
   saveStatusVisible: {
     opacity: 1,
   },
+};
+
+// ============================================================
+// PILL PRESETS — named color swatches for editable pills
+// ============================================================
+const PILL_PRESETS = [
+  { name: 'Crimson', bg: '#7a1f1f', fg: '#f5ecd9' },
+  { name: 'Gold',    bg: '#c9a55c', fg: '#3b2615' },
+  { name: 'Bronze',  bg: '#8b6914', fg: '#f5ecd9' },
+  { name: 'Shadow',  bg: '#3b2615', fg: '#f5ecd9' },
+  { name: 'Slate',   bg: '#5c4020', fg: '#f5ecd9' },
+  { name: 'Forest',  bg: '#5c8a3a', fg: '#f5ecd9' },
+  { name: 'Azure',   bg: '#3a5c8a', fg: '#f5ecd9' },
+  { name: 'Bone',    bg: '#e8d5a0', fg: '#3b2615' },
+];
+
+const pillStyleFromColor = (color) => {
+  const preset = PILL_PRESETS.find((p) => p.name === color) || PILL_PRESETS[0];
+  return { ...styles.pill, background: preset.bg, color: preset.fg };
+};
+
+// ============================================================
+// EDITABLE PILL — display + edit affordances
+// ============================================================
+function EditablePill({ pill, editMode, onChange, onRemove }) {
+  const [pickerOpen, setPickerOpen] = React.useState(false);
+  const baseStyle = pillStyleFromColor(pill.color || 'Crimson');
+  if (!editMode) {
+    return <span style={baseStyle}>{pill.label}</span>;
+  }
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', marginRight: '6px', marginBottom: '4px',
+      background: baseStyle.background, color: baseStyle.color, borderRadius: '2px',
+      padding: '1px 2px 1px 6px', position: 'relative' }}>
+      <input
+        value={pill.label}
+        onChange={(e) => onChange({ ...pill, label: e.target.value })}
+        placeholder="Tag…"
+        style={{ background: 'transparent', color: baseStyle.color, border: 'none', outline: 'none',
+          fontFamily: '"Cinzel", serif', fontSize: '11px', letterSpacing: '0.05em',
+          textTransform: 'uppercase', padding: '1px 4px', width: `${Math.max(6, (pill.label || '').length + 1)}ch` }}
+      />
+      <button onClick={() => setPickerOpen(!pickerOpen)} title="Change color"
+        style={{ background: 'rgba(0,0,0,0.15)', color: baseStyle.color, border: 'none',
+          padding: '0 6px', cursor: 'pointer', fontSize: '11px', borderRadius: '2px', margin: '0 2px' }}>◆</button>
+      <button onClick={onRemove} title="Remove"
+        style={{ background: 'rgba(0,0,0,0.25)', color: baseStyle.color, border: 'none',
+          padding: '0 6px', cursor: 'pointer', fontSize: '11px', borderRadius: '2px' }}>✕</button>
+      {pickerOpen && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 50,
+          background: '#f5ecd9', border: '1px solid #8b6914', borderRadius: '2px',
+          padding: '6px', display: 'flex', flexWrap: 'wrap', gap: '4px', width: '160px',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.2)', marginTop: '2px' }}>
+          {PILL_PRESETS.map((p) => (
+            <button key={p.name} onClick={() => { onChange({ ...pill, color: p.name }); setPickerOpen(false); }}
+              title={p.name}
+              style={{ width: '24px', height: '24px', background: p.bg, color: p.fg,
+                border: pill.color === p.name ? '2px solid #3b2615' : '1px solid #8b6914',
+                borderRadius: '2px', cursor: 'pointer', fontSize: '10px', padding: 0 }}>
+              {pill.color === p.name ? '✓' : ''}
+            </button>
+          ))}
+        </div>
+      )}
+    </span>
+  );
+}
+
+// ============================================================
+// PILL ROW — list of pills + "add pill" button in edit mode
+// ============================================================
+function PillRow({ pills, editMode, onChange }) {
+  const list = pills || [];
+  const update = (i, p) => onChange(list.map((x, idx) => idx === i ? p : x));
+  const remove = (i) => onChange(list.filter((_, idx) => idx !== i));
+  const add = () => onChange([...list, { label: 'New Tag', color: 'Crimson' }]);
+  if (!editMode && list.length === 0) return null;
+  return (
+    <div style={{ marginBottom: '14px', display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
+      {list.map((p, i) => (
+        <EditablePill key={i} pill={p} editMode={editMode}
+          onChange={(np) => update(i, np)} onRemove={() => remove(i)} />
+      ))}
+      {editMode && (
+        <button onClick={add}
+          style={{ background: 'transparent', color: '#7a1f1f', border: '1px dashed #7a1f1f',
+            padding: '2px 10px', fontSize: '11px', fontFamily: '"Cinzel", serif',
+            letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer',
+            borderRadius: '2px', marginBottom: '4px' }}>+ Add Tag</button>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// EDITABLE HEADING — h1/h2 with inline editing in edit mode
+// ============================================================
+function EditableHeading({ as = 'h2', value, defaultValue, onChange, editMode, style }) {
+  const Tag = as;
+  const text = value || defaultValue;
+  if (!editMode) {
+    return <Tag style={style}>{text}</Tag>;
+  }
+  return (
+    <input
+      value={text}
+      onChange={(e) => onChange(e.target.value)}
+      style={{ ...style, background: '#fff8e7', border: '1px dashed #8b6914',
+        outline: 'none', padding: '4px 8px', width: '100%', boxSizing: 'border-box',
+        fontFamily: style?.fontFamily || '"Cinzel", serif' }}
+    />
+  );
+}
+
+// ============================================================
+// CUSTOM SECTIONS — user-added named sections (text or feature-card)
+// ============================================================
+function CustomSections({ sections, editMode, onChange, headingStyle }) {
+  const list = sections || [];
+  const updateSection = (i, fields) => onChange(list.map((s, idx) => idx === i ? { ...s, ...fields } : s));
+  const removeSection = (i) => onChange(list.filter((_, idx) => idx !== i));
+  const moveSection = (i, dir) => {
+    const ni = i + dir;
+    if (ni < 0 || ni >= list.length) return;
+    const arr = [...list];
+    [arr[i], arr[ni]] = [arr[ni], arr[i]];
+    onChange(arr);
+  };
+  const addTextSection = () => onChange([...list, { id: `sec-${Date.now()}`, heading: 'New Section', type: 'text', body: '' }]);
+  const addFeatureSection = () => onChange([...list, { id: `sec-${Date.now()}`, heading: 'New Section', type: 'features', features: [] }]);
+
+  const updateFeature = (sectionIdx, featIdx, fields) => {
+    const features = (list[sectionIdx].features || []).map((f, idx) => idx === featIdx ? { ...f, ...fields } : f);
+    updateSection(sectionIdx, { features });
+  };
+  const addFeature = (sectionIdx) => {
+    const features = [...(list[sectionIdx].features || []), { level: 1, name: 'New Feature', text: '' }];
+    updateSection(sectionIdx, { features });
+  };
+  const removeFeature = (sectionIdx, featIdx) => {
+    const features = (list[sectionIdx].features || []).filter((_, idx) => idx !== featIdx);
+    updateSection(sectionIdx, { features });
+  };
+
+  return (
+    <>
+      {list.map((sec, i) => (
+        <div key={sec.id || i}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '28px', marginBottom: '12px' }}>
+            <div style={{ flex: 1 }}>
+              <EditableHeading as="h2"
+                value={sec.heading}
+                defaultValue="Section"
+                onChange={(v) => updateSection(i, { heading: v })}
+                editMode={editMode}
+                style={headingStyle}
+              />
+            </div>
+            {editMode && (
+              <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                <button onClick={() => moveSection(i, -1)} title="Move up"
+                  style={{ background: '#8b6914', color: '#f5ecd9', border: 'none', padding: '4px 8px',
+                    cursor: 'pointer', borderRadius: '2px', fontSize: '11px' }}>▲</button>
+                <button onClick={() => moveSection(i, 1)} title="Move down"
+                  style={{ background: '#8b6914', color: '#f5ecd9', border: 'none', padding: '4px 8px',
+                    cursor: 'pointer', borderRadius: '2px', fontSize: '11px' }}>▼</button>
+                <button onClick={() => removeSection(i)} title="Remove section"
+                  style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', padding: '4px 10px',
+                    cursor: 'pointer', borderRadius: '2px', fontSize: '11px' }}>✕</button>
+              </div>
+            )}
+          </div>
+
+          {sec.type === 'text' ? (
+            editMode ? (
+              <textarea style={{ ...styles.textarea, minHeight: '100px' }} value={sec.body || ''}
+                placeholder="Section content…"
+                onChange={(e) => updateSection(i, { body: e.target.value })} />
+            ) : sec.body ? (
+              <p style={styles.bodyText}>{sec.body}</p>
+            ) : null
+          ) : (
+            <>
+              {(sec.features || []).map((f, fi) => (
+                <div key={fi} style={styles.featureCard}>
+                  {editMode ? (
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11px', color: '#8b6914' }}>Lvl</span>
+                      <input type="number" value={f.level || 1}
+                        onChange={(e) => updateFeature(i, fi, { level: parseInt(e.target.value) || 1 })}
+                        style={{ ...styles.textarea, width: '60px', minHeight: 'unset', padding: '4px 8px' }} />
+                      <input value={f.name || ''}
+                        onChange={(e) => updateFeature(i, fi, { name: e.target.value })}
+                        placeholder="Feature name"
+                        style={{ ...styles.textarea, flex: 1, minHeight: 'unset', padding: '4px 8px' }} />
+                      <button onClick={() => removeFeature(i, fi)}
+                        style={{ background: '#8b1414', color: '#f5ecd9', border: 'none',
+                          borderRadius: '2px', padding: '4px 8px', cursor: 'pointer', fontSize: '11px' }}>✕</button>
+                    </div>
+                  ) : <>
+                    <div style={styles.featureLevel}>Level {f.level}</div>
+                    <div style={styles.featureName}>{f.name}</div>
+                  </>}
+                  {editMode ? (
+                    <textarea style={{ ...styles.textarea, minHeight: '80px' }} value={f.text || ''}
+                      placeholder="Feature mechanics…"
+                      onChange={(e) => updateFeature(i, fi, { text: e.target.value })} />
+                  ) : (
+                    <p style={{ ...styles.bodyText, margin: 0 }}>{f.text}</p>
+                  )}
+                </div>
+              ))}
+              {editMode && (
+                <button onClick={() => addFeature(i)}
+                  style={{ ...styles.button, marginTop: '6px', fontSize: '12px', padding: '6px 16px' }}>
+                  + Add Feature Card
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      ))}
+
+      {editMode && (
+        <div style={{ marginTop: '20px', display: 'flex', gap: '8px', flexWrap: 'wrap',
+          padding: '10px', background: 'rgba(201, 165, 92, 0.1)', border: '1px dashed #8b6914', borderRadius: '2px' }}>
+          <span style={{ fontSize: '11px', color: '#8b6914', textTransform: 'uppercase',
+            letterSpacing: '0.08em', alignSelf: 'center', marginRight: '8px' }}>Add Custom Section:</span>
+          <button onClick={addTextSection}
+            style={{ ...styles.button, fontSize: '12px', padding: '6px 14px' }}>+ Text Section</button>
+          <button onClick={addFeatureSection}
+            style={{ ...styles.button, fontSize: '12px', padding: '6px 14px' }}>+ Feature Card Section</button>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ============================================================
+// LEGACY PILL CONVERSION — migrate old hardcoded pills to editable model
+// ============================================================
+const subclassDefaultPills = (sub) => {
+  const out = [];
+  if (sub.parentClass) out.push({ label: `${sub.parentClass} Subclass`, color: 'Crimson' });
+  if (sub.priority === 'highest') out.push({ label: 'Priority Rewrite — Tier 1', color: 'Gold' });
+  if (sub.priority === 'second')  out.push({ label: 'Priority Rewrite — Tier 2', color: 'Gold' });
+  return out;
+};
+
+const classDefaultPills = (cls) => {
+  const out = [];
+  if (cls.hitDie) out.push({ label: `Hit Die: ${cls.hitDie}`, color: 'Crimson' });
+  if (cls.primary) out.push({ label: `Primary: ${cls.primary}`, color: 'Crimson' });
+  return out;
+};
+
+const raceDefaultPills = (race) => {
+  const out = [];
+  if (race.parentRace && !race.isParent && race.parentRace !== race.name) {
+    out.push({ label: `${race.parentRace} Subrace`, color: 'Crimson' });
+  }
+  return out;
+};
+
+const characterDefaultPills = (ch) => {
+  const out = [];
+  if (ch.campaign)              out.push({ label: ch.campaign, color: 'Crimson' });
+  if (ch.role === 'player')     out.push({ label: 'Player Character', color: 'Slate' });
+  if (ch.role === 'connected')  out.push({ label: 'Connected', color: 'Bronze' });
+  if (ch.role === 'enemy')      out.push({ label: 'Enemy', color: 'Crimson' });
+  if (ch.status === 'deceased') out.push({ label: 'Deceased', color: 'Shadow' });
+  if (ch.status === 'freed')    out.push({ label: 'Freed', color: 'Forest' });
+  if (ch.category)              out.push({ label: ch.category, color: 'Gold' });
+  return out;
 };
 
 // ============================================================
@@ -2490,13 +2783,35 @@ function RacesPage({ content, activeId, editMode, persistChange }) {
   const addTrait = () => updateRace({ traits: [...(race.traits || []), { name: 'New Trait', text: '' }] });
   const removeTrait = (i) => updateRace({ traits: (race.traits || []).filter((_, idx) => idx !== i) });
 
+  const updateArch = (i, fields) => {
+    const archetypes = (race.archetypes || []).map((a, idx) => idx === i ? { ...a, ...fields } : a);
+    updateRace({ archetypes });
+  };
+  const addArch = () => updateRace({ archetypes: [...(race.archetypes || []), { name: 'New Tuning', text: '' }] });
+  const removeArch = (i) => updateRace({ archetypes: (race.archetypes || []).filter((_, idx) => idx !== i) });
+
+  const updateSubrace = (subId, fields) => {
+    const updated = content.races.map((r) => r.id === subId ? { ...r, ...fields } : r);
+    persistChange({ ...content, races: updated });
+  };
+
   const isSubrace = race.parentRace && !race.isParent && race.parentRace !== race.name;
   const isEmpty = !race.description && !race.summary && (!race.traits || race.traits.length === 0);
 
+  const pills = race.pills || raceDefaultPills(race);
+  const headings = race.headings || {};
+
   return (
     <div>
-      <h1 style={styles.pageHeading}>{race.name}</h1>
-      {isSubrace && <div style={{ marginBottom: '14px' }}><span style={styles.pill}>{race.parentRace} Subrace</span></div>}
+      <EditableHeading as="h1"
+        value={race.name}
+        defaultValue="Race"
+        onChange={(v) => updateRace({ name: v })}
+        editMode={editMode}
+        style={styles.pageHeading}
+      />
+
+      <PillRow pills={pills} editMode={editMode} onChange={(p) => updateRace({ pills: p })} />
 
       {editMode ? (
         <input value={race.tagline || ''} placeholder="Tagline — one-line flavor…"
@@ -2524,7 +2839,13 @@ function RacesPage({ content, activeId, editMode, persistChange }) {
         </div>
       ) : null}
 
-      <h2 style={styles.sectionHeading}>Traits</h2>
+      <EditableHeading as="h2"
+        value={headings.traits}
+        defaultValue="Traits"
+        onChange={(v) => updateRace({ headings: { ...headings, traits: v } })}
+        editMode={editMode}
+        style={styles.sectionHeading}
+      />
       {(race.traits || []).map((t, i) => (
         <div key={i} style={styles.featureCard}>
           {editMode ? (
@@ -2550,34 +2871,80 @@ function RacesPage({ content, activeId, editMode, persistChange }) {
         </button>
       )}
 
-      {race.archetypes && race.archetypes.length > 0 && (
+      {(editMode || (race.archetypes && race.archetypes.length > 0)) && (
         <>
-          <h2 style={styles.sectionHeading}>Class Tunings</h2>
-          {race.archetypes.map((a, i) => (
+          <EditableHeading as="h2"
+            value={headings.archetypes}
+            defaultValue="Class Tunings"
+            onChange={(v) => updateRace({ headings: { ...headings, archetypes: v } })}
+            editMode={editMode}
+            style={styles.sectionHeading}
+          />
+          {(race.archetypes || []).map((a, i) => (
             <div key={i} style={styles.featureCard}>
-              <div style={styles.featureName}>{a.name}</div>
-              <p style={{ ...styles.bodyText, margin: 0 }}>{a.text}</p>
+              {editMode ? (
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                  <input value={a.name} onChange={(e) => updateArch(i, { name: e.target.value })}
+                    placeholder="Class tuning name"
+                    style={{ ...styles.textarea, flex: 1, minHeight: 'unset', padding: '4px 8px' }} />
+                  <button onClick={() => removeArch(i)}
+                    style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px',
+                      padding: '4px 8px', cursor: 'pointer', fontSize: '11px' }}>✕</button>
+                </div>
+              ) : <div style={styles.featureName}>{a.name}</div>}
+              {editMode ? (
+                <textarea style={{ ...styles.textarea, minHeight: '70px' }} value={a.text || ''}
+                  placeholder="Tuning text…" onChange={(e) => updateArch(i, { text: e.target.value })} />
+              ) : <p style={{ ...styles.bodyText, margin: 0 }}>{a.text}</p>}
             </div>
           ))}
+          {editMode && (
+            <button onClick={addArch}
+              style={{ ...styles.button, marginTop: '8px', fontSize: '12px', padding: '6px 16px' }}>
+              + Add Class Tuning
+            </button>
+          )}
         </>
       )}
 
       {race.isParent && (() => {
         const subraces = content.races.filter((r) => r.parentRace === race.parentRace && !r.isParent);
-        if (subraces.length === 0) return null;
+        if (subraces.length === 0 && !editMode) return null;
         return (
           <>
-            <h2 style={styles.sectionHeading}>Subraces</h2>
+            <EditableHeading as="h2"
+              value={headings.subraces}
+              defaultValue="Subraces"
+              onChange={(v) => updateRace({ headings: { ...headings, subraces: v } })}
+              editMode={editMode}
+              style={styles.sectionHeading}
+            />
             {subraces.map((sr) => (
               <div key={sr.id} style={styles.featureCard}>
-                <div style={styles.featureName}>{sr.name}</div>
-                {sr.summary ? <p style={{ ...styles.bodyText, margin: 0 }}>{sr.summary}</p>
+                {editMode ? (
+                  <input value={sr.name} onChange={(e) => updateSubrace(sr.id, { name: e.target.value })}
+                    placeholder="Subrace name"
+                    style={{ ...styles.textarea, minHeight: 'unset', padding: '4px 8px', marginBottom: '6px',
+                      fontFamily: '"Cinzel", serif', fontSize: '17px', color: '#3b2615', fontWeight: 700 }} />
+                ) : <div style={styles.featureName}>{sr.name}</div>}
+                {editMode ? (
+                  <textarea style={{ ...styles.textarea, minHeight: '60px' }} value={sr.summary || ''}
+                    placeholder="Subrace summary…"
+                    onChange={(e) => updateSubrace(sr.id, { summary: e.target.value })} />
+                ) : sr.summary ? <p style={{ ...styles.bodyText, margin: 0 }}>{sr.summary}</p>
                   : <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic', color: '#8b6914' }}>Not yet written.</p>}
               </div>
             ))}
           </>
         );
       })()}
+
+      <CustomSections
+        sections={race.customSections}
+        editMode={editMode}
+        onChange={(cs) => updateRace({ customSections: cs })}
+        headingStyle={styles.sectionHeading}
+      />
 
       {editMode ? (
         <div style={{ marginTop: '16px' }}>
@@ -2609,6 +2976,31 @@ function ClassesPage({ content, activeId, editMode, persistChange }) {
   const addFeature = () => updateCls({ coreFeatures: [...(cls.coreFeatures || []), { level: 1, name: 'New Feature', text: '' }] });
   const removeFeature = (i) => updateCls({ coreFeatures: (cls.coreFeatures || []).filter((_, idx) => idx !== i) });
 
+  // Table editing
+  const updateCol = (i, val) => {
+    const cols = [...(cls.tableColumns || ['Level', 'Features'])];
+    cols[i] = val;
+    updateCls({ tableColumns: cols });
+  };
+  const addCol = () => {
+    const cols = [...(cls.tableColumns || ['Level', 'Features'])];
+    cols.splice(cols.length - 1, 0, 'New Column');
+    updateCls({ tableColumns: cols });
+  };
+  const removeCol = (i) => {
+    const cols = (cls.tableColumns || []).filter((_, idx) => idx !== i);
+    updateCls({ tableColumns: cols });
+  };
+  const updateRow = (i, fields) => {
+    const progression = (cls.progression || []).map((r, idx) => idx === i ? { ...r, ...fields } : r);
+    updateCls({ progression });
+  };
+  const addRow = () => {
+    const nextLevel = (cls.progression || []).length + 1;
+    updateCls({ progression: [...(cls.progression || []), { level: nextLevel, features: '' }] });
+  };
+  const removeRow = (i) => updateCls({ progression: (cls.progression || []).filter((_, idx) => idx !== i) });
+
   const infoField = (label, field, placeholder) => (
     <div style={{ marginBottom: '10px' }}>
       <span style={{ fontSize: '11px', color: '#8b6914', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: '3px' }}>{label}</span>
@@ -2623,14 +3015,20 @@ function ClassesPage({ content, activeId, editMode, persistChange }) {
 
   const cols = cls.tableColumns || ['Level', 'Features'];
   const hasProgression = cls.progression && cls.progression.length > 0;
+  const pills = cls.pills || classDefaultPills(cls);
+  const headings = cls.headings || {};
 
   return (
     <div>
-      <h1 style={styles.pageHeading}>{cls.name}</h1>
-      <div style={{ marginBottom: '14px' }}>
-        {cls.hitDie && <span style={styles.pill}>Hit Die: {cls.hitDie}</span>}
-        {cls.primary && <span style={styles.pill}>Primary: {cls.primary}</span>}
-      </div>
+      <EditableHeading as="h1"
+        value={cls.name}
+        defaultValue="Class"
+        onChange={(v) => updateCls({ name: v })}
+        editMode={editMode}
+        style={styles.pageHeading}
+      />
+
+      <PillRow pills={pills} editMode={editMode} onChange={(p) => updateCls({ pills: p })} />
 
       {editMode ? (
         <textarea style={{ ...styles.textarea, minHeight: '80px', marginBottom: '16px' }} value={cls.summary || ''}
@@ -2639,8 +3037,13 @@ function ClassesPage({ content, activeId, editMode, persistChange }) {
         <p style={{ ...styles.bodyText, marginBottom: '20px' }}>{cls.summary}</p>
       ) : null}
 
-      {/* ── Hit Points & Starting Info ── */}
-      <h2 style={styles.sectionHeading}>Hit Points & Starting Info</h2>
+      <EditableHeading as="h2"
+        value={headings.startingInfo}
+        defaultValue="Hit Points & Starting Info"
+        onChange={(v) => updateCls({ headings: { ...headings, startingInfo: v } })}
+        editMode={editMode}
+        style={styles.sectionHeading}
+      />
       <div style={{ ...styles.card, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
         {infoField('Hit Points at 1st Level', 'startingHP', 'e.g. 10 + CON modifier')}
         {infoField('Hit Points per Level', 'hpPerLevel', 'e.g. 6 + CON modifier per level after 1st')}
@@ -2651,9 +3054,14 @@ function ClassesPage({ content, activeId, editMode, persistChange }) {
         {infoField('Starting Equipment', 'startingEquipment', 'Starting equipment choices...')}
       </div>
 
-      {/* ── Class Table ── */}
-      <h2 style={styles.sectionHeading}>Class Table</h2>
-      {hasProgression ? (
+      <EditableHeading as="h2"
+        value={headings.classTable}
+        defaultValue="Class Table"
+        onChange={(v) => updateCls({ headings: { ...headings, classTable: v } })}
+        editMode={editMode}
+        style={styles.sectionHeading}
+      />
+      {hasProgression || editMode ? (
         <div style={{ overflowX: 'auto', marginBottom: '20px' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: '"Palatino Linotype", serif', fontSize: '13px' }}>
             <thead>
@@ -2661,25 +3069,76 @@ function ClassesPage({ content, activeId, editMode, persistChange }) {
                 {cols.map((col, i) => (
                   <th key={i} style={{ padding: '8px 12px', textAlign: i === 0 ? 'center' : 'left',
                     fontFamily: '"Cinzel", serif', fontSize: '11px', letterSpacing: '0.06em', fontWeight: 600 }}>
-                    {col}
+                    {editMode ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <input value={col} onChange={(e) => updateCol(i, e.target.value)}
+                          style={{ flex: 1, background: 'rgba(255,255,255,0.15)', color: '#f5ecd9',
+                            border: '1px solid rgba(255,255,255,0.3)', padding: '2px 6px',
+                            fontFamily: '"Cinzel", serif', fontSize: '11px' }} />
+                        {cols.length > 2 && (
+                          <button onClick={() => removeCol(i)}
+                            style={{ background: 'rgba(139,20,20,0.8)', color: '#f5ecd9', border: 'none',
+                              borderRadius: '2px', padding: '2px 6px', cursor: 'pointer', fontSize: '10px' }}>✕</button>
+                        )}
+                      </div>
+                    ) : col}
                   </th>
                 ))}
+                {editMode && (
+                  <th style={{ padding: '4px', width: '40px' }}>
+                    <button onClick={addCol} title="Add column"
+                      style={{ background: 'rgba(255,255,255,0.2)', color: '#f5ecd9', border: 'none',
+                        borderRadius: '2px', padding: '4px 8px', cursor: 'pointer', fontSize: '12px' }}>+</button>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
-              {cls.progression.map((row, i) => (
+              {(cls.progression || []).map((row, i) => (
                 <tr key={i} style={{ background: i % 2 === 0 ? 'rgba(255,250,240,0.8)' : 'rgba(201,165,92,0.15)',
                   borderBottom: '1px solid rgba(139,105,20,0.15)' }}>
-                  <td style={{ padding: '6px 12px', textAlign: 'center', fontWeight: 600, color: '#5c1414' }}>{row.level}</td>
-                  {row.col2 !== undefined && <td style={{ padding: '6px 12px' }}>{row.col2}</td>}
-                  {row.col3 !== undefined && <td style={{ padding: '6px 12px' }}>{row.col3}</td>}
-                  {row.col4 !== undefined && <td style={{ padding: '6px 12px' }}>{row.col4}</td>}
-                  {row.col5 !== undefined && <td style={{ padding: '6px 12px' }}>{row.col5}</td>}
-                  <td style={{ padding: '6px 12px', color: '#3b2615' }}>{row.features}</td>
+                  <td style={{ padding: '6px 12px', textAlign: 'center', fontWeight: 600, color: '#5c1414' }}>
+                    {editMode ? (
+                      <input type="number" value={row.level || ''} onChange={(e) => updateRow(i, { level: parseInt(e.target.value) || 1 })}
+                        style={{ width: '50px', padding: '2px 4px', textAlign: 'center', border: '1px solid #8b6914',
+                          background: '#fff8e7', fontFamily: '"Palatino Linotype", serif' }} />
+                    ) : row.level}
+                  </td>
+                  {cols.slice(1, -1).map((_, ci) => {
+                    const key = `col${ci + 2}`;
+                    return (
+                      <td key={ci} style={{ padding: '6px 12px' }}>
+                        {editMode ? (
+                          <input value={row[key] || ''} onChange={(e) => updateRow(i, { [key]: e.target.value })}
+                            style={{ width: '100%', padding: '2px 4px', border: '1px solid #8b6914',
+                              background: '#fff8e7', fontFamily: '"Palatino Linotype", serif', fontSize: '13px' }} />
+                        ) : (row[key] || '')}
+                      </td>
+                    );
+                  })}
+                  <td style={{ padding: '6px 12px', color: '#3b2615' }}>
+                    {editMode ? (
+                      <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                        <input value={row.features || ''} onChange={(e) => updateRow(i, { features: e.target.value })}
+                          style={{ flex: 1, padding: '2px 4px', border: '1px solid #8b6914',
+                            background: '#fff8e7', fontFamily: '"Palatino Linotype", serif', fontSize: '13px' }} />
+                        <button onClick={() => removeRow(i)}
+                          style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px',
+                            padding: '2px 6px', cursor: 'pointer', fontSize: '10px' }}>✕</button>
+                      </div>
+                    ) : row.features}
+                  </td>
+                  {editMode && <td></td>}
                 </tr>
               ))}
             </tbody>
           </table>
+          {editMode && (
+            <button onClick={addRow}
+              style={{ ...styles.button, marginTop: '6px', fontSize: '12px', padding: '6px 16px' }}>
+              + Add Row
+            </button>
+          )}
         </div>
       ) : (
         <div style={{ ...styles.card, background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c', marginBottom: '20px' }}>
@@ -2687,8 +3146,13 @@ function ClassesPage({ content, activeId, editMode, persistChange }) {
         </div>
       )}
 
-      {/* ── Core Features ── */}
-      <h2 style={styles.sectionHeading}>Core Features</h2>
+      <EditableHeading as="h2"
+        value={headings.coreFeatures}
+        defaultValue="Core Features"
+        onChange={(v) => updateCls({ headings: { ...headings, coreFeatures: v } })}
+        editMode={editMode}
+        style={styles.sectionHeading}
+      />
       {(cls.coreFeatures || []).map((f, i) => (
         <div key={i} style={styles.featureCard}>
           {editMode ? (
@@ -2725,11 +3189,24 @@ function ClassesPage({ content, activeId, editMode, persistChange }) {
         </button>
       )}
 
-      {cls.notes && (
+      <CustomSections
+        sections={cls.customSections}
+        editMode={editMode}
+        onChange={(cs) => updateCls({ customSections: cs })}
+        headingStyle={styles.sectionHeading}
+      />
+
+      {editMode ? (
+        <div style={{ marginTop: '16px' }}>
+          <div style={{ fontSize: '11px', color: '#8b6914', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Note</div>
+          <textarea style={{ ...styles.textarea, minHeight: '60px' }} value={cls.notes || ''}
+            placeholder="Class notes…" onChange={(e) => updateCls({ notes: e.target.value })} />
+        </div>
+      ) : cls.notes ? (
         <div style={{ ...styles.card, marginTop: '20px', fontStyle: 'italic', color: '#5c4020' }}>
           <strong>Note:</strong> {cls.notes}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -2760,14 +3237,20 @@ function SubclassesPage({ content, activeId, editMode, persistChange }) {
     updateSub({ features });
   };
 
+  const pills = sub.pills || subclassDefaultPills(sub);
+  const headings = sub.headings || {};
+
   return (
     <div>
-      <h1 style={styles.pageHeading}>{sub.name}</h1>
-      <div style={{ marginBottom: '14px' }}>
-        <span style={styles.pill}>{sub.parentClass} Subclass</span>
-        {sub.priority === 'highest' && <span style={{ ...styles.pill, background: '#c9a55c', color: '#3b2615' }}>Priority Rewrite — Tier 1</span>}
-        {sub.priority === 'second' && <span style={{ ...styles.pill, background: '#c9a55c', color: '#3b2615' }}>Priority Rewrite — Tier 2</span>}
-      </div>
+      <EditableHeading as="h1"
+        value={sub.name}
+        defaultValue="Subclass"
+        onChange={(v) => updateSub({ name: v })}
+        editMode={editMode}
+        style={styles.pageHeading}
+      />
+
+      <PillRow pills={pills} editMode={editMode} onChange={(p) => updateSub({ pills: p })} />
 
       {editMode ? (
         <textarea style={styles.textarea} placeholder="Summary…" value={sub.summary || ''}
@@ -2782,7 +3265,13 @@ function SubclassesPage({ content, activeId, editMode, persistChange }) {
         </div>
       ) : null}
 
-      <h2 style={styles.sectionHeading}>Features</h2>
+      <EditableHeading as="h2"
+        value={headings.features}
+        defaultValue="Features"
+        onChange={(v) => updateSub({ headings: { ...headings, features: v } })}
+        editMode={editMode}
+        style={styles.sectionHeading}
+      />
       {(sub.features || []).map((f, i) => (
         <div key={i} style={{ ...styles.featureCard, position: 'relative' }}>
           {editMode && (
@@ -2816,6 +3305,13 @@ function SubclassesPage({ content, activeId, editMode, persistChange }) {
           + Add Feature
         </button>
       )}
+
+      <CustomSections
+        sections={sub.customSections}
+        editMode={editMode}
+        onChange={(cs) => updateSub({ customSections: cs })}
+        headingStyle={styles.sectionHeading}
+      />
 
       {editMode ? (
         <div style={{ marginTop: '16px' }}>
@@ -2866,18 +3362,20 @@ function CharactersPage({ content, activeId, editMode, persistChange }) {
     </div>
   );
 
+  const pills = ch.pills || characterDefaultPills(ch);
+  const headings = ch.headings || {};
+
   return (
     <div>
-      <h1 style={styles.pageHeading}>{ch.name}</h1>
-      <div style={{ marginBottom: '14px' }}>
-        {ch.campaign && <span style={styles.pill}>{ch.campaign}</span>}
-        {ch.role === 'player' && <span style={{ ...styles.pill, background: '#5c4020' }}>Player Character</span>}
-        {ch.role === 'connected' && <span style={{ ...styles.pill, background: '#8b6914' }}>Connected</span>}
-        {ch.role === 'enemy' && <span style={{ ...styles.pill, background: '#5c1414' }}>Enemy</span>}
-        {ch.status === 'deceased' && <span style={{ ...styles.pill, background: '#3b2615' }}>Deceased</span>}
-        {ch.status === 'freed' && <span style={{ ...styles.pill, background: '#5c8a3a' }}>Freed</span>}
-        {ch.category && <span style={{ ...styles.pill, background: '#c9a55c', color: '#3b2615' }}>{ch.category}</span>}
-      </div>
+      <EditableHeading as="h1"
+        value={ch.name}
+        defaultValue="Character"
+        onChange={(v) => updateCh({ name: v })}
+        editMode={editMode}
+        style={styles.pageHeading}
+      />
+
+      <PillRow pills={pills} editMode={editMode} onChange={(p) => updateCh({ pills: p })} />
 
       {editMode ? (
         <div style={{ ...styles.card, marginBottom: '20px' }}>
@@ -2912,7 +3410,13 @@ function CharactersPage({ content, activeId, editMode, persistChange }) {
         </div>
       ) : null}
 
-      <h2 style={styles.sectionHeading}>Key Traits</h2>
+      <EditableHeading as="h2"
+        value={headings.keyTraits}
+        defaultValue="Key Traits"
+        onChange={(v) => updateCh({ headings: { ...headings, keyTraits: v } })}
+        editMode={editMode}
+        style={styles.sectionHeading}
+      />
       {(ch.keyTraits || []).map((t, i) => (
         <div key={i} style={{ ...styles.featureCard, display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
           {editMode ? (
@@ -2935,6 +3439,13 @@ function CharactersPage({ content, activeId, editMode, persistChange }) {
           + Add Trait
         </button>
       )}
+
+      <CustomSections
+        sections={ch.customSections}
+        editMode={editMode}
+        onChange={(cs) => updateCh({ customSections: cs })}
+        headingStyle={styles.sectionHeading}
+      />
 
       {editMode ? (
         <div style={{ marginTop: '16px' }}>
