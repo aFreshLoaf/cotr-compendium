@@ -1422,7 +1422,14 @@ async function loadContent() {
         parentClassOrder: DEFAULT_CONTENT.parentClassOrder,
         raceOrder: DEFAULT_CONTENT.raceOrder,
         campaignOrder: DEFAULT_CONTENT.campaignOrder,
-        campaigns: DEFAULT_CONTENT.campaigns,
+        // Campaigns: structural defaults + per-campaign cached overrides
+        campaigns: (() => {
+          const merged = { ...DEFAULT_CONTENT.campaigns };
+          for (const k of Object.keys(cached.campaigns || {})) {
+            merged[k] = { ...(merged[k] || {}), ...cached.campaigns[k] };
+          }
+          return merged;
+        })(),
         // Use the smart-merged lists
         subclasses: mergedSubclasses,
         races: mergedRaces,
@@ -1826,6 +1833,24 @@ const styles = {
 };
 
 // ============================================================
+// SLUG / ID HELPERS
+// ============================================================
+function slugify(s) {
+  return (s || '').toLowerCase()
+    .replace(/['']/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    || 'untitled';
+}
+
+function uniqueId(baseId, existingIds) {
+  if (!existingIds.includes(baseId)) return baseId;
+  let n = 2;
+  while (existingIds.includes(`${baseId}-${n}`)) n++;
+  return `${baseId}-${n}`;
+}
+
+// ============================================================
 // MOBILE DETECTION — used to switch layout, hide edit mode, etc.
 // ============================================================
 const MOBILE_BREAKPOINT = 768;
@@ -1955,7 +1980,7 @@ function EditableHeading({ as = 'h2', value, defaultValue, onChange, editMode, s
 }
 
 // ============================================================
-// CUSTOM SECTIONS — user-added named sections (text or feature-card)
+// CUSTOM SECTIONS — user-added named sections (text / features / table / image)
 // ============================================================
 function CustomSections({ sections, editMode, onChange, headingStyle, category, entryId }) {
   const list = sections || [];
@@ -1968,8 +1993,11 @@ function CustomSections({ sections, editMode, onChange, headingStyle, category, 
     [arr[i], arr[ni]] = [arr[ni], arr[i]];
     onChange(arr);
   };
-  const addTextSection = () => onChange([...list, { id: `sec-${Date.now()}`, heading: 'New Section', type: 'text', body: '' }]);
+  const addTextSection    = () => onChange([...list, { id: `sec-${Date.now()}`, heading: 'New Section', type: 'text', body: '' }]);
   const addFeatureSection = () => onChange([...list, { id: `sec-${Date.now()}`, heading: 'New Section', type: 'features', features: [] }]);
+  const addTableSection   = () => onChange([...list, { id: `sec-${Date.now()}`, heading: 'New Table', type: 'table',
+    columns: ['Column A', 'Column B'], rows: [['', '']] }]);
+  const addImageSection   = () => onChange([...list, { id: `sec-${Date.now()}`, heading: 'New Illustration', type: 'image', media: null, caption: '' }]);
 
   const updateFeature = (sectionIdx, featIdx, fields) => {
     const features = (list[sectionIdx].features || []).map((f, idx) => idx === featIdx ? { ...f, ...fields } : f);
@@ -1982,6 +2010,41 @@ function CustomSections({ sections, editMode, onChange, headingStyle, category, 
   const removeFeature = (sectionIdx, featIdx) => {
     const features = (list[sectionIdx].features || []).filter((_, idx) => idx !== featIdx);
     updateSection(sectionIdx, { features });
+  };
+
+  // ── Table helpers ─────────────────────────────────────────────────
+  const updateTableCol = (sectionIdx, colIdx, val) => {
+    const cols = [...(list[sectionIdx].columns || [])];
+    cols[colIdx] = val;
+    updateSection(sectionIdx, { columns: cols });
+  };
+  const addTableCol = (sectionIdx) => {
+    const cols = [...(list[sectionIdx].columns || []), `Column ${String.fromCharCode(65 + (list[sectionIdx].columns || []).length)}`];
+    const rows = (list[sectionIdx].rows || []).map((r) => [...r, '']);
+    updateSection(sectionIdx, { columns: cols, rows });
+  };
+  const removeTableCol = (sectionIdx, colIdx) => {
+    const cols = (list[sectionIdx].columns || []).filter((_, i) => i !== colIdx);
+    const rows = (list[sectionIdx].rows || []).map((r) => r.filter((_, i) => i !== colIdx));
+    updateSection(sectionIdx, { columns: cols, rows });
+  };
+  const updateTableCell = (sectionIdx, rowIdx, colIdx, val) => {
+    const rows = (list[sectionIdx].rows || []).map((r, ri) => {
+      if (ri !== rowIdx) return r;
+      const newRow = [...r];
+      newRow[colIdx] = val;
+      return newRow;
+    });
+    updateSection(sectionIdx, { rows });
+  };
+  const addTableRow = (sectionIdx) => {
+    const cols = list[sectionIdx].columns || [];
+    const rows = [...(list[sectionIdx].rows || []), cols.map(() => '')];
+    updateSection(sectionIdx, { rows });
+  };
+  const removeTableRow = (sectionIdx, rowIdx) => {
+    const rows = (list[sectionIdx].rows || []).filter((_, i) => i !== rowIdx);
+    updateSection(sectionIdx, { rows });
   };
 
   return (
@@ -2013,54 +2076,67 @@ function CustomSections({ sections, editMode, onChange, headingStyle, category, 
             )}
           </div>
 
-          <div style={{ overflow: 'auto' }}>
-            <FloatingImage
-              media={sec.media}
-              editMode={editMode}
-              onChange={(m) => updateSection(i, { media: m })}
-              category={category}
-              entryId={`${entryId}-${sec.id || i}`}
-            />
-
-            {sec.type === 'text' ? (
-              editMode ? (
+          {/* TEXT — supports inline floating image */}
+          {sec.type === 'text' && (
+            <div style={{ overflow: 'auto' }}>
+              <FloatingImage
+                media={sec.media}
+                editMode={editMode}
+                onChange={(m) => updateSection(i, { media: m })}
+                category={category}
+                entryId={`${entryId}-${sec.id || i}`}
+              />
+              {editMode ? (
                 <textarea style={{ ...styles.textarea, minHeight: '100px' }} value={sec.body || ''}
                   placeholder="Section content…"
                   onChange={(e) => updateSection(i, { body: e.target.value })} />
               ) : sec.body ? (
                 <p style={styles.bodyText}>{sec.body}</p>
-              ) : null
-            ) : (
-              <>
+              ) : null}
+            </div>
+          )}
+
+          {/* FEATURES — feature-card list; supports inline floating image at the top */}
+          {sec.type === 'features' && (
+            <>
+              <div style={{ overflow: 'auto' }}>
+                <FloatingImage
+                  media={sec.media}
+                  editMode={editMode}
+                  onChange={(m) => updateSection(i, { media: m })}
+                  category={category}
+                  entryId={`${entryId}-${sec.id || i}`}
+                />
                 {(sec.features || []).map((f, fi) => (
                   <div key={fi} style={styles.featureCard}>
                     {editMode ? (
                       <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
                         <span style={{ fontSize: '11px', color: '#8b6914' }}>Lvl</span>
-                      <input type="number" value={f.level || 1}
-                        onChange={(e) => updateFeature(i, fi, { level: parseInt(e.target.value) || 1 })}
-                        style={{ ...styles.textarea, width: '60px', minHeight: 'unset', padding: '4px 8px' }} />
-                      <input value={f.name || ''}
-                        onChange={(e) => updateFeature(i, fi, { name: e.target.value })}
-                        placeholder="Feature name"
-                        style={{ ...styles.textarea, flex: 1, minHeight: 'unset', padding: '4px 8px' }} />
-                      <button onClick={() => removeFeature(i, fi)}
-                        style={{ background: '#8b1414', color: '#f5ecd9', border: 'none',
-                          borderRadius: '2px', padding: '4px 8px', cursor: 'pointer', fontSize: '11px' }}>✕</button>
-                    </div>
-                  ) : <>
-                    <div style={styles.featureLevel}>Level {f.level}</div>
-                    <div style={styles.featureName}>{f.name}</div>
-                  </>}
-                  {editMode ? (
-                    <textarea style={{ ...styles.textarea, minHeight: '80px' }} value={f.text || ''}
-                      placeholder="Feature mechanics…"
-                      onChange={(e) => updateFeature(i, fi, { text: e.target.value })} />
-                  ) : (
-                    <p style={{ ...styles.bodyText, margin: 0 }}>{f.text}</p>
-                  )}
-                </div>
-              ))}
+                        <input type="number" value={f.level || 1}
+                          onChange={(e) => updateFeature(i, fi, { level: parseInt(e.target.value) || 1 })}
+                          style={{ ...styles.textarea, width: '60px', minHeight: 'unset', padding: '4px 8px' }} />
+                        <input value={f.name || ''}
+                          onChange={(e) => updateFeature(i, fi, { name: e.target.value })}
+                          placeholder="Feature name"
+                          style={{ ...styles.textarea, flex: 1, minHeight: 'unset', padding: '4px 8px' }} />
+                        <button onClick={() => removeFeature(i, fi)}
+                          style={{ background: '#8b1414', color: '#f5ecd9', border: 'none',
+                            borderRadius: '2px', padding: '4px 8px', cursor: 'pointer', fontSize: '11px' }}>✕</button>
+                      </div>
+                    ) : <>
+                      <div style={styles.featureLevel}>Level {f.level}</div>
+                      <div style={styles.featureName}>{f.name}</div>
+                    </>}
+                    {editMode ? (
+                      <textarea style={{ ...styles.textarea, minHeight: '80px' }} value={f.text || ''}
+                        placeholder="Feature mechanics…"
+                        onChange={(e) => updateFeature(i, fi, { text: e.target.value })} />
+                    ) : (
+                      <p style={{ ...styles.bodyText, margin: 0 }}>{f.text}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
               {editMode && (
                 <button onClick={() => addFeature(i)}
                   style={{ ...styles.button, marginTop: '6px', fontSize: '12px', padding: '6px 16px' }}>
@@ -2069,7 +2145,106 @@ function CustomSections({ sections, editMode, onChange, headingStyle, category, 
               )}
             </>
           )}
-          </div>
+
+          {/* TABLE — no inline image (tables get full width) */}
+          {sec.type === 'table' && (() => {
+            const cols = sec.columns || [];
+            const rows = sec.rows || [];
+            return (
+              <div style={{ clear: 'both' }}>
+                <div style={{ overflowX: 'auto', marginBottom: '8px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse',
+                    fontFamily: '"Palatino Linotype", serif', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ background: '#5c1414', color: '#f5ecd9' }}>
+                        {cols.map((c, ci) => (
+                          <th key={ci} style={{ padding: '6px 10px', textAlign: 'left',
+                            fontFamily: '"Cinzel", serif', fontSize: '11px', letterSpacing: '0.06em', fontWeight: 600 }}>
+                            {editMode ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <input value={c} onChange={(e) => updateTableCol(i, ci, e.target.value)}
+                                  style={{ flex: 1, background: 'rgba(255,255,255,0.15)', color: '#f5ecd9',
+                                    border: '1px solid rgba(255,255,255,0.3)', padding: '2px 6px',
+                                    fontFamily: '"Cinzel", serif', fontSize: '11px' }} />
+                                {cols.length > 1 && (
+                                  <button onClick={() => removeTableCol(i, ci)}
+                                    style={{ background: 'rgba(139,20,20,0.8)', color: '#f5ecd9', border: 'none',
+                                      borderRadius: '2px', padding: '2px 6px', cursor: 'pointer', fontSize: '10px' }}>✕</button>
+                                )}
+                              </div>
+                            ) : c}
+                          </th>
+                        ))}
+                        {editMode && (
+                          <th style={{ padding: '4px', width: '40px' }}>
+                            <button onClick={() => addTableCol(i)} title="Add column"
+                              style={{ background: 'rgba(255,255,255,0.2)', color: '#f5ecd9', border: 'none',
+                                borderRadius: '2px', padding: '4px 8px', cursor: 'pointer', fontSize: '12px' }}>+</button>
+                          </th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((row, ri) => (
+                        <tr key={ri} style={{ background: ri % 2 === 0 ? 'rgba(255,250,240,0.8)' : 'rgba(201,165,92,0.15)',
+                          borderBottom: '1px solid rgba(139,105,20,0.15)' }}>
+                          {cols.map((_, ci) => (
+                            <td key={ci} style={{ padding: '6px 10px', color: '#3b2615' }}>
+                              {editMode ? (
+                                <input value={row[ci] || ''} onChange={(e) => updateTableCell(i, ri, ci, e.target.value)}
+                                  style={{ width: '100%', padding: '2px 4px', border: '1px solid #8b6914',
+                                    background: '#fff8e7', fontFamily: '"Palatino Linotype", serif', fontSize: '13px' }} />
+                              ) : (row[ci] || '')}
+                            </td>
+                          ))}
+                          {editMode && (
+                            <td style={{ padding: '4px', width: '40px' }}>
+                              <button onClick={() => removeTableRow(i, ri)} title="Remove row"
+                                style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px',
+                                  padding: '2px 6px', cursor: 'pointer', fontSize: '10px' }}>✕</button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {editMode && (
+                  <button onClick={() => addTableRow(i)}
+                    style={{ ...styles.button, fontSize: '12px', padding: '6px 14px' }}>
+                    + Add Row
+                  </button>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* IMAGE — standalone illustration; no body, just an image with optional caption */}
+          {sec.type === 'image' && (
+            <div style={{ clear: 'both', textAlign: 'center' }}>
+              {/* For image sections we render the FloatingImage but display centered/full-width */}
+              <div style={{ display: 'inline-block', maxWidth: '100%' }}>
+                <FloatingImage
+                  media={sec.media}
+                  editMode={editMode}
+                  onChange={(m) => updateSection(i, { media: m })}
+                  category={category}
+                  entryId={`${entryId}-${sec.id || i}`}
+                />
+              </div>
+              <div style={{ clear: 'both' }} />
+              {editMode ? (
+                <input value={sec.caption || ''} placeholder="Caption (optional)…"
+                  onChange={(e) => updateSection(i, { caption: e.target.value })}
+                  style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px',
+                    width: '100%', maxWidth: '500px', marginTop: '6px', fontStyle: 'italic',
+                    textAlign: 'center', fontSize: '13px' }} />
+              ) : sec.caption ? (
+                <p style={{ ...styles.bodyText, fontStyle: 'italic', color: '#5c4020',
+                  fontSize: '13px', marginTop: '6px', textAlign: 'center' }}>{sec.caption}</p>
+              ) : null}
+            </div>
+          )}
         </div>
       ))}
 
@@ -2079,9 +2254,13 @@ function CustomSections({ sections, editMode, onChange, headingStyle, category, 
           <span style={{ fontSize: '11px', color: '#8b6914', textTransform: 'uppercase',
             letterSpacing: '0.08em', alignSelf: 'center', marginRight: '8px' }}>Add Custom Section:</span>
           <button onClick={addTextSection}
-            style={{ ...styles.button, fontSize: '12px', padding: '6px 14px' }}>+ Text Section</button>
+            style={{ ...styles.button, fontSize: '12px', padding: '6px 14px' }}>+ Text</button>
           <button onClick={addFeatureSection}
-            style={{ ...styles.button, fontSize: '12px', padding: '6px 14px' }}>+ Feature Card Section</button>
+            style={{ ...styles.button, fontSize: '12px', padding: '6px 14px' }}>+ Feature Cards</button>
+          <button onClick={addTableSection}
+            style={{ ...styles.button, fontSize: '12px', padding: '6px 14px' }}>+ Table</button>
+          <button onClick={addImageSection}
+            style={{ ...styles.button, fontSize: '12px', padding: '6px 14px' }}>+ Illustration</button>
         </div>
       )}
     </>
@@ -2520,13 +2699,17 @@ export default function Compendium() {
   // Merge incoming remote content with local defaults (same smart-merge logic as loadContent)
   const mergeContent = (cached, _current) => {
     if (!cached) return DEFAULT_CONTENT;
+    const mergedCampaigns = { ...DEFAULT_CONTENT.campaigns };
+    for (const k of Object.keys(cached.campaigns || {})) {
+      mergedCampaigns[k] = { ...(mergedCampaigns[k] || {}), ...cached.campaigns[k] };
+    }
     return {
       ...DEFAULT_CONTENT,
       ...cached,
       parentClassOrder: DEFAULT_CONTENT.parentClassOrder,
       raceOrder: DEFAULT_CONTENT.raceOrder,
       campaignOrder: DEFAULT_CONTENT.campaignOrder,
-      campaigns: DEFAULT_CONTENT.campaigns,
+      campaigns: mergedCampaigns,
     };
   };
 
@@ -2578,6 +2761,63 @@ export default function Compendium() {
   const persistChange = (newContent) => {
     setContent(newContent);
     setDirty(true);
+  };
+
+  // ── Entry creation helpers (edit mode only) ─────────────────────────
+  const promptName = (kind, parent) => {
+    const label = parent ? `New ${kind} under ${parent}` : `New ${kind}`;
+    const name = window.prompt(`${label}\n\nName:`);
+    return name ? name.trim() : null;
+  };
+
+  const createSubclass = (parentClass) => {
+    const name = promptName('Subclass', parentClass);
+    if (!name) return;
+    const existing = content.subclasses.map((s) => s.id);
+    const id = uniqueId(slugify(name), existing);
+    const newSub = { id, name, parentClass, summary: '', features: [], note: '' };
+    persistChange({ ...content, subclasses: [...content.subclasses, newSub] });
+    goTo('subclasses', id);
+  };
+
+  const createRace = () => {
+    const name = promptName('Race');
+    if (!name) return;
+    const existing = content.races.map((r) => r.id);
+    const id = uniqueId(slugify(name), existing);
+    const newRace = {
+      id, name, parentRace: name, isParent: true,
+      tagline: '', description: '', traits: [], archetypes: [], note: '',
+    };
+    const raceOrder = [...(content.raceOrder || []), name];
+    persistChange({ ...content, races: [...content.races, newRace], raceOrder });
+    goTo('races', id);
+  };
+
+  const createSubrace = (parentRaceName) => {
+    const name = promptName('Subrace', parentRaceName);
+    if (!name) return;
+    const existing = content.races.map((r) => r.id);
+    const id = uniqueId(slugify(name), existing);
+    const newSr = {
+      id, name, parentRace: parentRaceName, isParent: false,
+      summary: '', traits: [], note: '',
+    };
+    persistChange({ ...content, races: [...content.races, newSr] });
+    goTo('races', id);
+  };
+
+  const createCharacter = (campaign) => {
+    const name = promptName('Character', campaign);
+    if (!name) return;
+    const existing = content.characters.map((c) => c.id);
+    const id = uniqueId(slugify(name), existing);
+    const newCh = {
+      id, name, campaign, role: 'player', status: '',
+      race: '', class: '', patron: '', summary: '', keyTraits: [], note: '',
+    };
+    persistChange({ ...content, characters: [...content.characters, newCh] });
+    goTo('characters', id);
   };
 
   // Flush staged content to Supabase. Triggered by the Save button.
@@ -2826,6 +3066,15 @@ export default function Compendium() {
                     </div>
                   );
                 })}
+                {editMode && (
+                  <div
+                    style={{ ...styles.parentGroup, color: '#7a1f1f', fontStyle: 'italic',
+                      fontWeight: 400, marginTop: '4px' }}
+                    onClick={createRace}
+                  >
+                    <Plus size={12} /> New Race
+                  </div>
+                )}
               </>
             );
           })()}
@@ -2921,6 +3170,15 @@ export default function Compendium() {
                   </span>
                 </div>
                 {body}
+                {isExpanded && editMode && (
+                  <div
+                    style={{ ...styles.subclassChild, color: '#7a1f1f', fontStyle: 'italic',
+                      cursor: 'pointer' }}
+                    onClick={(e) => { e.stopPropagation(); createSubclass(parentClass); }}
+                  >
+                    <Plus size={11} style={{ marginRight: '4px' }} /> New Subclass
+                  </div>
+                )}
               </div>
             );
           })}
@@ -3002,6 +3260,15 @@ export default function Compendium() {
                     {isExpanded && connected.map(renderChar)}
                     {enemies.length > 0 && roleHeader("Enemy Characters")}
                     {isExpanded && enemies.map(renderChar)}
+                    {editMode && (
+                      <div
+                        style={{ ...styles.subclassChild, color: '#7a1f1f', fontStyle: 'italic',
+                          cursor: 'pointer' }}
+                        onClick={(e) => { e.stopPropagation(); createCharacter(campaign); }}
+                      >
+                        <Plus size={11} style={{ marginRight: '4px' }} /> New Character
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -3247,6 +3514,12 @@ function CampaignPage({ content, editMode, persistChange }) {
   const updateOverview = (val) => {
     persistChange({ ...content, campaign: { ...content.campaign, overview: val } });
   };
+  const updateCampaign = (key, field, value) => {
+    const campaigns = { ...(content.campaigns || {}) };
+    campaigns[key] = { ...(campaigns[key] || {}), [field]: value };
+    persistChange({ ...content, campaigns });
+  };
+
   return (
     <div>
       <h1 style={styles.pageHeading}>The Campaign</h1>
@@ -3261,6 +3534,39 @@ function CampaignPage({ content, editMode, persistChange }) {
       ) : (
         <p style={{ ...styles.bodyText, whiteSpace: 'pre-wrap' }}>{content.campaign.overview}</p>
       )}
+
+      <h2 style={styles.sectionHeading}>Campaigns</h2>
+      {(content.campaignOrder || []).map((campaign) => {
+        const meta = (content.campaigns || {})[campaign] || {};
+        return (
+          <div key={campaign} style={styles.card}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+              <div style={{ ...styles.subHeading, marginTop: 0, flex: 1 }}>
+                {campaign}
+                {meta.status === 'deceased' && (
+                  <span style={{ ...styles.pillPriority, background: '#3b2615', color: '#e8d5a0', marginLeft: '8px' }}>†</span>
+                )}
+              </div>
+              {editMode && (
+                <select value={meta.status || ''} onChange={(e) => updateCampaign(campaign, 'status', e.target.value)}
+                  style={{ ...styles.textarea, minHeight: 'unset', padding: '4px 8px', width: '160px' }}>
+                  <option value="">Active</option>
+                  <option value="deceased">Deceased (†)</option>
+                </select>
+              )}
+            </div>
+            {editMode ? (
+              <textarea style={{ ...styles.textarea, minHeight: '60px' }} value={meta.description || ''}
+                placeholder="Campaign description…"
+                onChange={(e) => updateCampaign(campaign, 'description', e.target.value)} />
+            ) : meta.description ? (
+              <p style={{ ...styles.bodyText, margin: 0 }}>{meta.description}</p>
+            ) : (
+              <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic', color: '#8b6914' }}>No description yet.</p>
+            )}
+          </div>
+        );
+      })}
 
       <h2 style={styles.sectionHeading}>Key Figures</h2>
       {content.campaign.keyFigures.map((f, i) => (
@@ -3429,6 +3735,21 @@ function RacesPage({ content, activeId, editMode, persistChange }) {
           .filter((r) => r.parentRace === race.parentRace && !r.isParent)
           .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         if (subraces.length === 0 && !editMode) return null;
+
+        const addSubrace = () => {
+          const name = window.prompt(`New Subrace under ${race.name}\n\nName:`);
+          if (!name) return;
+          const trimmed = name.trim();
+          if (!trimmed) return;
+          const existing = content.races.map((r) => r.id);
+          const id = uniqueId(slugify(trimmed), existing);
+          const newSr = {
+            id, name: trimmed, parentRace: race.parentRace, isParent: false,
+            summary: '', traits: [], note: '',
+          };
+          persistChange({ ...content, races: [...content.races, newSr] });
+        };
+
         return (
           <>
             <EditableHeading as="h2"
@@ -3441,10 +3762,19 @@ function RacesPage({ content, activeId, editMode, persistChange }) {
             {subraces.map((sr) => (
               <div key={sr.id} style={styles.featureCard}>
                 {editMode ? (
-                  <input value={sr.name} onChange={(e) => updateSubrace(sr.id, { name: e.target.value })}
-                    placeholder="Subrace name"
-                    style={{ ...styles.textarea, minHeight: 'unset', padding: '4px 8px', marginBottom: '6px',
-                      fontFamily: '"Cinzel", serif', fontSize: '17px', color: '#3b2615', fontWeight: 700 }} />
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
+                    <input value={sr.name} onChange={(e) => updateSubrace(sr.id, { name: e.target.value })}
+                      placeholder="Subrace name"
+                      style={{ ...styles.textarea, minHeight: 'unset', padding: '4px 8px', flex: 1,
+                        fontFamily: '"Cinzel", serif', fontSize: '17px', color: '#3b2615', fontWeight: 700 }} />
+                    <button onClick={() => {
+                        if (!window.confirm(`Delete subrace "${sr.name}"?`)) return;
+                        const updated = content.races.filter((r) => r.id !== sr.id);
+                        persistChange({ ...content, races: updated });
+                      }}
+                      style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px',
+                        padding: '6px 10px', cursor: 'pointer', fontSize: '11px', flexShrink: 0 }}>✕ Delete</button>
+                  </div>
                 ) : <div style={styles.featureName}>{sr.name}</div>}
                 {editMode ? (
                   <textarea style={{ ...styles.textarea, minHeight: '60px' }} value={sr.summary || ''}
@@ -3454,6 +3784,12 @@ function RacesPage({ content, activeId, editMode, persistChange }) {
                   : <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic', color: '#8b6914' }}>Not yet written.</p>}
               </div>
             ))}
+            {editMode && (
+              <button onClick={addSubrace}
+                style={{ ...styles.button, marginTop: '8px', fontSize: '12px', padding: '6px 16px' }}>
+                + Add Subrace
+              </button>
+            )}
           </>
         );
       })()}
@@ -3926,6 +4262,56 @@ function CharactersPage({ content, activeId, editMode, persistChange }) {
 
       <PillRow pills={pills} editMode={editMode} onChange={(p) => updateCh({ pills: p })} />
 
+      {editMode ? (
+        <div style={{ ...styles.card, marginBottom: '20px' }}>
+          <div style={{ fontFamily: '"Cinzel", serif', fontSize: '12px', color: '#5c1414', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '14px', paddingBottom: '8px', borderBottom: '1px solid rgba(139,105,20,0.3)' }}>Identity</div>
+          {fieldRow('Race', 'race', 'Race or species…')}
+          {fieldRow('Class & Level', 'class', 'e.g. Paladin 5 / Esper 6 (Oath of Renewal)…')}
+          {fieldRow('Patron', 'patron', 'Deity, patron, or —')}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginTop: '8px' }}>
+            <div>
+              <div style={{ fontSize: '11px', color: '#8b6914', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Role</div>
+              <select value={ch.role || ''} onChange={(e) => updateCh({ role: e.target.value })}
+                style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px', width: '100%' }}>
+                <option value="">— none —</option>
+                <option value="player">Player Character</option>
+                <option value="connected">Connected</option>
+                <option value="enemy">Enemy</option>
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize: '11px', color: '#8b6914', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Status</div>
+              <select value={ch.status || ''} onChange={(e) => updateCh({ status: e.target.value })}
+                style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px', width: '100%' }}>
+                <option value="">Alive</option>
+                <option value="deceased">Deceased (†)</option>
+                <option value="freed">Freed</option>
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize: '11px', color: '#8b6914', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Category</div>
+              <input value={ch.category || ''} placeholder="e.g. BBEG, Sin, NPC…"
+                onChange={(e) => updateCh({ category: e.target.value })}
+                style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px', width: '100%' }} />
+            </div>
+          </div>
+        </div>
+      ) : (ch.race || ch.class || (ch.patron && ch.patron !== '—' && ch.patron !== '')) ? (
+        <div style={{ marginBottom: '14px' }}>
+          {ch.race && <span style={styles.pill}>{ch.race}</span>}
+          {ch.class && <span style={styles.pill}>{ch.class}</span>}
+          {ch.patron && ch.patron !== '—' && ch.patron !== '' && <span style={styles.pill}>Patron: {ch.patron}</span>}
+        </div>
+      ) : null}
+
+      {ch.placeholder && (
+        <div style={{ ...styles.card, marginTop: '12px', background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c' }}>
+          <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic' }}>
+            <strong>Placeholder.</strong> Name and details to be filled in.
+          </p>
+        </div>
+      )}
+
       <div style={{ overflow: 'auto' }}>
         <FloatingImage
           media={ch.media}
@@ -3934,29 +4320,6 @@ function CharactersPage({ content, activeId, editMode, persistChange }) {
           category="characters"
           entryId={ch.id}
         />
-
-        {editMode ? (
-          <div style={{ ...styles.card, marginBottom: '20px' }}>
-            <div style={{ fontFamily: '"Cinzel", serif', fontSize: '12px', color: '#5c1414', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '14px', paddingBottom: '8px', borderBottom: '1px solid rgba(139,105,20,0.3)' }}>Identity</div>
-            {fieldRow('Race', 'race', 'Race or species…')}
-            {fieldRow('Class & Level', 'class', 'e.g. Paladin 5 / Esper 6 (Oath of Renewal)…')}
-            {fieldRow('Patron', 'patron', 'Deity, patron, or —')}
-          </div>
-        ) : (ch.race || ch.class || (ch.patron && ch.patron !== '—' && ch.patron !== '')) ? (
-          <div style={{ marginBottom: '14px' }}>
-            {ch.race && <span style={styles.pill}>{ch.race}</span>}
-            {ch.class && <span style={styles.pill}>{ch.class}</span>}
-            {ch.patron && ch.patron !== '—' && ch.patron !== '' && <span style={styles.pill}>Patron: {ch.patron}</span>}
-          </div>
-        ) : null}
-
-        {ch.placeholder && (
-          <div style={{ ...styles.card, marginTop: '12px', background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c' }}>
-            <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic' }}>
-              <strong>Placeholder.</strong> Name and details to be filled in.
-            </p>
-          </div>
-        )}
 
         {editMode ? (
           fieldRow('Summary', 'summary', 'Character summary — who they are, what drives them, their place in the campaign…', true)
