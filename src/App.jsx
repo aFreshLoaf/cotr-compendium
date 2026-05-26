@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { loadFromSupabase, saveToSupabase, subscribeToUpdates, isDMAuthenticated, authenticateDM, clearDMSession, uploadImage, deleteImage } from './storage.js';
-import { Search, Book, Users, Sword, Shield, Sparkles, ScrollText, Edit3, Plus, X, Save, ChevronRight, Home, Skull, Eye, Trash2, Image as ImageIcon, Upload } from 'lucide-react';
+import { Search, Book, Users, Sword, Shield, Sparkles, ScrollText, Edit3, Plus, X, Save, ChevronRight, Home, Skull, Eye, Trash2, Image as ImageIcon, Upload, Menu } from 'lucide-react';
 
 // ============================================================
 // DEFAULT CONTENT — seeded from Mikey's homebrew documents
@@ -1826,6 +1826,23 @@ const styles = {
 };
 
 // ============================================================
+// MOBILE DETECTION — used to switch layout, hide edit mode, etc.
+// ============================================================
+const MOBILE_BREAKPOINT = 768;
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = React.useState(
+    typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT
+  );
+  React.useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return isMobile;
+}
+
+// ============================================================
 // PILL PRESETS — named color swatches for editable pills
 // ============================================================
 const PILL_PRESETS = [
@@ -2126,6 +2143,7 @@ async function processImageForUpload(file) {
 }
 
 function FloatingImage({ media, editMode, onChange, category, entryId }) {
+  const isMobile = useIsMobile();
   const [uploading, setUploading] = React.useState(false);
   const [uploadError, setUploadError] = React.useState('');
   const [showControls, setShowControls] = React.useState(false);
@@ -2210,43 +2228,43 @@ function FloatingImage({ media, editMode, onChange, category, entryId }) {
   const posX = media.posX ?? 50;
   const posY = media.posY ?? 50;
 
-  // background-size is `${zoom * 100}% auto` if portrait, or `auto ${zoom * 100}%` for landscape,
-  // depending on which dimension is the cover-fit constraint. Use `cover` baseline then scale.
-  // Simpler approach: use shorthand 'cover' but encode zoom as a larger size.
-  // size: cover means "fill frame, may crop"; we multiply that by zoom.
-  const bgSize = zoom === 1 ? 'cover' : `${zoom * 100}% ${zoom * 100}%`;
-  // When zoom is 1 + cover, the source naturally bleeds whichever axis is over-spec'd.
-  // To still allow full pan in that case, we switch to explicit sizing at zoom 1 too —
-  // compute which axis is the binding one based on common case (use cover semantics):
-  // Easiest robust solution: always use explicit size 'cover-equivalent × zoom'.
-  // We use background-size with two values where each is max(100%, native) × zoom:
-  // Practical: just use `auto` for one dim won't work for unknown aspect ratios.
-  // Final approach: use object-fit cover on an actual <img>, with transform scale + translate.
-  // The translate range scales with how much overflow exists; we expose 0-100% on each axis.
+  // On mobile: full-width above content, preserving aspect ratio.
+  // On desktop: fixed pixel size, floating left.
+  const containerStyle = isMobile
+    ? {
+        width: '100%',
+        marginBottom: '16px',
+        position: 'relative',
+      }
+    : {
+        float: 'left',
+        width: frame.width,
+        marginRight: '16px',
+        marginBottom: '12px',
+        position: 'relative',
+      };
 
-  // Compute translate in % of the image's own size to clamp to overflow extent.
-  // With object-fit: cover, the rendered image is sized so it fully covers the frame.
-  // Extra overflow = (renderedSize - frameSize). We can't know renderedSize from CSS alone,
-  // but we can use object-position which Chrome computes correctly: just pass percentage.
-  // object-position: X% Y%  means: place the X% point of the image at the X% point of the box.
-  // That naturally pans through the image. Combine with transform scale for zoom-in.
-
-  return (
-    <div style={{
-      float: 'left',
-      width: frame.width,
-      marginRight: '16px',
-      marginBottom: '12px',
-      position: 'relative',
-    }}>
-      <div style={{
+  const frameStyle = isMobile
+    ? {
+        width: '100%',
+        aspectRatio: `${frame.width} / ${frame.height}`,
+        overflow: 'hidden',
+        borderRadius: '2px',
+        position: 'relative',
+        background: '#3b2615',
+      }
+    : {
         width: frame.width,
         height: frame.height,
         overflow: 'hidden',
         borderRadius: '2px',
         position: 'relative',
         background: '#3b2615',
-      }}>
+      };
+
+  return (
+    <div style={containerStyle}>
+      <div style={frameStyle}>
         <img
           src={media.url}
           alt=""
@@ -2419,6 +2437,8 @@ const characterDefaultPills = (ch) => {
 // MAIN APP
 // ============================================================
 export default function Compendium() {
+  const isMobile = useIsMobile();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [content, setContent] = useState(DEFAULT_CONTENT);
   const [loading, setLoading] = useState(true);
   const [section, setSection] = useState('home'); // home, campaign, races, classes, subclasses, characters
@@ -2430,6 +2450,11 @@ export default function Compendium() {
   const [expandedRaces, setExpandedRaces] = useState(new Set());
   const [expandedCampaigns, setExpandedCampaigns] = useState(new Set());
   const [expandedSections, setExpandedSections] = useState(new Set()); // collapsed by default
+
+  // Force exit of edit mode on mobile resize
+  React.useEffect(() => {
+    if (isMobile && editMode) setEditMode(false);
+  }, [isMobile, editMode]);
 
   const toggleCampaignExpanded = (campaign) => {
     setExpandedCampaigns((prev) => {
@@ -2506,6 +2531,10 @@ export default function Compendium() {
   };
 
   const handleEditToggle = () => {
+    if (isMobile) {
+      window.alert('Edit mode is available on desktop only. Please use a larger screen to edit the compendium.');
+      return;
+    }
     if (editMode) {
       // Leaving edit mode — warn if dirty
       if (dirty) {
@@ -2647,6 +2676,7 @@ export default function Compendium() {
     setSection(sect);
     setActiveId(id);
     setSearch('');
+    if (isMobile) setSidebarOpen(false);
     // Auto-expand the unified Classes & Subclasses section when navigating to either
     if (sect === 'classes' || sect === 'subclasses') {
       setExpandedSections((prev) => {
@@ -2705,10 +2735,61 @@ export default function Compendium() {
         onSave={handleSave}
         onDiscard={handleDiscard}
         onMetaChange={(meta) => persistChange({ ...content, meta })}
+        isMobile={isMobile}
+        onMenuClick={() => setSidebarOpen(true)}
       />
 
       <div style={styles.layout}>
-        <aside style={styles.sidebar}>
+        {/* Mobile backdrop — clickable area to close sidebar */}
+        {isMobile && sidebarOpen && (
+          <div
+            onClick={() => setSidebarOpen(false)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.5)',
+              zIndex: 99,
+            }}
+          />
+        )}
+        <aside style={{
+          ...styles.sidebar,
+          ...(isMobile ? {
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            bottom: 0,
+            height: '100vh',
+            zIndex: 100,
+            width: '280px',
+            transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+            transition: 'transform 0.25s ease-out',
+            boxShadow: sidebarOpen ? '4px 0 12px rgba(0,0,0,0.3)' : 'none',
+          } : {}),
+        }}>
+          {/* Mobile close button at top of sidebar */}
+          {isMobile && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '6px 12px 0' }}>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#3b2615',
+                  cursor: 'pointer',
+                  padding: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                aria-label="Close menu"
+              >
+                <X size={20} />
+              </button>
+            </div>
+          )}
           <input
             style={styles.searchBox}
             placeholder="Search the tome…"
@@ -2928,7 +3009,10 @@ export default function Compendium() {
           })}
         </aside>
 
-        <main style={styles.main}>
+        <main style={{
+          ...styles.main,
+          ...(isMobile ? { padding: '20px 16px', width: '100%' } : {}),
+        }}>
           <div style={styles.mainInner}>
             {searchResults ? (
               <SearchResults results={searchResults} onClick={goTo} query={search} />
@@ -3019,52 +3103,79 @@ export default function Compendium() {
 // ============================================================
 // COMPONENTS
 // ============================================================
-function Header({ content, editMode, dirty, onEditToggle, onSave, onDiscard, onMetaChange, saving }) {
+function Header({ content, editMode, dirty, onEditToggle, onSave, onDiscard, onMetaChange, saving, isMobile, onMenuClick }) {
   return (
     <header style={styles.header}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div>
-          <h1 style={styles.title}>{content.meta.title}</h1>
-          <div style={styles.subtitle}>{content.meta.subtitle}</div>
-        </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {editMode && (
-            <>
-              <button
-                style={{
-                  ...styles.button,
-                  background: dirty ? '#c9a55c' : 'rgba(245, 236, 217, 0.15)',
-                  color: dirty ? '#3b2615' : 'rgba(245, 236, 217, 0.5)',
-                  cursor: dirty ? 'pointer' : 'default',
-                  opacity: dirty ? 1 : 0.6,
-                }}
-                onClick={onSave}
-                disabled={!dirty || saving}
-                title={dirty ? 'Save changes to the database' : 'No changes to save'}
-              >
-                <Save size={14} /> {saving ? 'Saving…' : (dirty ? 'Save' : 'Saved')}
-              </button>
-              <button
-                style={{
-                  ...styles.buttonGhost,
-                  opacity: dirty ? 1 : 0.5,
-                  cursor: dirty ? 'pointer' : 'default',
-                }}
-                onClick={onDiscard}
-                disabled={!dirty}
-                title="Discard unsaved changes"
-              >
-                <X size={14} /> Discard
-              </button>
-            </>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
+          {isMobile && (
+            <button
+              onClick={onMenuClick}
+              style={{
+                background: 'transparent',
+                color: '#f5ecd9',
+                border: '1px solid rgba(245,236,217,0.4)',
+                padding: '8px',
+                borderRadius: '2px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+              aria-label="Open menu"
+            >
+              <Menu size={20} />
+            </button>
           )}
-          <button
-            style={editMode ? styles.button : styles.buttonGhost}
-            onClick={onEditToggle}
-          >
-            {editMode ? <><Eye size={14} /> View Mode</> : <><Edit3 size={14} /> Edit Mode</>}
-          </button>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <h1 style={{ ...styles.title, fontSize: isMobile ? '18px' : styles.title.fontSize,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {content.meta.title}
+            </h1>
+            {!isMobile && <div style={styles.subtitle}>{content.meta.subtitle}</div>}
+          </div>
         </div>
+        {!isMobile && (
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {editMode && (
+              <>
+                <button
+                  style={{
+                    ...styles.button,
+                    background: dirty ? '#c9a55c' : 'rgba(245, 236, 217, 0.15)',
+                    color: dirty ? '#3b2615' : 'rgba(245, 236, 217, 0.5)',
+                    cursor: dirty ? 'pointer' : 'default',
+                    opacity: dirty ? 1 : 0.6,
+                  }}
+                  onClick={onSave}
+                  disabled={!dirty || saving}
+                  title={dirty ? 'Save changes to the database' : 'No changes to save'}
+                >
+                  <Save size={14} /> {saving ? 'Saving…' : (dirty ? 'Save' : 'Saved')}
+                </button>
+                <button
+                  style={{
+                    ...styles.buttonGhost,
+                    opacity: dirty ? 1 : 0.5,
+                    cursor: dirty ? 'pointer' : 'default',
+                  }}
+                  onClick={onDiscard}
+                  disabled={!dirty}
+                  title="Discard unsaved changes"
+                >
+                  <X size={14} /> Discard
+                </button>
+              </>
+            )}
+            <button
+              style={editMode ? styles.button : styles.buttonGhost}
+              onClick={onEditToggle}
+            >
+              {editMode ? <><Eye size={14} /> View Mode</> : <><Edit3 size={14} /> Edit Mode</>}
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );
@@ -3106,7 +3217,7 @@ function HomePage({ content, goTo }) {
       </p>
 
       <h2 style={styles.sectionHeading}>Quick Reference</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginTop: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginTop: '16px' }}>
         <QuickCard icon={<Sparkles size={20} />} label="Races" count={content.races.filter((r) => r.isParent || !r.parentRace).length} onClick={() => goTo('races', content.races[0]?.id)} />
         <QuickCard icon={<Sword size={20} />} label="Classes" count={content.classes.length} onClick={() => goTo('classes', content.classes[0]?.id)} />
         <QuickCard icon={<Shield size={20} />} label="Subclasses" count={content.subclasses.length} onClick={() => goTo('subclasses', content.subclasses[0]?.id)} />
@@ -3466,7 +3577,7 @@ function ClassesPage({ content, activeId, editMode, persistChange }) {
         editMode={editMode}
         style={styles.sectionHeading}
       />
-      <div style={{ ...styles.card, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+      <div style={{ ...styles.card, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0 24px' }}>
         {infoField('Hit Points at 1st Level', 'startingHP', 'e.g. 10 + CON modifier')}
         {infoField('Hit Points per Level', 'hpPerLevel', 'e.g. 6 + CON modifier per level after 1st')}
         {infoField('Armor Training', 'armorTraining', 'e.g. Light Armor, Medium Armor, Shields')}

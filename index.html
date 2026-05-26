@@ -13,6 +13,16 @@
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body { background: #f4e8d0; }
+
+      /* Prevent iOS zoom on input focus by ensuring all inputs are at least 16px */
+      @media (max-width: 768px) {
+        input, textarea, select { font-size: 16px !important; }
+        h1 { font-size: 22px !important; }
+        h2 { font-size: 18px !important; }
+        /* Make table cells more readable */
+        table { font-size: 12px !important; }
+        table th, table td { padding: 4px 6px !important; }
+      }
     </style>
   </head>
   <body>
