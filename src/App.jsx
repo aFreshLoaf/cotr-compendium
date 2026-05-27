@@ -1332,8 +1332,8 @@ async function loadContent() {
       (cached.subclasses || []).forEach((s) => { cachedSubsById[s.id] = s; });
       const mergedSubclasses = DEFAULT_CONTENT.subclasses.map((defaultSub) => {
         const cachedSub = cachedSubsById[defaultSub.id];
-        if (!cachedSub) return defaultSub;
-        return {
+        if (!cachedSub) return migrateEntryToSections(defaultSub, 'subclass');
+        const merged = {
           ...defaultSub,
           name: cachedSub.name && cachedSub.name !== "" ? cachedSub.name : defaultSub.name,
           summary: cachedSub.summary && cachedSub.summary !== "" ? cachedSub.summary : defaultSub.summary,
@@ -1343,15 +1343,27 @@ async function loadContent() {
           headings: cachedSub.headings,
           customSections: cachedSub.customSections,
           media: cachedSub.media,
+          sections: cachedSub.sections,
         };
+        return Array.isArray(merged.sections) ? merged : migrateEntryToSections(merged, 'subclass');
       });
+      // Also include any cached subclasses not in defaults (user-created)
+      const defaultSubIds = new Set(DEFAULT_CONTENT.subclasses.map((s) => s.id));
+      for (const id in cachedSubsById) {
+        if (!defaultSubIds.has(id)) {
+          const entry = cachedSubsById[id];
+          mergedSubclasses.push(Array.isArray(entry.sections) ? entry : migrateEntryToSections(entry, 'subclass'));
+        }
+      }
+
       // Same for races
       const cachedRacesById = {};
       (cached.races || []).forEach((r) => { cachedRacesById[r.id] = r; });
       const mergedRaces = DEFAULT_CONTENT.races.map((defaultRace) => {
         const cachedRace = cachedRacesById[defaultRace.id];
-        if (!cachedRace) return defaultRace;
-        return {
+        const raceType = defaultRace.isParent ? 'race-parent' : 'race-subrace';
+        if (!cachedRace) return migrateEntryToSections(defaultRace, raceType);
+        const merged = {
           ...defaultRace,
           name: cachedRace.name && cachedRace.name !== "" ? cachedRace.name : defaultRace.name,
           tagline: cachedRace.tagline && cachedRace.tagline !== "" ? cachedRace.tagline : defaultRace.tagline,
@@ -1364,15 +1376,26 @@ async function loadContent() {
           headings: cachedRace.headings,
           customSections: cachedRace.customSections,
           media: cachedRace.media,
+          sections: cachedRace.sections,
         };
+        return Array.isArray(merged.sections) ? merged : migrateEntryToSections(merged, raceType);
       });
+      const defaultRaceIds = new Set(DEFAULT_CONTENT.races.map((r) => r.id));
+      for (const id in cachedRacesById) {
+        if (!defaultRaceIds.has(id)) {
+          const entry = cachedRacesById[id];
+          const t = entry.isParent ? 'race-parent' : 'race-subrace';
+          mergedRaces.push(Array.isArray(entry.sections) ? entry : migrateEntryToSections(entry, t));
+        }
+      }
+
       // Same for characters
       const cachedCharsById = {};
       (cached.characters || []).forEach((c) => { cachedCharsById[c.id] = c; });
       const mergedCharacters = DEFAULT_CONTENT.characters.map((defaultCh) => {
         const cachedCh = cachedCharsById[defaultCh.id];
-        if (!cachedCh) return defaultCh;
-        return {
+        if (!cachedCh) return migrateEntryToSections(defaultCh, 'character');
+        const merged = {
           ...defaultCh,
           name: cachedCh.name && cachedCh.name !== "" ? cachedCh.name : defaultCh.name,
           summary: cachedCh.summary && cachedCh.summary !== "" ? cachedCh.summary : defaultCh.summary,
@@ -1381,20 +1404,33 @@ async function loadContent() {
           race: cachedCh.race && cachedCh.race !== "" ? cachedCh.race : defaultCh.race,
           class: cachedCh.class && cachedCh.class !== "" ? cachedCh.class : defaultCh.class,
           patron: cachedCh.patron && cachedCh.patron !== "" ? cachedCh.patron : defaultCh.patron,
+          role: cachedCh.role || defaultCh.role,
+          status: cachedCh.status !== undefined ? cachedCh.status : defaultCh.status,
+          category: cachedCh.category !== undefined ? cachedCh.category : defaultCh.category,
           pills: cachedCh.pills,
           headings: cachedCh.headings,
           customSections: cachedCh.customSections,
           media: cachedCh.media,
+          sections: cachedCh.sections,
         };
+        return Array.isArray(merged.sections) ? merged : migrateEntryToSections(merged, 'character');
       });
+      const defaultCharIds = new Set(DEFAULT_CONTENT.characters.map((c) => c.id));
+      for (const id in cachedCharsById) {
+        if (!defaultCharIds.has(id)) {
+          const entry = cachedCharsById[id];
+          mergedCharacters.push(Array.isArray(entry.sections) ? entry : migrateEntryToSections(entry, 'character'));
+        }
+      }
+
       // Merge classes — preserve user-edited fields, keep structural defaults
       const cachedClassesById = {};
       (cached.classes || []).forEach((c) => { cachedClassesById[c.id] = c; });
       const mergedClasses = DEFAULT_CONTENT.classes.map((defaultCls) => {
         const cachedCls = cachedClassesById[defaultCls.id];
-        if (!cachedCls) return defaultCls;
+        if (!cachedCls) return migrateEntryToSections(defaultCls, 'class');
         const preserve = (field) => cachedCls[field] && (Array.isArray(cachedCls[field]) ? cachedCls[field].length > 0 : cachedCls[field] !== "");
-        return {
+        const merged = {
           ...defaultCls,
           name: preserve('name') ? cachedCls.name : defaultCls.name,
           summary: preserve('summary') ? cachedCls.summary : defaultCls.summary,
@@ -1413,8 +1449,17 @@ async function loadContent() {
           headings: cachedCls.headings,
           customSections: cachedCls.customSections,
           media: cachedCls.media,
+          sections: cachedCls.sections,
         };
+        return Array.isArray(merged.sections) ? merged : migrateEntryToSections(merged, 'class');
       });
+      const defaultClassIds = new Set(DEFAULT_CONTENT.classes.map((c) => c.id));
+      for (const id in cachedClassesById) {
+        if (!defaultClassIds.has(id)) {
+          const entry = cachedClassesById[id];
+          mergedClasses.push(Array.isArray(entry.sections) ? entry : migrateEntryToSections(entry, 'class'));
+        }
+      }
       return {
         ...DEFAULT_CONTENT,
         ...cached,
@@ -1440,7 +1485,14 @@ async function loadContent() {
   } catch (e) {
     // Key doesn't exist yet — return defaults
   }
-  return DEFAULT_CONTENT;
+  // No cached content — return defaults with sections migration applied
+  return {
+    ...DEFAULT_CONTENT,
+    subclasses: DEFAULT_CONTENT.subclasses.map((s) => migrateEntryToSections(s, 'subclass')),
+    races: DEFAULT_CONTENT.races.map((r) => migrateEntryToSections(r, r.isParent ? 'race-parent' : 'race-subrace')),
+    classes: DEFAULT_CONTENT.classes.map((c) => migrateEntryToSections(c, 'class')),
+    characters: DEFAULT_CONTENT.characters.map((c) => migrateEntryToSections(c, 'character')),
+  };
 }
 
 async function saveContent(content) {
@@ -1851,6 +1903,113 @@ function uniqueId(baseId, existingIds) {
 }
 
 // ============================================================
+// SECTION SEEDING & MIGRATION
+// ============================================================
+const newSectionId = () => `sec-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+// Per-entry-type default section templates for newly-created entries.
+function seedSectionsForType(type, opts = {}) {
+  const id = newSectionId;
+  switch (type) {
+    case 'subclass':
+      return [
+        { id: id(), type: 'text',     heading: 'Summary',  body: '' },
+        { id: id(), type: 'features', heading: 'Features', features: [] },
+      ];
+    case 'race-parent':
+      return [
+        { id: id(), type: 'text',     heading: 'Description',    body: '' },
+        { id: id(), type: 'features', heading: 'Traits',         features: [] },
+        { id: id(), type: 'features', heading: 'Class Tunings',  features: [] },
+      ];
+    case 'race-subrace':
+      return [
+        { id: id(), type: 'text', heading: 'Summary', body: '' },
+      ];
+    case 'class':
+      return [
+        { id: id(), type: 'text',     heading: 'Summary',                    body: '' },
+        { id: id(), type: 'text',     heading: 'Hit Points & Starting Info', body: '' },
+        { id: id(), type: 'table',    heading: 'Class Progression',          columns: ['Level','Prof.','Features'], rows: Array.from({length:20}, (_,i) => [String(i+1),'','']) },
+        { id: id(), type: 'features', heading: 'Core Features',              features: [] },
+      ];
+    case 'character':
+      return [
+        { id: id(), type: 'identity', heading: 'Identity',   locked: true },
+        { id: id(), type: 'text',     heading: 'Summary',    body: '' },
+        { id: id(), type: 'features', heading: 'Key Traits', features: [] },
+      ];
+    default:
+      return [];
+  }
+}
+
+// Migration scaffolding — derives sections from legacy fields.
+// For most entry types we only seed empty section headers (matching the type's
+// default structure), since the user said the actual content will be filled in
+// manually. Characters get full content migration since the data is small and useful.
+function migrateEntryToSections(entry, type) {
+  if (Array.isArray(entry.sections)) return entry; // already migrated
+  let sections = [];
+  switch (type) {
+    case 'subclass': {
+      const features = Array.isArray(entry.features) && entry.features.length > 0 ? entry.features : [];
+      sections = [
+        { id: newSectionId(), type: 'text',     heading: 'Summary',  body: '' },
+        { id: newSectionId(), type: 'features', heading: 'Features', features: features.map((f) => ({ ...f })) },
+      ];
+      break;
+    }
+    case 'race-parent': {
+      sections = [
+        { id: newSectionId(), type: 'text',     heading: 'Description',   body: '' },
+        { id: newSectionId(), type: 'features', heading: 'Traits',        features: [] },
+        { id: newSectionId(), type: 'features', heading: 'Class Tunings', features: [] },
+      ];
+      break;
+    }
+    case 'race-subrace': {
+      sections = [{ id: newSectionId(), type: 'text', heading: 'Summary', body: '' }];
+      break;
+    }
+    case 'class': {
+      sections = [
+        { id: newSectionId(), type: 'text',     heading: 'Summary',                    body: '' },
+        { id: newSectionId(), type: 'text',     heading: 'Hit Points & Starting Info', body: '' },
+        { id: newSectionId(), type: 'table',    heading: 'Class Progression',          columns: ['Level','Prof.','Features'], rows: Array.from({length:20}, (_,i) => [String(i+1),'','']) },
+        { id: newSectionId(), type: 'features', heading: 'Core Features',              features: [] },
+      ];
+      break;
+    }
+    case 'character': {
+      // Full migration for characters
+      sections = [
+        { id: newSectionId(), type: 'identity', heading: 'Identity', locked: true },
+      ];
+      if (entry.summary) {
+        sections.push({ id: newSectionId(), type: 'text', heading: 'Summary',
+          body: entry.summary, media: entry.media || null });
+      } else {
+        sections.push({ id: newSectionId(), type: 'text', heading: 'Summary',
+          body: '', media: entry.media || null });
+      }
+      const kt = Array.isArray(entry.keyTraits) && entry.keyTraits.length > 0 ? entry.keyTraits : [];
+      sections.push({ id: newSectionId(), type: 'features', heading: 'Key Traits',
+        features: kt.map((t) => ({ name: '', text: t })) });
+      if (entry.note) {
+        sections.push({ id: newSectionId(), type: 'text', heading: 'Note', body: entry.note });
+      }
+      break;
+    }
+  }
+  // Append any existing customSections
+  if (Array.isArray(entry.customSections) && entry.customSections.length > 0) {
+    sections.push(...entry.customSections);
+  }
+  return { ...entry, sections };
+}
+
+// ============================================================
 // MOBILE DETECTION — used to switch layout, hide edit mode, etc.
 // ============================================================
 const MOBILE_BREAKPOINT = 768;
@@ -1980,9 +2139,11 @@ function EditableHeading({ as = 'h2', value, defaultValue, onChange, editMode, s
 }
 
 // ============================================================
-// CUSTOM SECTIONS — user-added named sections (text / features / table / image)
+// SECTIONS — unified renderer for all entry types
+// Section types: text, features, table, image, identity
+// `locked: true` on a section disables its delete button (still reorderable).
 // ============================================================
-function CustomSections({ sections, editMode, onChange, headingStyle, category, entryId }) {
+function Sections({ sections, editMode, onChange, headingStyle, category, entryId, identityFields }) {
   const list = sections || [];
   const updateSection = (i, fields) => onChange(list.map((s, idx) => idx === i ? { ...s, ...fields } : s));
   const removeSection = (i) => onChange(list.filter((_, idx) => idx !== i));
@@ -1993,11 +2154,12 @@ function CustomSections({ sections, editMode, onChange, headingStyle, category, 
     [arr[i], arr[ni]] = [arr[ni], arr[i]];
     onChange(arr);
   };
-  const addTextSection    = () => onChange([...list, { id: `sec-${Date.now()}`, heading: 'New Section', type: 'text', body: '' }]);
-  const addFeatureSection = () => onChange([...list, { id: `sec-${Date.now()}`, heading: 'New Section', type: 'features', features: [] }]);
-  const addTableSection   = () => onChange([...list, { id: `sec-${Date.now()}`, heading: 'New Table', type: 'table',
+  const newId = () => `sec-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const addTextSection    = () => onChange([...list, { id: newId(), heading: 'New Section', type: 'text', body: '' }]);
+  const addFeatureSection = () => onChange([...list, { id: newId(), heading: 'New Section', type: 'features', features: [] }]);
+  const addTableSection   = () => onChange([...list, { id: newId(), heading: 'New Table', type: 'table',
     columns: ['Column A', 'Column B'], rows: [['', '']] }]);
-  const addImageSection   = () => onChange([...list, { id: `sec-${Date.now()}`, heading: 'New Illustration', type: 'image', media: null, caption: '' }]);
+  const addImageSection   = () => onChange([...list, { id: newId(), heading: 'New Illustration', type: 'image', media: null, caption: '' }]);
 
   const updateFeature = (sectionIdx, featIdx, fields) => {
     const features = (list[sectionIdx].features || []).map((f, idx) => idx === featIdx ? { ...f, ...fields } : f);
@@ -2069,12 +2231,58 @@ function CustomSections({ sections, editMode, onChange, headingStyle, category, 
                 <button onClick={() => moveSection(i, 1)} title="Move down"
                   style={{ background: '#8b6914', color: '#f5ecd9', border: 'none', padding: '4px 8px',
                     cursor: 'pointer', borderRadius: '2px', fontSize: '11px' }}>▼</button>
-                <button onClick={() => removeSection(i)} title="Remove section"
-                  style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', padding: '4px 10px',
-                    cursor: 'pointer', borderRadius: '2px', fontSize: '11px' }}>✕</button>
+                {!sec.locked && (
+                  <button onClick={() => removeSection(i)} title="Remove section"
+                    style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', padding: '4px 10px',
+                      cursor: 'pointer', borderRadius: '2px', fontSize: '11px' }}>✕</button>
+                )}
               </div>
             )}
           </div>
+
+          {/* IDENTITY — character-only locked section: Race / Class / Patron pills */}
+          {sec.type === 'identity' && identityFields && (
+            editMode ? (
+              <div style={{ ...styles.card }}>
+                {identityFields.fieldRow('Race', 'race', 'Race or species…')}
+                {identityFields.fieldRow('Class & Level', 'class', 'e.g. Paladin 5 / Esper 6 (Oath of Renewal)…')}
+                {identityFields.fieldRow('Patron', 'patron', 'Deity, patron, or —')}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginTop: '8px' }}>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#8b6914', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Role</div>
+                    <select value={identityFields.entry.role || ''} onChange={(e) => identityFields.update({ role: e.target.value })}
+                      style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px', width: '100%' }}>
+                      <option value="">— none —</option>
+                      <option value="player">Player Character</option>
+                      <option value="connected">Connected</option>
+                      <option value="enemy">Enemy</option>
+                    </select>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#8b6914', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Status</div>
+                    <select value={identityFields.entry.status || ''} onChange={(e) => identityFields.update({ status: e.target.value })}
+                      style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px', width: '100%' }}>
+                      <option value="">Alive</option>
+                      <option value="deceased">Deceased (†)</option>
+                      <option value="freed">Freed</option>
+                    </select>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#8b6914', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Category</div>
+                    <input value={identityFields.entry.category || ''} placeholder="e.g. BBEG, Sin, NPC…"
+                      onChange={(e) => identityFields.update({ category: e.target.value })}
+                      style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px', width: '100%' }} />
+                  </div>
+                </div>
+              </div>
+            ) : (identityFields.entry.race || identityFields.entry.class || (identityFields.entry.patron && identityFields.entry.patron !== '—' && identityFields.entry.patron !== '')) ? (
+              <div>
+                {identityFields.entry.race && <span style={styles.pill}>{identityFields.entry.race}</span>}
+                {identityFields.entry.class && <span style={styles.pill}>{identityFields.entry.class}</span>}
+                {identityFields.entry.patron && identityFields.entry.patron !== '—' && identityFields.entry.patron !== '' && <span style={styles.pill}>Patron: {identityFields.entry.patron}</span>}
+              </div>
+            ) : null
+          )}
 
           {/* TEXT — supports inline floating image */}
           {sec.type === 'text' && (
@@ -2091,7 +2299,7 @@ function CustomSections({ sections, editMode, onChange, headingStyle, category, 
                   placeholder="Section content…"
                   onChange={(e) => updateSection(i, { body: e.target.value })} />
               ) : sec.body ? (
-                <p style={styles.bodyText}>{sec.body}</p>
+                <p style={{ ...styles.bodyText, whiteSpace: 'pre-wrap' }}>{sec.body}</p>
               ) : null}
             </div>
           )}
@@ -2112,8 +2320,9 @@ function CustomSections({ sections, editMode, onChange, headingStyle, category, 
                     {editMode ? (
                       <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
                         <span style={{ fontSize: '11px', color: '#8b6914' }}>Lvl</span>
-                        <input type="number" value={f.level || 1}
-                          onChange={(e) => updateFeature(i, fi, { level: parseInt(e.target.value) || 1 })}
+                        <input type="number" value={f.level || ''}
+                          onChange={(e) => updateFeature(i, fi, { level: e.target.value === '' ? null : (parseInt(e.target.value) || 1) })}
+                          placeholder="—"
                           style={{ ...styles.textarea, width: '60px', minHeight: 'unset', padding: '4px 8px' }} />
                         <input value={f.name || ''}
                           onChange={(e) => updateFeature(i, fi, { name: e.target.value })}
@@ -2124,7 +2333,7 @@ function CustomSections({ sections, editMode, onChange, headingStyle, category, 
                             borderRadius: '2px', padding: '4px 8px', cursor: 'pointer', fontSize: '11px' }}>✕</button>
                       </div>
                     ) : <>
-                      <div style={styles.featureLevel}>Level {f.level}</div>
+                      {f.level != null && f.level !== '' && <div style={styles.featureLevel}>Level {f.level}</div>}
                       <div style={styles.featureName}>{f.name}</div>
                     </>}
                     {editMode ? (
@@ -2132,7 +2341,7 @@ function CustomSections({ sections, editMode, onChange, headingStyle, category, 
                         placeholder="Feature mechanics…"
                         onChange={(e) => updateFeature(i, fi, { text: e.target.value })} />
                     ) : (
-                      <p style={{ ...styles.bodyText, margin: 0 }}>{f.text}</p>
+                      <p style={{ ...styles.bodyText, margin: 0, whiteSpace: 'pre-wrap' }}>{f.text}</p>
                     )}
                   </div>
                 ))}
@@ -2146,7 +2355,7 @@ function CustomSections({ sections, editMode, onChange, headingStyle, category, 
             </>
           )}
 
-          {/* TABLE — no inline image (tables get full width) */}
+          {/* TABLE — no inline image */}
           {sec.type === 'table' && (() => {
             const cols = sec.columns || [];
             const rows = sec.rows || [];
@@ -2219,10 +2428,9 @@ function CustomSections({ sections, editMode, onChange, headingStyle, category, 
             );
           })()}
 
-          {/* IMAGE — standalone illustration; no body, just an image with optional caption */}
+          {/* IMAGE — standalone illustration with optional caption */}
           {sec.type === 'image' && (
             <div style={{ clear: 'both', textAlign: 'center' }}>
-              {/* For image sections we render the FloatingImage but display centered/full-width */}
               <div style={{ display: 'inline-block', maxWidth: '100%' }}>
                 <FloatingImage
                   media={sec.media}
@@ -2252,7 +2460,7 @@ function CustomSections({ sections, editMode, onChange, headingStyle, category, 
         <div style={{ marginTop: '20px', display: 'flex', gap: '8px', flexWrap: 'wrap',
           padding: '10px', background: 'rgba(201, 165, 92, 0.1)', border: '1px dashed #8b6914', borderRadius: '2px' }}>
           <span style={{ fontSize: '11px', color: '#8b6914', textTransform: 'uppercase',
-            letterSpacing: '0.08em', alignSelf: 'center', marginRight: '8px' }}>Add Custom Section:</span>
+            letterSpacing: '0.08em', alignSelf: 'center', marginRight: '8px' }}>Add Section:</span>
           <button onClick={addTextSection}
             style={{ ...styles.button, fontSize: '12px', padding: '6px 14px' }}>+ Text</button>
           <button onClick={addFeatureSection}
@@ -2775,7 +2983,8 @@ export default function Compendium() {
     if (!name) return;
     const existing = content.subclasses.map((s) => s.id);
     const id = uniqueId(slugify(name), existing);
-    const newSub = { id, name, parentClass, summary: '', features: [], note: '' };
+    const newSub = { id, name, parentClass, summary: '', features: [], note: '',
+      sections: seedSectionsForType('subclass') };
     persistChange({ ...content, subclasses: [...content.subclasses, newSub] });
     goTo('subclasses', id);
   };
@@ -2788,6 +2997,7 @@ export default function Compendium() {
     const newRace = {
       id, name, parentRace: name, isParent: true,
       tagline: '', description: '', traits: [], archetypes: [], note: '',
+      sections: seedSectionsForType('race-parent'),
     };
     const raceOrder = [...(content.raceOrder || []), name];
     persistChange({ ...content, races: [...content.races, newRace], raceOrder });
@@ -2802,6 +3012,7 @@ export default function Compendium() {
     const newSr = {
       id, name, parentRace: parentRaceName, isParent: false,
       summary: '', traits: [], note: '',
+      sections: seedSectionsForType('race-subrace'),
     };
     persistChange({ ...content, races: [...content.races, newSr] });
     goTo('races', id);
@@ -2815,6 +3026,7 @@ export default function Compendium() {
     const newCh = {
       id, name, campaign, role: 'player', status: '',
       race: '', class: '', patron: '', summary: '', keyTraits: [], note: '',
+      sections: seedSectionsForType('character'),
     };
     persistChange({ ...content, characters: [...content.characters, newCh] });
     goTo('characters', id);
@@ -3055,14 +3267,65 @@ export default function Compendium() {
                   if (racesInFamily.length === 0) return null;
                   const parent = racesInFamily.find((r) => r.isParent);
                   if (!parent) return null;
-                  const isActive = section === 'races' && activeId === parent.id;
+                  const subraces = racesInFamily
+                    .filter((r) => !r.isParent)
+                    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                  const isExpanded = expandedRaces.has(parentRace);
+                  const isParentActive = section === 'races' && activeId === parent.id;
+                  const hasActiveSubrace = section === 'races' && subraces.some((r) => r.id === activeId);
+                  const hasActive = isParentActive || hasActiveSubrace;
+                  const hasChildren = subraces.length > 0 || editMode;
                   return (
-                    <div
-                      key={parentRace}
-                      style={{ ...styles.parentGroup, ...(isActive ? styles.parentGroupActive : {}) }}
-                      onClick={() => goTo('races', parent.id)}
-                    >
-                      {parent.name}
+                    <div key={parentRace}>
+                      <div
+                        style={{ ...styles.parentGroup, ...(hasActive ? styles.parentGroupActive : {}) }}
+                        onClick={() => {
+                          goTo('races', parent.id);
+                          if (hasChildren) {
+                            setExpandedRaces((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(parentRace)) next.delete(parentRace);
+                              else next.add(parentRace);
+                              return next;
+                            });
+                          }
+                        }}
+                      >
+                        {hasChildren ? (
+                          <ChevronRight size={12}
+                            style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }} />
+                        ) : <span style={{ width: '12px', display: 'inline-block' }} />}
+                        {parent.name}
+                        {subraces.length > 0 && (
+                          <span style={{ marginLeft: 'auto', fontSize: '10px', color: '#8b6914', fontWeight: 400, fontStyle: 'italic' }}>
+                            {subraces.length}
+                          </span>
+                        )}
+                      </div>
+                      {isExpanded && (
+                        <>
+                          {subraces.map((sr) => {
+                            const isActive = section === 'races' && activeId === sr.id;
+                            return (
+                              <div
+                                key={sr.id}
+                                style={{ ...styles.subclassChild, ...(isActive ? styles.subclassChildActive : {}) }}
+                                onClick={() => goTo('races', sr.id)}
+                              >
+                                <span>{sr.name}</span>
+                              </div>
+                            );
+                          })}
+                          {editMode && (
+                            <div
+                              style={{ ...styles.subclassChild, color: '#7a1f1f', fontStyle: 'italic', cursor: 'pointer' }}
+                              onClick={(e) => { e.stopPropagation(); createSubrace(parentRace); }}
+                            >
+                              <Plus size={11} style={{ marginRight: '4px' }} /> New Subrace
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   );
                 })}
@@ -3587,30 +3850,9 @@ function RacesPage({ content, activeId, editMode, persistChange }) {
     const updated = content.races.map((r) => r.id === race.id ? { ...r, ...fields } : r);
     persistChange({ ...content, races: updated });
   };
-  const updateTrait = (i, fields) => {
-    const traits = (race.traits || []).map((t, idx) => idx === i ? { ...t, ...fields } : t);
-    updateRace({ traits });
-  };
-  const addTrait = () => updateRace({ traits: [...(race.traits || []), { name: 'New Trait', text: '' }] });
-  const removeTrait = (i) => updateRace({ traits: (race.traits || []).filter((_, idx) => idx !== i) });
-
-  const updateArch = (i, fields) => {
-    const archetypes = (race.archetypes || []).map((a, idx) => idx === i ? { ...a, ...fields } : a);
-    updateRace({ archetypes });
-  };
-  const addArch = () => updateRace({ archetypes: [...(race.archetypes || []), { name: 'New Tuning', text: '' }] });
-  const removeArch = (i) => updateRace({ archetypes: (race.archetypes || []).filter((_, idx) => idx !== i) });
-
-  const updateSubrace = (subId, fields) => {
-    const updated = content.races.map((r) => r.id === subId ? { ...r, ...fields } : r);
-    persistChange({ ...content, races: updated });
-  };
-
-  const isSubrace = race.parentRace && !race.isParent && race.parentRace !== race.name;
-  const isEmpty = !race.description && !race.summary && (!race.traits || race.traits.length === 0);
 
   const pills = race.pills || raceDefaultPills(race);
-  const headings = race.headings || {};
+  const sections = race.sections;
 
   return (
     <div>
@@ -3624,196 +3866,23 @@ function RacesPage({ content, activeId, editMode, persistChange }) {
 
       <PillRow pills={pills} editMode={editMode} onChange={(p) => updateRace({ pills: p })} />
 
-      <div style={{ overflow: 'auto' }}>
-        <FloatingImage
-          media={race.media}
-          editMode={editMode}
-          onChange={(m) => updateRace({ media: m })}
-          category="races"
-          entryId={race.id}
-        />
+      {editMode ? (
+        <input value={race.tagline || ''} placeholder="Tagline — one-line flavor…"
+          onChange={(e) => updateRace({ tagline: e.target.value })}
+          style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px', width: '100%', marginBottom: '10px',
+            fontStyle: 'italic', fontSize: '15px' }} />
+      ) : race.tagline ? (
+        <p style={{ ...styles.bodyText, fontStyle: 'italic', color: '#5c4020', fontSize: '16px' }}>{race.tagline}</p>
+      ) : null}
 
-        {editMode ? (
-          <input value={race.tagline || ''} placeholder="Tagline — one-line flavor…"
-            onChange={(e) => updateRace({ tagline: e.target.value })}
-            style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px', width: '100%', marginBottom: '10px',
-              fontStyle: 'italic', fontSize: '15px' }} />
-        ) : race.tagline ? (
-          <p style={{ ...styles.bodyText, fontStyle: 'italic', color: '#5c4020', fontSize: '16px' }}>{race.tagline}</p>
-        ) : null}
-
-        {editMode ? (
-          <textarea style={{ ...styles.textarea, minHeight: '120px' }}
-            value={isSubrace ? (race.summary || '') : (race.description || '')}
-            placeholder={isSubrace ? "Subrace summary…" : "Race description…"}
-            onChange={(e) => updateRace(isSubrace ? { summary: e.target.value } : { description: e.target.value })} />
-        ) : race.description ? (
-          <p style={styles.bodyText}>{race.description}</p>
-        ) : race.summary ? (
-          <p style={styles.bodyText}>{race.summary}</p>
-        ) : isEmpty ? (
-          <div style={{ ...styles.card, marginTop: '20px', background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c' }}>
-            <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic' }}>
-              This entry has not been written yet.
-            </p>
-          </div>
-        ) : null}
-      </div>
-
-      <div style={{ clear: 'both' }} />
-
-      <EditableHeading as="h2"
-        value={headings.traits}
-        defaultValue="Traits"
-        onChange={(v) => updateRace({ headings: { ...headings, traits: v } })}
+      <Sections
+        sections={sections}
         editMode={editMode}
-        style={styles.sectionHeading}
-      />
-      {(race.traits || []).map((t, i) => (
-        <div key={i} style={styles.featureCard}>
-          {editMode ? (
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
-              <input value={t.name} onChange={(e) => updateTrait(i, { name: e.target.value })}
-                placeholder="Trait name"
-                style={{ ...styles.textarea, flex: 1, minHeight: 'unset', padding: '4px 8px' }} />
-              <button onClick={() => removeTrait(i)}
-                style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px',
-                  padding: '4px 8px', cursor: 'pointer', fontSize: '11px' }}>✕</button>
-            </div>
-          ) : <div style={styles.featureName}>{t.name}</div>}
-          {editMode ? (
-            <textarea style={{ ...styles.textarea, minHeight: '70px' }} value={t.text || ''}
-              placeholder="Trait mechanics…" onChange={(e) => updateTrait(i, { text: e.target.value })} />
-          ) : <p style={{ ...styles.bodyText, margin: 0 }}>{t.text}</p>}
-        </div>
-      ))}
-      {editMode && (
-        <button onClick={addTrait}
-          style={{ ...styles.button, marginTop: '8px', fontSize: '12px', padding: '6px 16px' }}>
-          + Add Trait
-        </button>
-      )}
-
-      {(editMode || (race.archetypes && race.archetypes.length > 0)) && (
-        <>
-          <EditableHeading as="h2"
-            value={headings.archetypes}
-            defaultValue="Class Tunings"
-            onChange={(v) => updateRace({ headings: { ...headings, archetypes: v } })}
-            editMode={editMode}
-            style={styles.sectionHeading}
-          />
-          {(race.archetypes || []).map((a, i) => (
-            <div key={i} style={styles.featureCard}>
-              {editMode ? (
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
-                  <input value={a.name} onChange={(e) => updateArch(i, { name: e.target.value })}
-                    placeholder="Class tuning name"
-                    style={{ ...styles.textarea, flex: 1, minHeight: 'unset', padding: '4px 8px' }} />
-                  <button onClick={() => removeArch(i)}
-                    style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px',
-                      padding: '4px 8px', cursor: 'pointer', fontSize: '11px' }}>✕</button>
-                </div>
-              ) : <div style={styles.featureName}>{a.name}</div>}
-              {editMode ? (
-                <textarea style={{ ...styles.textarea, minHeight: '70px' }} value={a.text || ''}
-                  placeholder="Tuning text…" onChange={(e) => updateArch(i, { text: e.target.value })} />
-              ) : <p style={{ ...styles.bodyText, margin: 0 }}>{a.text}</p>}
-            </div>
-          ))}
-          {editMode && (
-            <button onClick={addArch}
-              style={{ ...styles.button, marginTop: '8px', fontSize: '12px', padding: '6px 16px' }}>
-              + Add Class Tuning
-            </button>
-          )}
-        </>
-      )}
-
-      {race.isParent && (() => {
-        const subraces = content.races
-          .filter((r) => r.parentRace === race.parentRace && !r.isParent)
-          .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-        if (subraces.length === 0 && !editMode) return null;
-
-        const addSubrace = () => {
-          const name = window.prompt(`New Subrace under ${race.name}\n\nName:`);
-          if (!name) return;
-          const trimmed = name.trim();
-          if (!trimmed) return;
-          const existing = content.races.map((r) => r.id);
-          const id = uniqueId(slugify(trimmed), existing);
-          const newSr = {
-            id, name: trimmed, parentRace: race.parentRace, isParent: false,
-            summary: '', traits: [], note: '',
-          };
-          persistChange({ ...content, races: [...content.races, newSr] });
-        };
-
-        return (
-          <>
-            <EditableHeading as="h2"
-              value={headings.subraces}
-              defaultValue="Subraces"
-              onChange={(v) => updateRace({ headings: { ...headings, subraces: v } })}
-              editMode={editMode}
-              style={styles.sectionHeading}
-            />
-            {subraces.map((sr) => (
-              <div key={sr.id} style={styles.featureCard}>
-                {editMode ? (
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
-                    <input value={sr.name} onChange={(e) => updateSubrace(sr.id, { name: e.target.value })}
-                      placeholder="Subrace name"
-                      style={{ ...styles.textarea, minHeight: 'unset', padding: '4px 8px', flex: 1,
-                        fontFamily: '"Cinzel", serif', fontSize: '17px', color: '#3b2615', fontWeight: 700 }} />
-                    <button onClick={() => {
-                        if (!window.confirm(`Delete subrace "${sr.name}"?`)) return;
-                        const updated = content.races.filter((r) => r.id !== sr.id);
-                        persistChange({ ...content, races: updated });
-                      }}
-                      style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px',
-                        padding: '6px 10px', cursor: 'pointer', fontSize: '11px', flexShrink: 0 }}>✕ Delete</button>
-                  </div>
-                ) : <div style={styles.featureName}>{sr.name}</div>}
-                {editMode ? (
-                  <textarea style={{ ...styles.textarea, minHeight: '60px' }} value={sr.summary || ''}
-                    placeholder="Subrace summary…"
-                    onChange={(e) => updateSubrace(sr.id, { summary: e.target.value })} />
-                ) : sr.summary ? <p style={{ ...styles.bodyText, margin: 0 }}>{sr.summary}</p>
-                  : <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic', color: '#8b6914' }}>Not yet written.</p>}
-              </div>
-            ))}
-            {editMode && (
-              <button onClick={addSubrace}
-                style={{ ...styles.button, marginTop: '8px', fontSize: '12px', padding: '6px 16px' }}>
-                + Add Subrace
-              </button>
-            )}
-          </>
-        );
-      })()}
-
-      <CustomSections
-        sections={race.customSections}
-        editMode={editMode}
-        onChange={(cs) => updateRace({ customSections: cs })}
+        onChange={(s) => updateRace({ sections: s })}
         headingStyle={styles.sectionHeading}
         category="races"
         entryId={race.id}
       />
-
-      {editMode ? (
-        <div style={{ marginTop: '16px' }}>
-          <div style={{ fontSize: '11px', color: '#8b6914', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Source Note</div>
-          <textarea style={{ ...styles.textarea, minHeight: '60px' }} value={race.note || ''}
-            placeholder="Source notes…" onChange={(e) => updateRace({ note: e.target.value })} />
-        </div>
-      ) : race.note ? (
-        <div style={{ ...styles.card, marginTop: '20px', fontStyle: 'italic', color: '#5c4020' }}>
-          <strong>Source note:</strong> {race.note}
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -3826,54 +3895,9 @@ function ClassesPage({ content, activeId, editMode, persistChange }) {
     const updated = content.classes.map((c) => c.id === cls.id ? { ...c, ...fields } : c);
     persistChange({ ...content, classes: updated });
   };
-  const updateFeature = (i, fields) => {
-    const coreFeatures = (cls.coreFeatures || []).map((f, idx) => idx === i ? { ...f, ...fields } : f);
-    updateCls({ coreFeatures });
-  };
-  const addFeature = () => updateCls({ coreFeatures: [...(cls.coreFeatures || []), { level: 1, name: 'New Feature', text: '' }] });
-  const removeFeature = (i) => updateCls({ coreFeatures: (cls.coreFeatures || []).filter((_, idx) => idx !== i) });
 
-  // Table editing
-  const updateCol = (i, val) => {
-    const cols = [...(cls.tableColumns || ['Level', 'Features'])];
-    cols[i] = val;
-    updateCls({ tableColumns: cols });
-  };
-  const addCol = () => {
-    const cols = [...(cls.tableColumns || ['Level', 'Features'])];
-    cols.splice(cols.length - 1, 0, 'New Column');
-    updateCls({ tableColumns: cols });
-  };
-  const removeCol = (i) => {
-    const cols = (cls.tableColumns || []).filter((_, idx) => idx !== i);
-    updateCls({ tableColumns: cols });
-  };
-  const updateRow = (i, fields) => {
-    const progression = (cls.progression || []).map((r, idx) => idx === i ? { ...r, ...fields } : r);
-    updateCls({ progression });
-  };
-  const addRow = () => {
-    const nextLevel = (cls.progression || []).length + 1;
-    updateCls({ progression: [...(cls.progression || []), { level: nextLevel, features: '' }] });
-  };
-  const removeRow = (i) => updateCls({ progression: (cls.progression || []).filter((_, idx) => idx !== i) });
-
-  const infoField = (label, field, placeholder) => (
-    <div style={{ marginBottom: '10px' }}>
-      <span style={{ fontSize: '11px', color: '#8b6914', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: '3px' }}>{label}</span>
-      {editMode
-        ? <input value={cls[field] || ''} placeholder={placeholder}
-            onChange={(e) => updateCls({ [field]: e.target.value })}
-            style={{ ...styles.textarea, minHeight: 'unset', padding: '5px 8px', width: '100%' }} />
-        : <span style={{ ...styles.bodyText, display: 'block' }}>{cls[field] || <em style={{ color: '#8b6914', fontSize: '12px' }}>—</em>}</span>
-      }
-    </div>
-  );
-
-  const cols = cls.tableColumns || ['Level', 'Features'];
-  const hasProgression = cls.progression && cls.progression.length > 0;
   const pills = cls.pills || classDefaultPills(cls);
-  const headings = cls.headings || {};
+  const sections = cls.sections;
 
   return (
     <div>
@@ -3887,197 +3911,14 @@ function ClassesPage({ content, activeId, editMode, persistChange }) {
 
       <PillRow pills={pills} editMode={editMode} onChange={(p) => updateCls({ pills: p })} />
 
-      <div style={{ overflow: 'auto' }}>
-        <FloatingImage
-          media={cls.media}
-          editMode={editMode}
-          onChange={(m) => updateCls({ media: m })}
-          category="classes"
-          entryId={cls.id}
-        />
-
-        {editMode ? (
-          <textarea style={{ ...styles.textarea, minHeight: '80px', marginBottom: '16px' }} value={cls.summary || ''}
-            placeholder="Class overview…" onChange={(e) => updateCls({ summary: e.target.value })} />
-        ) : cls.summary ? (
-          <p style={{ ...styles.bodyText, marginBottom: '20px' }}>{cls.summary}</p>
-        ) : null}
-      </div>
-
-      <div style={{ clear: 'both' }} />
-
-      <EditableHeading as="h2"
-        value={headings.startingInfo}
-        defaultValue="Hit Points & Starting Info"
-        onChange={(v) => updateCls({ headings: { ...headings, startingInfo: v } })}
+      <Sections
+        sections={sections}
         editMode={editMode}
-        style={styles.sectionHeading}
-      />
-      <div style={{ ...styles.card, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0 24px' }}>
-        {infoField('Hit Points at 1st Level', 'startingHP', 'e.g. 10 + CON modifier')}
-        {infoField('Hit Points per Level', 'hpPerLevel', 'e.g. 6 + CON modifier per level after 1st')}
-        {infoField('Armor Training', 'armorTraining', 'e.g. Light Armor, Medium Armor, Shields')}
-        {infoField('Saving Throws', 'savingThrows', 'e.g. Strength, Constitution')}
-        {infoField('Skill Proficiencies', 'skills', 'e.g. Choose 2 from...')}
-        {infoField('Weapon Proficiencies', 'weapons', 'e.g. Simple and Martial Weapons')}
-        {infoField('Starting Equipment', 'startingEquipment', 'Starting equipment choices...')}
-      </div>
-
-      <EditableHeading as="h2"
-        value={headings.classTable}
-        defaultValue="Class Table"
-        onChange={(v) => updateCls({ headings: { ...headings, classTable: v } })}
-        editMode={editMode}
-        style={styles.sectionHeading}
-      />
-      {hasProgression || editMode ? (
-        <div style={{ overflowX: 'auto', marginBottom: '20px' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: '"Palatino Linotype", serif', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ background: '#5c1414', color: '#f5ecd9' }}>
-                {cols.map((col, i) => (
-                  <th key={i} style={{ padding: '8px 12px', textAlign: i === 0 ? 'center' : 'left',
-                    fontFamily: '"Cinzel", serif', fontSize: '11px', letterSpacing: '0.06em', fontWeight: 600 }}>
-                    {editMode ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <input value={col} onChange={(e) => updateCol(i, e.target.value)}
-                          style={{ flex: 1, background: 'rgba(255,255,255,0.15)', color: '#f5ecd9',
-                            border: '1px solid rgba(255,255,255,0.3)', padding: '2px 6px',
-                            fontFamily: '"Cinzel", serif', fontSize: '11px' }} />
-                        {cols.length > 2 && (
-                          <button onClick={() => removeCol(i)}
-                            style={{ background: 'rgba(139,20,20,0.8)', color: '#f5ecd9', border: 'none',
-                              borderRadius: '2px', padding: '2px 6px', cursor: 'pointer', fontSize: '10px' }}>✕</button>
-                        )}
-                      </div>
-                    ) : col}
-                  </th>
-                ))}
-                {editMode && (
-                  <th style={{ padding: '4px', width: '40px' }}>
-                    <button onClick={addCol} title="Add column"
-                      style={{ background: 'rgba(255,255,255,0.2)', color: '#f5ecd9', border: 'none',
-                        borderRadius: '2px', padding: '4px 8px', cursor: 'pointer', fontSize: '12px' }}>+</button>
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {(cls.progression || []).map((row, i) => (
-                <tr key={i} style={{ background: i % 2 === 0 ? 'rgba(255,250,240,0.8)' : 'rgba(201,165,92,0.15)',
-                  borderBottom: '1px solid rgba(139,105,20,0.15)' }}>
-                  <td style={{ padding: '6px 12px', textAlign: 'center', fontWeight: 600, color: '#5c1414' }}>
-                    {editMode ? (
-                      <input type="number" value={row.level || ''} onChange={(e) => updateRow(i, { level: parseInt(e.target.value) || 1 })}
-                        style={{ width: '50px', padding: '2px 4px', textAlign: 'center', border: '1px solid #8b6914',
-                          background: '#fff8e7', fontFamily: '"Palatino Linotype", serif' }} />
-                    ) : row.level}
-                  </td>
-                  {cols.slice(1, -1).map((_, ci) => {
-                    const key = `col${ci + 2}`;
-                    return (
-                      <td key={ci} style={{ padding: '6px 12px' }}>
-                        {editMode ? (
-                          <input value={row[key] || ''} onChange={(e) => updateRow(i, { [key]: e.target.value })}
-                            style={{ width: '100%', padding: '2px 4px', border: '1px solid #8b6914',
-                              background: '#fff8e7', fontFamily: '"Palatino Linotype", serif', fontSize: '13px' }} />
-                        ) : (row[key] || '')}
-                      </td>
-                    );
-                  })}
-                  <td style={{ padding: '6px 12px', color: '#3b2615' }}>
-                    {editMode ? (
-                      <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                        <input value={row.features || ''} onChange={(e) => updateRow(i, { features: e.target.value })}
-                          style={{ flex: 1, padding: '2px 4px', border: '1px solid #8b6914',
-                            background: '#fff8e7', fontFamily: '"Palatino Linotype", serif', fontSize: '13px' }} />
-                        <button onClick={() => removeRow(i)}
-                          style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px',
-                            padding: '2px 6px', cursor: 'pointer', fontSize: '10px' }}>✕</button>
-                      </div>
-                    ) : row.features}
-                  </td>
-                  {editMode && <td></td>}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {editMode && (
-            <button onClick={addRow}
-              style={{ ...styles.button, marginTop: '6px', fontSize: '12px', padding: '6px 16px' }}>
-              + Add Row
-            </button>
-          )}
-        </div>
-      ) : (
-        <div style={{ ...styles.card, background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c', marginBottom: '20px' }}>
-          <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic' }}>Class table not yet filled in.</p>
-        </div>
-      )}
-
-      <EditableHeading as="h2"
-        value={headings.coreFeatures}
-        defaultValue="Core Features"
-        onChange={(v) => updateCls({ headings: { ...headings, coreFeatures: v } })}
-        editMode={editMode}
-        style={styles.sectionHeading}
-      />
-      {(cls.coreFeatures || []).map((f, i) => (
-        <div key={i} style={styles.featureCard}>
-          {editMode ? (
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
-              <span style={{ fontSize: '11px', color: '#8b6914' }}>Lvl</span>
-              <input type="number" value={f.level} onChange={(e) => updateFeature(i, { level: parseInt(e.target.value) || 1 })}
-                style={{ ...styles.textarea, width: '60px', minHeight: 'unset', padding: '4px 8px' }} />
-              <input value={f.name} onChange={(e) => updateFeature(i, { name: e.target.value })}
-                placeholder="Feature name"
-                style={{ ...styles.textarea, flex: 1, minHeight: 'unset', padding: '4px 8px' }} />
-              <button onClick={() => removeFeature(i)}
-                style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px',
-                  padding: '4px 8px', cursor: 'pointer', fontSize: '11px' }}>✕</button>
-            </div>
-          ) : <>
-            <div style={styles.featureLevel}>Level {f.level}</div>
-            <div style={styles.featureName}>{f.name}</div>
-          </>}
-          {editMode ? (
-            <textarea style={{ ...styles.textarea, minHeight: '80px' }} value={f.text || ''}
-              placeholder="Feature mechanics…" onChange={(e) => updateFeature(i, { text: e.target.value })} />
-          ) : <p style={{ ...styles.bodyText, margin: 0 }}>{f.text}</p>}
-        </div>
-      ))}
-      {(cls.coreFeatures || []).length === 0 && !editMode && (
-        <div style={{ ...styles.card, background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c' }}>
-          <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic' }}>No features written yet.</p>
-        </div>
-      )}
-      {editMode && (
-        <button onClick={addFeature}
-          style={{ ...styles.button, marginTop: '8px', fontSize: '12px', padding: '6px 16px' }}>
-          + Add Feature
-        </button>
-      )}
-
-      <CustomSections
-        sections={cls.customSections}
-        editMode={editMode}
-        onChange={(cs) => updateCls({ customSections: cs })}
+        onChange={(s) => updateCls({ sections: s })}
         headingStyle={styles.sectionHeading}
         category="classes"
         entryId={cls.id}
       />
-
-      {editMode ? (
-        <div style={{ marginTop: '16px' }}>
-          <div style={{ fontSize: '11px', color: '#8b6914', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Note</div>
-          <textarea style={{ ...styles.textarea, minHeight: '60px' }} value={cls.notes || ''}
-            placeholder="Class notes…" onChange={(e) => updateCls({ notes: e.target.value })} />
-        </div>
-      ) : cls.notes ? (
-        <div style={{ ...styles.card, marginTop: '20px', fontStyle: 'italic', color: '#5c4020' }}>
-          <strong>Note:</strong> {cls.notes}
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -4086,30 +3927,13 @@ function SubclassesPage({ content, activeId, editMode, persistChange }) {
   const sub = content.subclasses.find((s) => s.id === activeId) || content.subclasses[0];
   if (!sub) return <p style={styles.bodyText}>No subclasses defined.</p>;
 
-  const isEmpty = !sub.summary && (!sub.features || sub.features.length === 0);
-
   const updateSub = (fields) => {
     const updated = content.subclasses.map((s) => s.id === sub.id ? { ...s, ...fields } : s);
     persistChange({ ...content, subclasses: updated });
   };
 
-  const updateFeature = (i, fields) => {
-    const features = sub.features.map((f, idx) => idx === i ? { ...f, ...fields } : f);
-    updateSub({ features });
-  };
-
-  const addFeature = () => {
-    const features = [...(sub.features || []), { level: 3, name: 'New Feature', text: '' }];
-    updateSub({ features });
-  };
-
-  const removeFeature = (i) => {
-    const features = sub.features.filter((_, idx) => idx !== i);
-    updateSub({ features });
-  };
-
   const pills = sub.pills || subclassDefaultPills(sub);
-  const headings = sub.headings || {};
+  const sections = sub.sections;
 
   return (
     <div>
@@ -4123,93 +3947,14 @@ function SubclassesPage({ content, activeId, editMode, persistChange }) {
 
       <PillRow pills={pills} editMode={editMode} onChange={(p) => updateSub({ pills: p })} />
 
-      <div style={{ overflow: 'auto' }}>
-        <FloatingImage
-          media={sub.media}
-          editMode={editMode}
-          onChange={(m) => updateSub({ media: m })}
-          category="subclasses"
-          entryId={sub.id}
-        />
-
-        {editMode ? (
-          <textarea style={styles.textarea} placeholder="Summary…" value={sub.summary || ''}
-            onChange={(e) => updateSub({ summary: e.target.value })} />
-        ) : sub.summary ? (
-          <p style={styles.bodyText}>{sub.summary}</p>
-        ) : isEmpty ? (
-          <div style={{ ...styles.card, marginTop: '20px', background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c' }}>
-            <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic' }}>
-              This entry has not been written yet. Source material exists in the homebrew documents — content will be drafted in a future pass.
-            </p>
-          </div>
-        ) : null}
-      </div>
-
-      <div style={{ clear: 'both' }} />
-
-      <EditableHeading as="h2"
-        value={headings.features}
-        defaultValue="Features"
-        onChange={(v) => updateSub({ headings: { ...headings, features: v } })}
+      <Sections
+        sections={sections}
         editMode={editMode}
-        style={styles.sectionHeading}
-      />
-      {(sub.features || []).map((f, i) => (
-        <div key={i} style={{ ...styles.featureCard, position: 'relative' }}>
-          {editMode && (
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
-              <span style={{ fontSize: '11px', color: '#8b6914' }}>Lvl</span>
-              <input type="number" value={f.level} onChange={(e) => updateFeature(i, { level: parseInt(e.target.value) || 1 })}
-                style={{ ...styles.textarea, width: '60px', minHeight: 'unset', padding: '4px 8px' }} />
-              <input value={f.name} onChange={(e) => updateFeature(i, { name: e.target.value })}
-                placeholder="Feature name" style={{ ...styles.textarea, flex: 1, minHeight: 'unset', padding: '4px 8px' }} />
-              <button onClick={() => removeFeature(i)}
-                style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px',
-                  padding: '4px 8px', cursor: 'pointer', fontSize: '11px', fontFamily: '"Cinzel", serif' }}>✕</button>
-            </div>
-          )}
-          {!editMode && <>
-            <div style={styles.featureLevel}>Level {f.level}</div>
-            <div style={styles.featureName}>{f.name}</div>
-          </>}
-          {editMode ? (
-            <textarea style={{ ...styles.textarea, minHeight: '80px' }} value={f.text || ''}
-              placeholder="Feature mechanics…"
-              onChange={(e) => updateFeature(i, { text: e.target.value })} />
-          ) : (
-            <p style={{ ...styles.bodyText, margin: 0 }}>{f.text}</p>
-          )}
-        </div>
-      ))}
-      {editMode && (
-        <button onClick={addFeature}
-          style={{ ...styles.button, marginTop: '10px', fontSize: '12px', padding: '6px 16px' }}>
-          + Add Feature
-        </button>
-      )}
-
-      <CustomSections
-        sections={sub.customSections}
-        editMode={editMode}
-        onChange={(cs) => updateSub({ customSections: cs })}
+        onChange={(s) => updateSub({ sections: s })}
         headingStyle={styles.sectionHeading}
         category="subclasses"
         entryId={sub.id}
       />
-
-      {editMode ? (
-        <div style={{ marginTop: '16px' }}>
-          <div style={{ fontSize: '11px', color: '#8b6914', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Source Note</div>
-          <textarea style={{ ...styles.textarea, minHeight: '60px' }} value={sub.note || ''}
-            placeholder="Source notes, flags, DM rulings…"
-            onChange={(e) => updateSub({ note: e.target.value })} />
-        </div>
-      ) : sub.note ? (
-        <div style={{ ...styles.card, marginTop: '20px', fontStyle: 'italic', color: '#5c4020' }}>
-          <strong>Source note:</strong> {sub.note}
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -4218,20 +3963,10 @@ function CharactersPage({ content, activeId, editMode, persistChange }) {
   const ch = content.characters.find((c) => c.id === activeId) || content.characters[0];
   if (!ch) return <p style={styles.bodyText}>No characters defined.</p>;
 
-  const isEmpty = !ch.summary && (!ch.keyTraits || ch.keyTraits.length === 0);
-
   const updateCh = (fields) => {
     const updated = content.characters.map((c) => c.id === ch.id ? { ...c, ...fields } : c);
     persistChange({ ...content, characters: updated });
   };
-
-  const updateTrait = (i, val) => {
-    const keyTraits = (ch.keyTraits || []).map((t, idx) => idx === i ? val : t);
-    updateCh({ keyTraits });
-  };
-
-  const addTrait = () => updateCh({ keyTraits: [...(ch.keyTraits || []), ''] });
-  const removeTrait = (i) => updateCh({ keyTraits: (ch.keyTraits || []).filter((_, idx) => idx !== i) });
 
   const fieldRow = (label, field, placeholder, multiline = false) => (
     <div style={{ marginBottom: '12px' }}>
@@ -4248,7 +3983,7 @@ function CharactersPage({ content, activeId, editMode, persistChange }) {
   );
 
   const pills = ch.pills || characterDefaultPills(ch);
-  const headings = ch.headings || {};
+  const sections = ch.sections;
 
   return (
     <div>
@@ -4262,48 +3997,6 @@ function CharactersPage({ content, activeId, editMode, persistChange }) {
 
       <PillRow pills={pills} editMode={editMode} onChange={(p) => updateCh({ pills: p })} />
 
-      {editMode ? (
-        <div style={{ ...styles.card, marginBottom: '20px' }}>
-          <div style={{ fontFamily: '"Cinzel", serif', fontSize: '12px', color: '#5c1414', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '14px', paddingBottom: '8px', borderBottom: '1px solid rgba(139,105,20,0.3)' }}>Identity</div>
-          {fieldRow('Race', 'race', 'Race or species…')}
-          {fieldRow('Class & Level', 'class', 'e.g. Paladin 5 / Esper 6 (Oath of Renewal)…')}
-          {fieldRow('Patron', 'patron', 'Deity, patron, or —')}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginTop: '8px' }}>
-            <div>
-              <div style={{ fontSize: '11px', color: '#8b6914', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Role</div>
-              <select value={ch.role || ''} onChange={(e) => updateCh({ role: e.target.value })}
-                style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px', width: '100%' }}>
-                <option value="">— none —</option>
-                <option value="player">Player Character</option>
-                <option value="connected">Connected</option>
-                <option value="enemy">Enemy</option>
-              </select>
-            </div>
-            <div>
-              <div style={{ fontSize: '11px', color: '#8b6914', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Status</div>
-              <select value={ch.status || ''} onChange={(e) => updateCh({ status: e.target.value })}
-                style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px', width: '100%' }}>
-                <option value="">Alive</option>
-                <option value="deceased">Deceased (†)</option>
-                <option value="freed">Freed</option>
-              </select>
-            </div>
-            <div>
-              <div style={{ fontSize: '11px', color: '#8b6914', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Category</div>
-              <input value={ch.category || ''} placeholder="e.g. BBEG, Sin, NPC…"
-                onChange={(e) => updateCh({ category: e.target.value })}
-                style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px', width: '100%' }} />
-            </div>
-          </div>
-        </div>
-      ) : (ch.race || ch.class || (ch.patron && ch.patron !== '—' && ch.patron !== '')) ? (
-        <div style={{ marginBottom: '14px' }}>
-          {ch.race && <span style={styles.pill}>{ch.race}</span>}
-          {ch.class && <span style={styles.pill}>{ch.class}</span>}
-          {ch.patron && ch.patron !== '—' && ch.patron !== '' && <span style={styles.pill}>Patron: {ch.patron}</span>}
-        </div>
-      ) : null}
-
       {ch.placeholder && (
         <div style={{ ...styles.card, marginTop: '12px', background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c' }}>
           <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic' }}>
@@ -4312,79 +4005,15 @@ function CharactersPage({ content, activeId, editMode, persistChange }) {
         </div>
       )}
 
-      <div style={{ overflow: 'auto' }}>
-        <FloatingImage
-          media={ch.media}
-          editMode={editMode}
-          onChange={(m) => updateCh({ media: m })}
-          category="characters"
-          entryId={ch.id}
-        />
-
-        {editMode ? (
-          fieldRow('Summary', 'summary', 'Character summary — who they are, what drives them, their place in the campaign…', true)
-        ) : ch.summary ? (
-          <p style={styles.bodyText}>{ch.summary}</p>
-        ) : !ch.placeholder && isEmpty ? (
-          <div style={{ ...styles.card, marginTop: '20px', background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c' }}>
-            <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic' }}>No details written yet.</p>
-          </div>
-        ) : null}
-      </div>
-
-      <div style={{ clear: 'both' }} />
-
-      <EditableHeading as="h2"
-        value={headings.keyTraits}
-        defaultValue="Key Traits"
-        onChange={(v) => updateCh({ headings: { ...headings, keyTraits: v } })}
+      <Sections
+        sections={sections}
         editMode={editMode}
-        style={styles.sectionHeading}
-      />
-      {(ch.keyTraits || []).map((t, i) => (
-        <div key={i} style={{ ...styles.featureCard, display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-          {editMode ? (
-            <>
-              <input value={t} onChange={(e) => updateTrait(i, e.target.value)}
-                placeholder="Key trait…"
-                style={{ ...styles.textarea, flex: 1, minHeight: 'unset', padding: '6px 10px' }} />
-              <button onClick={() => removeTrait(i)}
-                style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px',
-                  padding: '4px 8px', cursor: 'pointer', fontSize: '11px', flexShrink: 0 }}>✕</button>
-            </>
-          ) : (
-            <p style={{ ...styles.bodyText, margin: 0 }}>{t}</p>
-          )}
-        </div>
-      ))}
-      {editMode && (
-        <button onClick={addTrait}
-          style={{ ...styles.button, marginTop: '8px', fontSize: '12px', padding: '6px 16px' }}>
-          + Add Trait
-        </button>
-      )}
-
-      <CustomSections
-        sections={ch.customSections}
-        editMode={editMode}
-        onChange={(cs) => updateCh({ customSections: cs })}
+        onChange={(s) => updateCh({ sections: s })}
         headingStyle={styles.sectionHeading}
         category="characters"
         entryId={ch.id}
+        identityFields={{ entry: ch, update: updateCh, fieldRow }}
       />
-
-      {editMode ? (
-        <div style={{ marginTop: '16px' }}>
-          <div style={{ fontSize: '11px', color: '#8b6914', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Source Note</div>
-          <textarea style={{ ...styles.textarea, minHeight: '60px' }} value={ch.note || ''}
-            placeholder="Campaign notes, cross-references, open questions…"
-            onChange={(e) => updateCh({ note: e.target.value })} />
-        </div>
-      ) : ch.note ? (
-        <div style={{ ...styles.card, marginTop: '20px', fontStyle: 'italic', color: '#5c4020' }}>
-          <strong>Source note:</strong> {ch.note}
-        </div>
-      ) : null}
     </div>
   );
 }
