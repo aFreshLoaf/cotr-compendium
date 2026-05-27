@@ -1517,15 +1517,19 @@ const styles = {
       radial-gradient(circle at 80% 80%, rgba(101, 67, 33, 0.05) 0%, transparent 50%),
       repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(139, 69, 19, 0.015) 2px, rgba(139, 69, 19, 0.015) 4px)
     `,
-    minHeight: '100vh',
+    height: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
     color: '#3b2615',
   },
   header: {
     background: 'linear-gradient(180deg, #7a1f1f 0%, #5c1414 100%)',
     color: '#f5ecd9',
-    padding: '24px 32px',
+    padding: '20px 32px',
     borderBottom: '4px double #c9a55c',
     boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+    flexShrink: 0,
+    zIndex: 50,
   },
   title: {
     fontFamily: '"Cinzel", "Trajan Pro", "Palatino Linotype", serif',
@@ -1545,7 +1549,8 @@ const styles = {
   },
   layout: {
     display: 'flex',
-    height: 'calc(100vh - 100px)',
+    flex: 1,
+    minHeight: 0,
     overflow: 'hidden',
   },
   sidebar: {
@@ -2166,7 +2171,7 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
     updateSection(sectionIdx, { features });
   };
   const addFeature = (sectionIdx) => {
-    const features = [...(list[sectionIdx].features || []), { level: 1, name: 'New Feature', text: '' }];
+    const features = [...(list[sectionIdx].features || []), { level: 0, name: 'New Feature', text: '' }];
     updateSection(sectionIdx, { features });
   };
   const removeFeature = (sectionIdx, featIdx) => {
@@ -2211,34 +2216,48 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
 
   return (
     <>
-      {list.map((sec, i) => (
-        <div key={sec.id || i} style={{ marginTop: '28px', clear: 'both' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-            <div style={{ flex: 1 }}>
-              <EditableHeading as="h2"
-                value={sec.heading}
-                defaultValue="Section"
-                onChange={(v) => updateSection(i, { heading: v })}
-                editMode={editMode}
-                style={headingStyle}
-              />
-            </div>
-            {editMode && (
-              <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-                <button onClick={() => moveSection(i, -1)} title="Move up"
-                  style={{ background: '#8b6914', color: '#f5ecd9', border: 'none', padding: '4px 8px',
-                    cursor: 'pointer', borderRadius: '2px', fontSize: '11px' }}>▲</button>
-                <button onClick={() => moveSection(i, 1)} title="Move down"
-                  style={{ background: '#8b6914', color: '#f5ecd9', border: 'none', padding: '4px 8px',
-                    cursor: 'pointer', borderRadius: '2px', fontSize: '11px' }}>▼</button>
-                {!sec.locked && (
-                  <button onClick={() => removeSection(i)} title="Remove section"
-                    style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', padding: '4px 10px',
-                      cursor: 'pointer', borderRadius: '2px', fontSize: '11px' }}>✕</button>
-                )}
+      {list.map((sec, i) => {
+        const isIdentity = sec.type === 'identity';
+        return (
+        <div key={sec.id || i} style={{ marginTop: isIdentity ? '12px' : '28px', clear: 'both' }}>
+          {!isIdentity ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+              <div style={{ flex: 1 }}>
+                <EditableHeading as="h2"
+                  value={sec.heading}
+                  defaultValue="Section"
+                  onChange={(v) => updateSection(i, { heading: v })}
+                  editMode={editMode}
+                  style={headingStyle}
+                />
               </div>
-            )}
-          </div>
+              {editMode && (
+                <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                  <button onClick={() => moveSection(i, -1)} title="Move up"
+                    style={{ background: '#8b6914', color: '#f5ecd9', border: 'none', padding: '4px 8px',
+                      cursor: 'pointer', borderRadius: '2px', fontSize: '11px' }}>▲</button>
+                  <button onClick={() => moveSection(i, 1)} title="Move down"
+                    style={{ background: '#8b6914', color: '#f5ecd9', border: 'none', padding: '4px 8px',
+                      cursor: 'pointer', borderRadius: '2px', fontSize: '11px' }}>▼</button>
+                  {!sec.locked && (
+                    <button onClick={() => removeSection(i)} title="Remove section"
+                      style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', padding: '4px 10px',
+                        cursor: 'pointer', borderRadius: '2px', fontSize: '11px' }}>✕</button>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : editMode ? (
+            // For Identity, controls float to the right of the card without a heading bar
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '4px', marginBottom: '6px' }}>
+              <button onClick={() => moveSection(i, -1)} title="Move up"
+                style={{ background: '#8b6914', color: '#f5ecd9', border: 'none', padding: '3px 7px',
+                  cursor: 'pointer', borderRadius: '2px', fontSize: '10px' }}>▲ Identity</button>
+              <button onClick={() => moveSection(i, 1)} title="Move down"
+                style={{ background: '#8b6914', color: '#f5ecd9', border: 'none', padding: '3px 7px',
+                  cursor: 'pointer', borderRadius: '2px', fontSize: '10px' }}>▼</button>
+            </div>
+          ) : null}
 
           {/* IDENTITY — character-only locked section: Race / Class / Patron pills */}
           {sec.type === 'identity' && identityFields && (
@@ -2315,14 +2334,17 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                   category={category}
                   entryId={`${entryId}-${sec.id || i}`}
                 />
-                {(sec.features || []).map((f, fi) => (
+                {(sec.features || []).map((f, fi) => {
+                  const showLevel = f.level != null && f.level !== '' && Number(f.level) > 0;
+                  return (
                   <div key={fi} style={styles.featureCard}>
                     {editMode ? (
                       <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
                         <span style={{ fontSize: '11px', color: '#8b6914' }}>Lvl</span>
-                        <input type="number" value={f.level || ''}
-                          onChange={(e) => updateFeature(i, fi, { level: e.target.value === '' ? null : (parseInt(e.target.value) || 1) })}
-                          placeholder="—"
+                        <input type="number" value={f.level ?? ''}
+                          onChange={(e) => updateFeature(i, fi, { level: e.target.value === '' ? 0 : (parseInt(e.target.value) || 0) })}
+                          placeholder="0"
+                          title="Level (0 or blank = hide)"
                           style={{ ...styles.textarea, width: '60px', minHeight: 'unset', padding: '4px 8px' }} />
                         <input value={f.name || ''}
                           onChange={(e) => updateFeature(i, fi, { name: e.target.value })}
@@ -2333,18 +2355,28 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                             borderRadius: '2px', padding: '4px 8px', cursor: 'pointer', fontSize: '11px' }}>✕</button>
                       </div>
                     ) : <>
-                      {f.level != null && f.level !== '' && <div style={styles.featureLevel}>Level {f.level}</div>}
+                      {showLevel && <div style={styles.featureLevel}>Level {f.level}</div>}
                       <div style={styles.featureName}>{f.name}</div>
                     </>}
-                    {editMode ? (
-                      <textarea style={{ ...styles.textarea, minHeight: '80px' }} value={f.text || ''}
-                        placeholder="Feature mechanics…"
-                        onChange={(e) => updateFeature(i, fi, { text: e.target.value })} />
-                    ) : (
-                      <p style={{ ...styles.bodyText, margin: 0, whiteSpace: 'pre-wrap' }}>{f.text}</p>
-                    )}
+                    <div style={{ overflow: 'auto' }}>
+                      <FloatingImage
+                        media={f.media}
+                        editMode={editMode}
+                        onChange={(m) => updateFeature(i, fi, { media: m })}
+                        category={category}
+                        entryId={`${entryId}-${sec.id || i}-card-${fi}`}
+                      />
+                      {editMode ? (
+                        <textarea style={{ ...styles.textarea, minHeight: '80px' }} value={f.text || ''}
+                          placeholder="Feature mechanics…"
+                          onChange={(e) => updateFeature(i, fi, { text: e.target.value })} />
+                      ) : (
+                        <p style={{ ...styles.bodyText, margin: 0, whiteSpace: 'pre-wrap' }}>{f.text}</p>
+                      )}
+                    </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
               {editMode && (
                 <button onClick={() => addFeature(i)}
@@ -2454,7 +2486,8 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
             </div>
           )}
         </div>
-      ))}
+        );
+      })}
 
       {editMode && (
         <div style={{ marginTop: '20px', display: 'flex', gap: '8px', flexWrap: 'wrap',
@@ -3547,7 +3580,7 @@ export default function Compendium() {
             {searchResults ? (
               <SearchResults results={searchResults} onClick={goTo} query={search} />
             ) : section === 'home' ? (
-              <HomePage content={content} goTo={goTo} />
+              <HomePage content={content} goTo={goTo} editMode={editMode} persistChange={persistChange} />
             ) : section === 'campaign' ? (
               <CampaignPage content={content} editMode={editMode} persistChange={persistChange} />
             ) : section === 'races' ? (
@@ -3634,6 +3667,8 @@ export default function Compendium() {
 // COMPONENTS
 // ============================================================
 function Header({ content, editMode, dirty, onEditToggle, onSave, onDiscard, onMetaChange, saving, isMobile, onMenuClick }) {
+  const logoSrc = `${import.meta.env.BASE_URL}logo.png`;
+  const logoSize = isMobile ? 44 : 72;
   return (
     <header style={styles.header}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
@@ -3658,16 +3693,33 @@ function Header({ content, editMode, dirty, onEditToggle, onSave, onDiscard, onM
               <Menu size={20} />
             </button>
           )}
+          <img
+            src={logoSrc}
+            alt=""
+            style={{
+              height: `${logoSize}px`,
+              width: `${logoSize}px`,
+              objectFit: 'contain',
+              flexShrink: 0,
+              filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.4))',
+            }}
+          />
           <div style={{ minWidth: 0, flex: 1 }}>
-            <h1 style={{ ...styles.title, fontSize: isMobile ? '18px' : styles.title.fontSize,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <h1 style={{
+              ...styles.title,
+              fontSize: isMobile ? '20px' : styles.title.fontSize,
+              lineHeight: 1.1,
+              ...(isMobile
+                ? { whiteSpace: 'normal', wordBreak: 'break-word' }
+                : { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }),
+            }}>
               {content.meta.title}
             </h1>
             {!isMobile && <div style={styles.subtitle}>{content.meta.subtitle}</div>}
           </div>
         </div>
         {!isMobile && (
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
             {editMode && (
               <>
                 <button
@@ -3735,16 +3787,33 @@ function SectionToggle({ label, count, expanded, onClick }) {
   );
 }
 
-function HomePage({ content, goTo }) {
+function HomePage({ content, goTo, editMode, persistChange }) {
+  const home = content.home || {};
+  const update = (fields) => persistChange({ ...content, home: { ...home, ...fields } });
+  const welcomeDefault = `This compendium gathers the homebrew material for the ${content.meta.title} campaign — custom races, classes, subclasses, characters, and the campaign's overarching narrative.`;
+  const introDefault = `Use the sidebar to browse by category, or the search bar to find a specific feature, ability, or character. Enable Edit Mode from the header to modify content directly.`;
   return (
     <div>
       <h1 style={styles.pageHeading}>Welcome</h1>
-      <p style={styles.bodyText}>
-        This compendium gathers the homebrew material for the <em>{content.meta.title}</em> campaign — custom races, classes, subclasses, characters, and the campaign's overarching narrative.
-      </p>
-      <p style={styles.bodyText}>
-        Use the sidebar to browse by category, or the search bar to find a specific feature, ability, or character. Enable <strong>Edit Mode</strong> from the header to modify content directly — changes save automatically.
-      </p>
+      {editMode ? (
+        <>
+          <div style={{ fontSize: '11px', color: '#8b6914', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Welcome Paragraph</div>
+          <textarea style={{ ...styles.textarea, minHeight: '80px', marginBottom: '12px' }}
+            value={home.welcome ?? welcomeDefault}
+            placeholder={welcomeDefault}
+            onChange={(e) => update({ welcome: e.target.value })} />
+          <div style={{ fontSize: '11px', color: '#8b6914', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Intro Paragraph</div>
+          <textarea style={{ ...styles.textarea, minHeight: '80px' }}
+            value={home.intro ?? introDefault}
+            placeholder={introDefault}
+            onChange={(e) => update({ intro: e.target.value })} />
+        </>
+      ) : (
+        <>
+          <p style={{ ...styles.bodyText, whiteSpace: 'pre-wrap' }}>{home.welcome ?? welcomeDefault}</p>
+          <p style={{ ...styles.bodyText, whiteSpace: 'pre-wrap' }}>{home.intro ?? introDefault}</p>
+        </>
+      )}
 
       <h2 style={styles.sectionHeading}>Quick Reference</h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginTop: '16px' }}>
@@ -3755,7 +3824,14 @@ function HomePage({ content, goTo }) {
       </div>
 
       <h2 style={styles.sectionHeading}>The Story So Far</h2>
-      <p style={{ ...styles.bodyText, whiteSpace: 'pre-wrap' }}>{content.campaign.overview}</p>
+      {editMode ? (
+        <textarea style={{ ...styles.textarea, minHeight: '120px' }}
+          value={content.campaign.overview || ''}
+          placeholder="Campaign overview / story so far…"
+          onChange={(e) => persistChange({ ...content, campaign: { ...content.campaign, overview: e.target.value } })} />
+      ) : (
+        <p style={{ ...styles.bodyText, whiteSpace: 'pre-wrap' }}>{content.campaign.overview}</p>
+      )}
     </div>
   );
 }
@@ -3781,6 +3857,20 @@ function CampaignPage({ content, editMode, persistChange }) {
     const campaigns = { ...(content.campaigns || {}) };
     campaigns[key] = { ...(campaigns[key] || {}), [field]: value };
     persistChange({ ...content, campaigns });
+  };
+  const figures = content.campaign.keyFigures || [];
+  const updateFigure = (i, fields) => {
+    const updated = figures.map((f, idx) => idx === i ? { ...f, ...fields } : f);
+    persistChange({ ...content, campaign: { ...content.campaign, keyFigures: updated } });
+  };
+  const addFigure = () => {
+    const updated = [...figures, { name: 'New Figure', role: '' }];
+    persistChange({ ...content, campaign: { ...content.campaign, keyFigures: updated } });
+  };
+  const removeFigure = (i) => {
+    if (!window.confirm(`Remove "${figures[i].name}"?`)) return;
+    const updated = figures.filter((_, idx) => idx !== i);
+    persistChange({ ...content, campaign: { ...content.campaign, keyFigures: updated } });
   };
 
   return (
@@ -3832,12 +3922,37 @@ function CampaignPage({ content, editMode, persistChange }) {
       })}
 
       <h2 style={styles.sectionHeading}>Key Figures</h2>
-      {content.campaign.keyFigures.map((f, i) => (
+      {figures.map((f, i) => (
         <div key={i} style={styles.card}>
-          <div style={{ ...styles.subHeading, marginTop: 0 }}>{f.name}</div>
-          <p style={{ ...styles.bodyText, margin: 0 }}>{f.role}</p>
+          {editMode ? (
+            <>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                <input value={f.name || ''} onChange={(e) => updateFigure(i, { name: e.target.value })}
+                  placeholder="Figure name"
+                  style={{ ...styles.textarea, flex: 1, minHeight: 'unset', padding: '6px 10px',
+                    fontFamily: '"Cinzel", serif', fontSize: '17px', color: '#3b2615', fontWeight: 700 }} />
+                <button onClick={() => removeFigure(i)}
+                  style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px',
+                    padding: '6px 10px', cursor: 'pointer', fontSize: '11px', flexShrink: 0 }}>✕</button>
+              </div>
+              <textarea style={{ ...styles.textarea, minHeight: '60px' }} value={f.role || ''}
+                placeholder="Role / description…"
+                onChange={(e) => updateFigure(i, { role: e.target.value })} />
+            </>
+          ) : (
+            <>
+              <div style={{ ...styles.subHeading, marginTop: 0 }}>{f.name}</div>
+              <p style={{ ...styles.bodyText, margin: 0, whiteSpace: 'pre-wrap' }}>{f.role}</p>
+            </>
+          )}
         </div>
       ))}
+      {editMode && (
+        <button onClick={addFigure}
+          style={{ ...styles.button, marginTop: '8px', fontSize: '12px', padding: '6px 16px' }}>
+          + Add Key Figure
+        </button>
+      )}
     </div>
   );
 }
