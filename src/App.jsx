@@ -1658,11 +1658,39 @@ const styles = {
     fontWeight: 700,
   },
   featureName: {
-    fontFamily: '"Cinzel", serif',
+    fontFamily: '"Palatino Linotype", "Book Antiqua", serif',
     fontSize: '17px',
     color: '#3b2615',
     fontWeight: 700,
+    fontStyle: 'italic',
     margin: '2px 0 4px 0',
+  },
+  entryName: {
+    fontFamily: '"Palatino Linotype", "Book Antiqua", serif',
+    fontSize: '20px',
+    color: '#5c1414',
+    fontWeight: 700,
+    fontStyle: 'italic',
+    margin: '0 0 6px 0',
+    borderBottom: '1px solid rgba(201, 165, 92, 0.4)',
+    paddingBottom: '4px',
+  },
+  entryFlavor: {
+    fontFamily: '"Palatino Linotype", "Book Antiqua", serif',
+    fontSize: '13px',
+    fontStyle: 'italic',
+    color: '#5c4020',
+    marginTop: '8px',
+    paddingTop: '6px',
+    borderTop: '1px solid rgba(201, 165, 92, 0.3)',
+  },
+  loreLine: {
+    fontFamily: '"Palatino Linotype", "Book Antiqua", serif',
+    fontSize: '14px',
+    fontStyle: 'italic',
+    color: '#5c4020',
+    lineHeight: 1.55,
+    marginBottom: '12px',
   },
   table: {
     width: '100%',
@@ -1923,20 +1951,22 @@ function seedSectionsForType(type, opts = {}) {
       ];
     case 'race-parent':
       return [
-        { id: id(), type: 'text',     heading: 'Description',    body: '' },
-        { id: id(), type: 'features', heading: 'Traits',         features: [] },
-        { id: id(), type: 'features', heading: 'Class Tunings',  features: [] },
+        { id: id(), type: 'text',        heading: 'Description', body: '' },
+        { id: id(), type: 'subcategory', heading: 'Subraces',    lore: '', entries: [] },
+        { id: id(), type: 'subcategory', heading: 'Class Tunings', lore: '', entries: [] },
       ];
     case 'race-subrace':
       return [
-        { id: id(), type: 'text', heading: 'Summary', body: '' },
+        { id: id(), type: 'text',     heading: 'Summary', body: '' },
+        { id: id(), type: 'features', heading: 'Traits',  features: [] },
       ];
     case 'class':
       return [
-        { id: id(), type: 'text',     heading: 'Summary',                    body: '' },
-        { id: id(), type: 'text',     heading: 'Hit Points & Starting Info', body: '' },
-        { id: id(), type: 'table',    heading: 'Class Progression',          columns: ['Level','Prof.','Features'], rows: Array.from({length:20}, (_,i) => [String(i+1),'','']) },
-        { id: id(), type: 'features', heading: 'Core Features',              features: [] },
+        { id: id(), type: 'text',        heading: 'Summary',                    body: '' },
+        { id: id(), type: 'text',        heading: 'Hit Points & Starting Info', body: '' },
+        { id: id(), type: 'table',       heading: 'Class Progression',          columns: ['Level','Prof.','Features'], rows: Array.from({length:20}, (_,i) => [String(i+1),'','']) },
+        { id: id(), type: 'features',    heading: 'Core Features',              features: [] },
+        { id: id(), type: 'subcategory', heading: 'Subclasses',                 lore: '', entries: [] },
       ];
     case 'character':
       return [
@@ -1967,22 +1997,26 @@ function migrateEntryToSections(entry, type) {
     }
     case 'race-parent': {
       sections = [
-        { id: newSectionId(), type: 'text',     heading: 'Description',   body: '' },
-        { id: newSectionId(), type: 'features', heading: 'Traits',        features: [] },
-        { id: newSectionId(), type: 'features', heading: 'Class Tunings', features: [] },
+        { id: newSectionId(), type: 'text',        heading: 'Description',  body: '' },
+        { id: newSectionId(), type: 'subcategory', heading: 'Subraces',     lore: '', entries: [] },
+        { id: newSectionId(), type: 'subcategory', heading: 'Class Tunings',lore: '', entries: [] },
       ];
       break;
     }
     case 'race-subrace': {
-      sections = [{ id: newSectionId(), type: 'text', heading: 'Summary', body: '' }];
+      sections = [
+        { id: newSectionId(), type: 'text',     heading: 'Summary', body: '' },
+        { id: newSectionId(), type: 'features', heading: 'Traits',  features: [] },
+      ];
       break;
     }
     case 'class': {
       sections = [
-        { id: newSectionId(), type: 'text',     heading: 'Summary',                    body: '' },
-        { id: newSectionId(), type: 'text',     heading: 'Hit Points & Starting Info', body: '' },
-        { id: newSectionId(), type: 'table',    heading: 'Class Progression',          columns: ['Level','Prof.','Features'], rows: Array.from({length:20}, (_,i) => [String(i+1),'','']) },
-        { id: newSectionId(), type: 'features', heading: 'Core Features',              features: [] },
+        { id: newSectionId(), type: 'text',        heading: 'Summary',                    body: '' },
+        { id: newSectionId(), type: 'text',        heading: 'Hit Points & Starting Info', body: '' },
+        { id: newSectionId(), type: 'table',       heading: 'Class Progression',          columns: ['Level','Prof.','Features'], rows: Array.from({length:20}, (_,i) => [String(i+1),'','']) },
+        { id: newSectionId(), type: 'features',    heading: 'Core Features',              features: [] },
+        { id: newSectionId(), type: 'subcategory', heading: 'Subclasses',                 lore: '', entries: [] },
       ];
       break;
     }
@@ -2165,6 +2199,52 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
   const addTableSection   = () => onChange([...list, { id: newId(), heading: 'New Table', type: 'table',
     columns: ['Column A', 'Column B'], rows: [['', '']] }]);
   const addImageSection   = () => onChange([...list, { id: newId(), heading: 'New Illustration', type: 'image', media: null, caption: '' }]);
+  const addSubcategorySection = () => onChange([...list, { id: newId(), heading: 'New Subcategory', type: 'subcategory', lore: '', entries: [] }]);
+
+  // ── Subcategory entry helpers ────────────────────────────────────
+  const updateEntry = (sectionIdx, entryIdx, fields) => {
+    const entries = (list[sectionIdx].entries || []).map((e, idx) => idx === entryIdx ? { ...e, ...fields } : e);
+    updateSection(sectionIdx, { entries });
+  };
+  const addEntry = (sectionIdx) => {
+    const entries = [...(list[sectionIdx].entries || []), {
+      id: newId(), name: 'New Entry', pills: [], media: null, description: '', features: [], flavor: '',
+    }];
+    updateSection(sectionIdx, { entries });
+  };
+  const removeEntry = (sectionIdx, entryIdx) => {
+    const entries = (list[sectionIdx].entries || []).filter((_, idx) => idx !== entryIdx);
+    updateSection(sectionIdx, { entries });
+  };
+  const moveEntry = (sectionIdx, entryIdx, dir) => {
+    const entries = [...(list[sectionIdx].entries || [])];
+    const ni = entryIdx + dir;
+    if (ni < 0 || ni >= entries.length) return;
+    [entries[entryIdx], entries[ni]] = [entries[ni], entries[entryIdx]];
+    updateSection(sectionIdx, { entries });
+  };
+  const updateEntryFeature = (sectionIdx, entryIdx, featIdx, fields) => {
+    const entries = (list[sectionIdx].entries || []).map((e, ei) => {
+      if (ei !== entryIdx) return e;
+      const features = (e.features || []).map((f, fi) => fi === featIdx ? { ...f, ...fields } : f);
+      return { ...e, features };
+    });
+    updateSection(sectionIdx, { entries });
+  };
+  const addEntryFeature = (sectionIdx, entryIdx) => {
+    const entries = (list[sectionIdx].entries || []).map((e, ei) => {
+      if (ei !== entryIdx) return e;
+      return { ...e, features: [...(e.features || []), { level: 0, name: 'New Feature', body: '' }] };
+    });
+    updateSection(sectionIdx, { entries });
+  };
+  const removeEntryFeature = (sectionIdx, entryIdx, featIdx) => {
+    const entries = (list[sectionIdx].entries || []).map((e, ei) => {
+      if (ei !== entryIdx) return e;
+      return { ...e, features: (e.features || []).filter((_, fi) => fi !== featIdx) };
+    });
+    updateSection(sectionIdx, { entries });
+  };
 
   const updateFeature = (sectionIdx, featIdx, fields) => {
     const features = (list[sectionIdx].features || []).map((f, idx) => idx === featIdx ? { ...f, ...fields } : f);
@@ -2303,6 +2383,22 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
             ) : null
           )}
 
+          {/* LORE CAPTION — shown for all section types when lore field is present */}
+          {sec.type !== 'identity' && (sec.lore || editMode) && (
+            <div style={{ marginBottom: '10px' }}>
+              {editMode ? (
+                <textarea
+                  style={{ ...styles.textarea, minHeight: '52px', fontStyle: 'italic', fontSize: '14px' }}
+                  value={sec.lore || ''}
+                  placeholder="Flavor / lore text (italic, hidden when empty)…"
+                  onChange={(e) => updateSection(i, { lore: e.target.value })}
+                />
+              ) : sec.lore ? (
+                <p style={styles.loreLine}>{sec.lore}</p>
+              ) : null}
+            </div>
+          )}
+
           {/* TEXT — supports inline floating image */}
           {sec.type === 'text' && (
             <div style={{ overflow: 'auto' }}>
@@ -2323,7 +2419,7 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
             </div>
           )}
 
-          {/* FEATURES — feature-card list; supports inline floating image at the top */}
+          {/* FEATURES — feature-card list; section-level float image, no per-card image */}
           {sec.type === 'features' && (
             <>
               <div style={{ overflow: 'auto' }}>
@@ -2337,35 +2433,27 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                 {(sec.features || []).map((f, fi) => {
                   const showLevel = f.level != null && f.level !== '' && Number(f.level) > 0;
                   return (
-                  <div key={fi} style={styles.featureCard}>
-                    {editMode ? (
-                      <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
-                        <span style={{ fontSize: '11px', color: '#8b6914' }}>Lvl</span>
-                        <input type="number" value={f.level ?? ''}
-                          onChange={(e) => updateFeature(i, fi, { level: e.target.value === '' ? 0 : (parseInt(e.target.value) || 0) })}
-                          placeholder="0"
-                          title="Level (0 or blank = hide)"
-                          style={{ ...styles.textarea, width: '60px', minHeight: 'unset', padding: '4px 8px' }} />
-                        <input value={f.name || ''}
-                          onChange={(e) => updateFeature(i, fi, { name: e.target.value })}
-                          placeholder="Feature name"
-                          style={{ ...styles.textarea, flex: 1, minHeight: 'unset', padding: '4px 8px' }} />
-                        <button onClick={() => removeFeature(i, fi)}
-                          style={{ background: '#8b1414', color: '#f5ecd9', border: 'none',
-                            borderRadius: '2px', padding: '4px 8px', cursor: 'pointer', fontSize: '11px' }}>✕</button>
-                      </div>
-                    ) : <>
-                      {showLevel && <div style={styles.featureLevel}>Level {f.level}</div>}
-                      <div style={styles.featureName}>{f.name}</div>
-                    </>}
-                    <div style={{ overflow: 'auto' }}>
-                      <FloatingImage
-                        media={f.media}
-                        editMode={editMode}
-                        onChange={(m) => updateFeature(i, fi, { media: m })}
-                        category={category}
-                        entryId={`${entryId}-${sec.id || i}-card-${fi}`}
-                      />
+                    <div key={fi} style={styles.featureCard}>
+                      {editMode ? (
+                        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                          <span style={{ fontSize: '11px', color: '#8b6914' }}>Lvl</span>
+                          <input type="number" value={f.level ?? ''}
+                            onChange={(e) => updateFeature(i, fi, { level: e.target.value === '' ? 0 : (parseInt(e.target.value) || 0) })}
+                            placeholder="0"
+                            title="Level (0 or blank = hide)"
+                            style={{ ...styles.textarea, width: '60px', minHeight: 'unset', padding: '4px 8px' }} />
+                          <input value={f.name || ''}
+                            onChange={(e) => updateFeature(i, fi, { name: e.target.value })}
+                            placeholder="Feature name"
+                            style={{ ...styles.textarea, flex: 1, minHeight: 'unset', padding: '4px 8px' }} />
+                          <button onClick={() => removeFeature(i, fi)}
+                            style={{ background: '#8b1414', color: '#f5ecd9', border: 'none',
+                              borderRadius: '2px', padding: '4px 8px', cursor: 'pointer', fontSize: '11px' }}>✕</button>
+                        </div>
+                      ) : <>
+                        {showLevel && <div style={styles.featureLevel}>Level {f.level}</div>}
+                        <div style={styles.featureName}>{f.name}</div>
+                      </>}
                       {editMode ? (
                         <textarea style={{ ...styles.textarea, minHeight: '80px' }} value={f.text || ''}
                           placeholder="Feature mechanics…"
@@ -2374,7 +2462,6 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                         <p style={{ ...styles.bodyText, margin: 0, whiteSpace: 'pre-wrap' }}>{f.text}</p>
                       )}
                     </div>
-                  </div>
                   );
                 })}
               </div>
@@ -2485,6 +2572,139 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
               ) : null}
             </div>
           )}
+
+          {/* SUBCATEGORY — named container with entries (subraces, archetypes, etc.) */}
+          {sec.type === 'subcategory' && (() => {
+            const entries = sec.entries || [];
+            return (
+              <div>
+                {(entries).map((entry, ei) => {
+                  const showLevel = (lvl) => lvl != null && lvl !== '' && Number(lvl) > 0;
+                  return (
+                    <div key={entry.id || ei} style={{
+                      marginBottom: '28px',
+                      paddingBottom: '20px',
+                      borderBottom: ei < entries.length - 1 ? '1px solid rgba(201,165,92,0.3)' : 'none',
+                    }}>
+                      {/* Entry header row with name + controls */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
+                        <div style={{ flex: 1 }}>
+                          {editMode ? (
+                            <input value={entry.name || ''}
+                              onChange={(e) => updateEntry(i, ei, { name: e.target.value })}
+                              placeholder="Entry name…"
+                              style={{ ...styles.textarea, minHeight: 'unset', padding: '4px 8px', width: '100%',
+                                fontFamily: '"Palatino Linotype", serif', fontSize: '20px',
+                                fontWeight: 700, fontStyle: 'italic', color: '#5c1414' }} />
+                          ) : (
+                            <div style={styles.entryName}>{entry.name}</div>
+                          )}
+                        </div>
+                        {editMode && (
+                          <div style={{ display: 'flex', gap: '4px', flexShrink: 0, marginTop: '4px' }}>
+                            <button onClick={() => moveEntry(i, ei, -1)} title="Move up"
+                              style={{ background: '#8b6914', color: '#f5ecd9', border: 'none', padding: '4px 8px',
+                                cursor: 'pointer', borderRadius: '2px', fontSize: '11px' }}>▲</button>
+                            <button onClick={() => moveEntry(i, ei, 1)} title="Move down"
+                              style={{ background: '#8b6914', color: '#f5ecd9', border: 'none', padding: '4px 8px',
+                                cursor: 'pointer', borderRadius: '2px', fontSize: '11px' }}>▼</button>
+                            <button onClick={() => { if (window.confirm(`Delete "${entry.name}"?`)) removeEntry(i, ei); }}
+                              style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', padding: '4px 10px',
+                                cursor: 'pointer', borderRadius: '2px', fontSize: '11px' }}>✕</button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Optional pills */}
+                      <PillRow
+                        pills={entry.pills || []}
+                        editMode={editMode}
+                        onChange={(p) => updateEntry(i, ei, { pills: p })}
+                      />
+
+                      {/* Image + description side by side */}
+                      <div style={{ overflow: 'auto' }}>
+                        <FloatingImage
+                          media={entry.media}
+                          editMode={editMode}
+                          onChange={(m) => updateEntry(i, ei, { media: m })}
+                          category={category}
+                          entryId={`${entryId}-${sec.id || i}-entry-${ei}`}
+                        />
+                        {editMode ? (
+                          <textarea style={{ ...styles.textarea, minHeight: '80px' }}
+                            value={entry.description || ''}
+                            placeholder="Entry description / lore…"
+                            onChange={(e) => updateEntry(i, ei, { description: e.target.value })} />
+                        ) : entry.description ? (
+                          <p style={{ ...styles.bodyText, whiteSpace: 'pre-wrap' }}>{entry.description}</p>
+                        ) : null}
+                      </div>
+                      <div style={{ clear: 'both' }} />
+
+                      {/* Feature cards */}
+                      {(entry.features || []).map((f, fi) => (
+                        <div key={fi} style={styles.featureCard}>
+                          {editMode ? (
+                            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                              <span style={{ fontSize: '11px', color: '#8b6914' }}>Lvl</span>
+                              <input type="number" value={f.level ?? ''}
+                                onChange={(e) => updateEntryFeature(i, ei, fi, { level: e.target.value === '' ? 0 : (parseInt(e.target.value) || 0) })}
+                                placeholder="0"
+                                title="Level (0 = hide)"
+                                style={{ ...styles.textarea, width: '60px', minHeight: 'unset', padding: '4px 8px' }} />
+                              <input value={f.name || ''}
+                                onChange={(e) => updateEntryFeature(i, ei, fi, { name: e.target.value })}
+                                placeholder="Feature name"
+                                style={{ ...styles.textarea, flex: 1, minHeight: 'unset', padding: '4px 8px' }} />
+                              <button onClick={() => removeEntryFeature(i, ei, fi)}
+                                style={{ background: '#8b1414', color: '#f5ecd9', border: 'none',
+                                  borderRadius: '2px', padding: '4px 8px', cursor: 'pointer', fontSize: '11px' }}>✕</button>
+                            </div>
+                          ) : <>
+                            {showLevel(f.level) && <div style={styles.featureLevel}>Level {f.level}</div>}
+                            <div style={styles.featureName}>{f.name}</div>
+                          </>}
+                          {editMode ? (
+                            <textarea style={{ ...styles.textarea, minHeight: '70px' }} value={f.body || ''}
+                              placeholder="Feature mechanics…"
+                              onChange={(e) => updateEntryFeature(i, ei, fi, { body: e.target.value })} />
+                          ) : (
+                            <p style={{ ...styles.bodyText, margin: 0, whiteSpace: 'pre-wrap' }}>{f.body}</p>
+                          )}
+                        </div>
+                      ))}
+                      {editMode && (
+                        <button onClick={() => addEntryFeature(i, ei)}
+                          style={{ ...styles.button, marginTop: '4px', fontSize: '11px', padding: '4px 12px' }}>
+                          + Add Feature
+                        </button>
+                      )}
+
+                      {/* Optional flavor line */}
+                      {(entry.flavor || editMode) && (
+                        editMode ? (
+                          <textarea style={{ ...styles.textarea, minHeight: '44px', fontStyle: 'italic', fontSize: '13px', marginTop: '8px' }}
+                            value={entry.flavor || ''}
+                            placeholder="Closing flavor text (italic, hidden when empty)…"
+                            onChange={(e) => updateEntry(i, ei, { flavor: e.target.value })} />
+                        ) : entry.flavor ? (
+                          <p style={{ ...styles.entryFlavor }}>{entry.flavor}</p>
+                        ) : null
+                      )}
+                    </div>
+                  );
+                })}
+
+                {editMode && (
+                  <button onClick={() => addEntry(i)}
+                    style={{ ...styles.button, fontSize: '12px', padding: '6px 16px', marginTop: '4px' }}>
+                    + Add Entry
+                  </button>
+                )}
+              </div>
+            );
+          })()}
         </div>
         );
       })}
@@ -2502,6 +2722,8 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
             style={{ ...styles.button, fontSize: '12px', padding: '6px 14px' }}>+ Table</button>
           <button onClick={addImageSection}
             style={{ ...styles.button, fontSize: '12px', padding: '6px 14px' }}>+ Illustration</button>
+          <button onClick={addSubcategorySection}
+            style={{ ...styles.button, fontSize: '12px', padding: '6px 14px' }}>+ Subcategory</button>
         </div>
       )}
     </>
