@@ -3174,7 +3174,15 @@ export default function Compendium() {
   // Clicking the same class again navigates back to the class page (subclass list stays open).
   // Clicking a different class collapses the previous and opens the new one.
   const openClass = (parentClass) => {
-    const cls = content.classes.find((c) => c.name === parentClass);
+    // Match the class entry by exact name, or by name with any parenthetical stripped,
+    // or by id slug. Handles cases like "Ranger" → "Ranger (CotR Rewrite)".
+    const stripParen = (s) => (s || '').replace(/\s*\([^)]*\)\s*/g, '').trim();
+    const slug = parentClass.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const cls = content.classes.find((c) =>
+      c.name === parentClass ||
+      stripParen(c.name) === parentClass ||
+      c.id === slug
+    );
     if (cls) goTo('classes', cls.id);
     setExpandedClasses(parentClass);
   };
@@ -3659,7 +3667,13 @@ export default function Compendium() {
               return (a.name || '').localeCompare(b.name || '');
             });
             const isExpanded = expandedClasses === parentClass;
-            const classEntry = content.classes.find((c) => c.name === parentClass);
+            const stripParen = (s) => (s || '').replace(/\s*\([^)]*\)\s*/g, '').trim();
+            const slug = parentClass.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const classEntry = content.classes.find((c) =>
+              c.name === parentClass ||
+              stripParen(c.name) === parentClass ||
+              c.id === slug
+            );
             const isClassActive = section === 'classes' && classEntry && activeId === classEntry.id;
             const hasActiveSubclass = section === 'subclasses' && sortedSubs.some((s) => s.id === activeId);
             const hasActive = isClassActive || hasActiveSubclass;
