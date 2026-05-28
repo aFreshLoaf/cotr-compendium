@@ -2183,6 +2183,7 @@ function EditableHeading({ as = 'h2', value, defaultValue, onChange, editMode, s
 // `locked: true` on a section disables its delete button (still reorderable).
 // ============================================================
 function Sections({ sections, editMode, onChange, headingStyle, category, entryId, identityFields }) {
+  const isMobile = useIsMobile();
   const list = sections || [];
   const updateSection = (i, fields) => onChange(list.map((s, idx) => idx === i ? { ...s, ...fields } : s));
   const removeSection = (i) => onChange(list.filter((_, idx) => idx !== i));
@@ -2622,25 +2623,41 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                         onChange={(p) => updateEntry(i, ei, { pills: p })}
                       />
 
-                      {/* Image + description side by side */}
-                      <div style={{ overflow: 'auto' }}>
-                        <FloatingImage
-                          media={entry.media}
-                          editMode={editMode}
-                          onChange={(m) => updateEntry(i, ei, { media: m })}
-                          category={category}
-                          entryId={`${entryId}-${sec.id || i}-entry-${ei}`}
-                        />
-                        {editMode ? (
-                          <textarea style={{ ...styles.textarea, minHeight: '80px' }}
-                            value={entry.description || ''}
-                            placeholder="Entry description / lore…"
-                            onChange={(e) => updateEntry(i, ei, { description: e.target.value })} />
-                        ) : entry.description ? (
-                          <p style={{ ...styles.bodyText, whiteSpace: 'pre-wrap' }}>{entry.description}</p>
-                        ) : null}
+                      {/* Image + description — desktop: text left / image right; mobile: stacked */}
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: isMobile ? 'column' : 'row',
+                        gap: isMobile ? '12px' : '20px',
+                        alignItems: 'flex-start',
+                        marginBottom: '12px',
+                      }}>
+                        <div style={{ flex: 1, minWidth: 0, order: isMobile ? 2 : 1 }}>
+                          {editMode ? (
+                            <textarea style={{ ...styles.textarea, minHeight: '80px' }}
+                              value={entry.description || ''}
+                              placeholder="Entry description / lore…"
+                              onChange={(e) => updateEntry(i, ei, { description: e.target.value })} />
+                          ) : entry.description ? (
+                            <p style={{ ...styles.bodyText, whiteSpace: 'pre-wrap' }}>{entry.description}</p>
+                          ) : null}
+                        </div>
+                        {(entry.media || editMode) && (
+                          <div style={{
+                            width: isMobile ? '100%' : '180px',
+                            flexShrink: 0,
+                            order: isMobile ? 1 : 2,
+                          }}>
+                            <FloatingImage
+                              media={entry.media}
+                              editMode={editMode}
+                              onChange={(m) => updateEntry(i, ei, { media: m })}
+                              category={category}
+                              entryId={`${entryId}-${sec.id || i}-entry-${ei}`}
+                              mode="fill"
+                            />
+                          </div>
+                        )}
                       </div>
-                      <div style={{ clear: 'both' }} />
 
                       {/* Feature cards */}
                       {(entry.features || []).map((f, fi) => (
@@ -2784,7 +2801,7 @@ async function processImageForUpload(file) {
   return new File([blob], name, { type: outType, lastModified: Date.now() });
 }
 
-function FloatingImage({ media, editMode, onChange, category, entryId }) {
+function FloatingImage({ media, editMode, onChange, category, entryId, mode = 'float' }) {
   const isMobile = useIsMobile();
   const [uploading, setUploading] = React.useState(false);
   const [uploadError, setUploadError] = React.useState('');
@@ -2828,25 +2845,43 @@ function FloatingImage({ media, editMode, onChange, category, entryId }) {
 
   // ── Edit mode, no image: show upload placeholder ─────────────────────
   if (!media?.url && editMode) {
+    const isFill = mode === 'fill';
+    const placeholderStyle = isFill
+      ? {
+          width: '100%',
+          aspectRatio: `${IMAGE_FRAMES.portrait.width} / ${IMAGE_FRAMES.portrait.height}`,
+          border: '2px dashed #8b6914',
+          borderRadius: '2px',
+          background: 'rgba(201, 165, 92, 0.08)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+          cursor: 'pointer',
+          padding: '12px',
+          textAlign: 'center',
+        }
+      : {
+          float: 'left',
+          width: IMAGE_FRAMES.portrait.width,
+          height: IMAGE_FRAMES.portrait.height,
+          marginRight: '16px',
+          marginBottom: '12px',
+          border: '2px dashed #8b6914',
+          borderRadius: '2px',
+          background: 'rgba(201, 165, 92, 0.08)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+          cursor: 'pointer',
+          padding: '12px',
+          textAlign: 'center',
+        };
     return (
-      <div style={{
-        float: 'left',
-        width: IMAGE_FRAMES.portrait.width,
-        height: IMAGE_FRAMES.portrait.height,
-        marginRight: '16px',
-        marginBottom: '12px',
-        border: '2px dashed #8b6914',
-        borderRadius: '2px',
-        background: 'rgba(201, 165, 92, 0.08)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '8px',
-        cursor: 'pointer',
-        padding: '12px',
-        textAlign: 'center',
-      }}
+      <div style={placeholderStyle}
       onClick={() => fileInputRef.current?.click()}
       >
         <ImageIcon size={32} color="#8b6914" />
@@ -2869,24 +2904,32 @@ function FloatingImage({ media, editMode, onChange, category, entryId }) {
   const zoom = media.zoom ?? 1;
   const posX = media.posX ?? 50;
   const posY = media.posY ?? 50;
+  const isFill = mode === 'fill';
 
-  // On mobile: full-width above content, preserving aspect ratio.
-  // On desktop: fixed pixel size, floating left.
-  const containerStyle = isMobile
+  // Three layouts:
+  //   - fill: container takes 100% width of parent, frame keeps aspect ratio (parent controls placement)
+  //   - mobile (default mode): full-width above content
+  //   - desktop (default mode): fixed pixel size, floating left
+  const containerStyle = isFill
     ? {
         width: '100%',
-        marginBottom: '16px',
         position: 'relative',
       }
-    : {
-        float: 'left',
-        width: frame.width,
-        marginRight: '16px',
-        marginBottom: '12px',
-        position: 'relative',
-      };
+    : isMobile
+      ? {
+          width: '100%',
+          marginBottom: '16px',
+          position: 'relative',
+        }
+      : {
+          float: 'left',
+          width: frame.width,
+          marginRight: '16px',
+          marginBottom: '12px',
+          position: 'relative',
+        };
 
-  const frameStyle = isMobile
+  const frameStyle = (isFill || isMobile)
     ? {
         width: '100%',
         aspectRatio: `${frame.width} / ${frame.height}`,
