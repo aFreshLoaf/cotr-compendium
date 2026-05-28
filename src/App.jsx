@@ -2190,7 +2190,7 @@ function EditableHeading({ as = 'h2', value, defaultValue, onChange, editMode, s
 // Field starts as a plain string. Clicking "+ Insert Table" in edit mode upgrades
 // it to a blocks array. Once an array, it stays an array even if all tables are
 // removed — but that has no visible effect on the rendered output.
-function BlockBody({ value, editMode, onChange, placeholder }) {
+function BlockBody({ value, editMode, onChange, placeholder, content, goTo }) {
   const isBlocks = Array.isArray(value);
 
   // ── String mode (back-compat) ──────────────────────────────────────────
@@ -2248,6 +2248,35 @@ function BlockBody({ value, editMode, onChange, placeholder }) {
   const addTextBlock = () => onChange([...blocks, { type: 'text', body: '' }]);
   const addTableBlock = () => onChange([...blocks,
     { type: 'table', columns: ['Column A', 'Column B'], rows: [['', ''], ['', '']] }]);
+  const addLinksBlock = () => onChange([...blocks,
+    { type: 'links', items: [] }]);
+
+  // ── Link helpers ─────────────────────────────────────────────────
+  const updateLink = (bi, li, fields) => {
+    const items = (blocks[bi].items || []).map((it, idx) => idx === li ? { ...it, ...fields } : it);
+    updateBlock(bi, { items });
+  };
+  const addLink = (bi) => {
+    const items = [...(blocks[bi].items || []), { section: 'subclasses', id: '' }];
+    updateBlock(bi, { items });
+  };
+  const removeLink = (bi, li) => {
+    const items = (blocks[bi].items || []).filter((_, idx) => idx !== li);
+    updateBlock(bi, { items });
+  };
+
+  // ── Resolve a link's display label and click handler from content ───
+  const resolveLink = (item) => {
+    if (!content || !item.section || !item.id) return null;
+    const collection = item.section === 'subclasses' ? content.subclasses
+      : item.section === 'races' ? content.races
+      : item.section === 'classes' ? content.classes
+      : item.section === 'characters' ? content.characters
+      : [];
+    const entry = collection.find((e) => e.id === item.id);
+    if (!entry) return null;
+    return { label: entry.name, section: item.section, id: item.id };
+  };
 
   // Table helpers (scoped to a block index)
   const updateBlockTableCol = (bi, ci, val) => {
@@ -2385,6 +2414,82 @@ function BlockBody({ value, editMode, onChange, placeholder }) {
               </div>
             );
           })()}
+
+          {b.type === 'links' && (() => {
+            const items = b.items || [];
+            // Available target entries by section
+            const collections = {
+              subclasses: (content?.subclasses || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')),
+              races:      (content?.races || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')),
+              classes:    (content?.classes || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')),
+              characters: (content?.characters || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')),
+            };
+            return (
+              <div style={{ marginBottom: '8px' }}>
+                {editMode ? (
+                  <div>
+                    {items.map((item, li) => {
+                      const opts = collections[item.section] || [];
+                      return (
+                        <div key={li} style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '6px' }}>
+                          <select value={item.section || 'subclasses'}
+                            onChange={(e) => updateLink(i, li, { section: e.target.value, id: '' })}
+                            style={{ ...styles.textarea, minHeight: 'unset', padding: '4px 8px', width: '120px' }}>
+                            <option value="subclasses">Subclass</option>
+                            <option value="races">Race</option>
+                            <option value="classes">Class</option>
+                            <option value="characters">Character</option>
+                          </select>
+                          <select value={item.id || ''}
+                            onChange={(e) => updateLink(i, li, { id: e.target.value })}
+                            style={{ ...styles.textarea, minHeight: 'unset', padding: '4px 8px', flex: 1 }}>
+                            <option value="">— pick entry —</option>
+                            {opts.map((e) => (
+                              <option key={e.id} value={e.id}>{e.name}</option>
+                            ))}
+                          </select>
+                          <button onClick={() => removeLink(i, li)}
+                            style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px',
+                              padding: '4px 8px', cursor: 'pointer', fontSize: '11px' }}>✕</button>
+                        </div>
+                      );
+                    })}
+                    <button onClick={() => addLink(i)}
+                      style={{ ...styles.button, fontSize: '11px', padding: '4px 10px' }}>
+                      + Add Link
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {items.map((item, li) => {
+                      const resolved = resolveLink(item);
+                      if (!resolved) return null;
+                      return (
+                        <button key={li}
+                          onClick={() => goTo && goTo(resolved.section, resolved.id)}
+                          style={{
+                            background: '#5c1414',
+                            color: '#f5ecd9',
+                            border: '1px solid #8b6914',
+                            borderRadius: '2px',
+                            padding: '4px 12px',
+                            fontFamily: '"Cinzel", serif',
+                            fontSize: '12px',
+                            letterSpacing: '0.05em',
+                            cursor: 'pointer',
+                            transition: 'background 0.1s',
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = '#7a1f1f'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = '#5c1414'; }}>
+                          {resolved.label} →
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       ))}
 
@@ -2398,13 +2503,17 @@ function BlockBody({ value, editMode, onChange, placeholder }) {
             style={{ ...styles.button, fontSize: '11px', padding: '4px 10px' }}>
             + Table
           </button>
+          <button onClick={addLinksBlock}
+            style={{ ...styles.button, fontSize: '11px', padding: '4px 10px' }}>
+            + Links
+          </button>
         </div>
       )}
     </div>
   );
 }
 
-function Sections({ sections, editMode, onChange, headingStyle, category, entryId, identityFields }) {
+function Sections({ sections, editMode, onChange, headingStyle, category, entryId, identityFields, content, goTo }) {
   const isMobile = useIsMobile();
   const list = sections || [];
   const updateSection = (i, fields) => onChange(list.map((s, idx) => idx === i ? { ...s, ...fields } : s));
@@ -2637,7 +2746,9 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                 editMode={editMode}
                 onChange={(v) => updateSection(i, { body: v })}
                 placeholder="Section content…"
-              />
+              content={content}
+                        goTo={goTo}
+                      />
             </div>
           )}
 
@@ -2681,6 +2792,8 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                         editMode={editMode}
                         onChange={(v) => updateFeature(i, fi, { text: v })}
                         placeholder="Feature mechanics…"
+                      content={content}
+                        goTo={goTo}
                       />
                     </div>
                   );
@@ -2859,7 +2972,9 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                             editMode={editMode}
                             onChange={(v) => updateEntry(i, ei, { description: v })}
                             placeholder="Entry description / lore…"
-                          />
+                          content={content}
+                        goTo={goTo}
+                      />
 
                           {/* Feature cards — sit in the same column as description so they wrap beside image */}
                           {(entry.features || []).map((f, fi) => (
@@ -2889,7 +3004,9 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                                 editMode={editMode}
                                 onChange={(v) => updateEntryFeature(i, ei, fi, { body: v })}
                                 placeholder="Feature mechanics…"
-                              />
+                              content={content}
+                        goTo={goTo}
+                      />
                             </div>
                           ))}
                           {editMode && (
@@ -4082,13 +4199,13 @@ export default function Compendium() {
             ) : section === 'campaign' ? (
               <CampaignPage content={content} editMode={editMode} persistChange={persistChange} />
             ) : section === 'races' ? (
-              <RacesPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} />
+              <RacesPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} goTo={goTo} />
             ) : section === 'classes' ? (
-              <ClassesPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} />
+              <ClassesPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} goTo={goTo} />
             ) : section === 'subclasses' ? (
-              <SubclassesPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} />
+              <SubclassesPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} goTo={goTo} />
             ) : section === 'characters' ? (
-              <CharactersPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} />
+              <CharactersPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} goTo={goTo} />
             ) : null}
           </div>
         </main>
@@ -4455,7 +4572,7 @@ function CampaignPage({ content, editMode, persistChange }) {
   );
 }
 
-function RacesPage({ content, activeId, editMode, persistChange }) {
+function RacesPage({ content, activeId, editMode, persistChange, goTo }) {
   const race = content.races.find((r) => r.id === activeId) || content.races[0];
   if (!race) return <p style={styles.bodyText}>No races defined.</p>;
 
@@ -4495,12 +4612,14 @@ function RacesPage({ content, activeId, editMode, persistChange }) {
         headingStyle={styles.sectionHeading}
         category="races"
         entryId={race.id}
+        content={content}
+        goTo={goTo}
       />
     </div>
   );
 }
 
-function ClassesPage({ content, activeId, editMode, persistChange }) {
+function ClassesPage({ content, activeId, editMode, persistChange, goTo }) {
   const cls = content.classes.find((c) => c.id === activeId) || content.classes[0];
   if (!cls) return <p style={styles.bodyText}>No classes defined.</p>;
 
@@ -4531,12 +4650,14 @@ function ClassesPage({ content, activeId, editMode, persistChange }) {
         headingStyle={styles.sectionHeading}
         category="classes"
         entryId={cls.id}
+        content={content}
+        goTo={goTo}
       />
     </div>
   );
 }
 
-function SubclassesPage({ content, activeId, editMode, persistChange }) {
+function SubclassesPage({ content, activeId, editMode, persistChange, goTo }) {
   const sub = content.subclasses.find((s) => s.id === activeId) || content.subclasses[0];
   if (!sub) return <p style={styles.bodyText}>No subclasses defined.</p>;
 
@@ -4567,12 +4688,14 @@ function SubclassesPage({ content, activeId, editMode, persistChange }) {
         headingStyle={styles.sectionHeading}
         category="subclasses"
         entryId={sub.id}
+        content={content}
+        goTo={goTo}
       />
     </div>
   );
 }
 
-function CharactersPage({ content, activeId, editMode, persistChange }) {
+function CharactersPage({ content, activeId, editMode, persistChange, goTo }) {
   const ch = content.characters.find((c) => c.id === activeId) || content.characters[0];
   if (!ch) return <p style={styles.bodyText}>No characters defined.</p>;
 
@@ -4625,6 +4748,8 @@ function CharactersPage({ content, activeId, editMode, persistChange }) {
         headingStyle={styles.sectionHeading}
         category="characters"
         entryId={ch.id}
+        content={content}
+        goTo={goTo}
         identityFields={{ entry: ch, update: updateCh, fieldRow }}
       />
     </div>
