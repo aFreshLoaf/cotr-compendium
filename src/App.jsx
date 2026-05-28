@@ -2623,23 +2623,64 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                         onChange={(p) => updateEntry(i, ei, { pills: p })}
                       />
 
-                      {/* Image + description — desktop: text left / image right; mobile: stacked */}
+                      {/* Description + features (left column) and image (right column).
+                          On mobile, image stacks above content. */}
                       <div style={{
                         display: 'flex',
                         flexDirection: isMobile ? 'column' : 'row',
                         gap: isMobile ? '12px' : '20px',
                         alignItems: 'flex-start',
-                        marginBottom: '12px',
+                        marginBottom: '8px',
                       }}>
                         <div style={{ flex: 1, minWidth: 0, order: isMobile ? 2 : 1 }}>
+                          {/* Description */}
                           {editMode ? (
-                            <textarea style={{ ...styles.textarea, minHeight: '80px' }}
+                            <textarea style={{ ...styles.textarea, minHeight: '80px', marginBottom: '10px' }}
                               value={entry.description || ''}
                               placeholder="Entry description / lore…"
                               onChange={(e) => updateEntry(i, ei, { description: e.target.value })} />
                           ) : entry.description ? (
                             <p style={{ ...styles.bodyText, whiteSpace: 'pre-wrap' }}>{entry.description}</p>
                           ) : null}
+
+                          {/* Feature cards — sit in the same column as description so they wrap beside image */}
+                          {(entry.features || []).map((f, fi) => (
+                            <div key={fi} style={styles.featureCard}>
+                              {editMode ? (
+                                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                                  <span style={{ fontSize: '11px', color: '#8b6914' }}>Lvl</span>
+                                  <input type="number" value={f.level ?? ''}
+                                    onChange={(e) => updateEntryFeature(i, ei, fi, { level: e.target.value === '' ? 0 : (parseInt(e.target.value) || 0) })}
+                                    placeholder="0"
+                                    title="Level (0 = hide)"
+                                    style={{ ...styles.textarea, width: '60px', minHeight: 'unset', padding: '4px 8px' }} />
+                                  <input value={f.name || ''}
+                                    onChange={(e) => updateEntryFeature(i, ei, fi, { name: e.target.value })}
+                                    placeholder="Feature name"
+                                    style={{ ...styles.textarea, flex: 1, minHeight: 'unset', padding: '4px 8px' }} />
+                                  <button onClick={() => removeEntryFeature(i, ei, fi)}
+                                    style={{ background: '#8b1414', color: '#f5ecd9', border: 'none',
+                                      borderRadius: '2px', padding: '4px 8px', cursor: 'pointer', fontSize: '11px' }}>✕</button>
+                                </div>
+                              ) : <>
+                                {showLevel(f.level) && <div style={styles.featureLevel}>Level {f.level}</div>}
+                                <div style={styles.featureName}>{f.name}</div>
+                              </>}
+                              {editMode ? (
+                                <textarea style={{ ...styles.textarea, minHeight: '70px' }} value={f.body || ''}
+                                  placeholder="Feature mechanics…"
+                                  onChange={(e) => updateEntryFeature(i, ei, fi, { body: e.target.value })} />
+                              ) : (
+                                <p style={{ ...styles.bodyText, margin: 0, whiteSpace: 'pre-wrap' }}>{f.body}</p>
+                              )}
+                            </div>
+                          ))}
+                          {editMode && (
+                            <button onClick={() => addEntryFeature(i, ei)}
+                              style={{ ...styles.button, marginTop: '4px', fontSize: '11px', padding: '4px 12px' }}>
+                              + Add Feature
+                            </button>
+                          )}
                         </div>
                         {(entry.media || editMode) && (
                           <div style={{
@@ -2659,46 +2700,7 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                         )}
                       </div>
 
-                      {/* Feature cards */}
-                      {(entry.features || []).map((f, fi) => (
-                        <div key={fi} style={styles.featureCard}>
-                          {editMode ? (
-                            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
-                              <span style={{ fontSize: '11px', color: '#8b6914' }}>Lvl</span>
-                              <input type="number" value={f.level ?? ''}
-                                onChange={(e) => updateEntryFeature(i, ei, fi, { level: e.target.value === '' ? 0 : (parseInt(e.target.value) || 0) })}
-                                placeholder="0"
-                                title="Level (0 = hide)"
-                                style={{ ...styles.textarea, width: '60px', minHeight: 'unset', padding: '4px 8px' }} />
-                              <input value={f.name || ''}
-                                onChange={(e) => updateEntryFeature(i, ei, fi, { name: e.target.value })}
-                                placeholder="Feature name"
-                                style={{ ...styles.textarea, flex: 1, minHeight: 'unset', padding: '4px 8px' }} />
-                              <button onClick={() => removeEntryFeature(i, ei, fi)}
-                                style={{ background: '#8b1414', color: '#f5ecd9', border: 'none',
-                                  borderRadius: '2px', padding: '4px 8px', cursor: 'pointer', fontSize: '11px' }}>✕</button>
-                            </div>
-                          ) : <>
-                            {showLevel(f.level) && <div style={styles.featureLevel}>Level {f.level}</div>}
-                            <div style={styles.featureName}>{f.name}</div>
-                          </>}
-                          {editMode ? (
-                            <textarea style={{ ...styles.textarea, minHeight: '70px' }} value={f.body || ''}
-                              placeholder="Feature mechanics…"
-                              onChange={(e) => updateEntryFeature(i, ei, fi, { body: e.target.value })} />
-                          ) : (
-                            <p style={{ ...styles.bodyText, margin: 0, whiteSpace: 'pre-wrap' }}>{f.body}</p>
-                          )}
-                        </div>
-                      ))}
-                      {editMode && (
-                        <button onClick={() => addEntryFeature(i, ei)}
-                          style={{ ...styles.button, marginTop: '4px', fontSize: '11px', padding: '4px 12px' }}>
-                          + Add Feature
-                        </button>
-                      )}
-
-                      {/* Optional flavor line */}
+                      {/* Optional flavor line — always full width below image+content row */}
                       {(entry.flavor || editMode) && (
                         editMode ? (
                           <textarea style={{ ...styles.textarea, minHeight: '44px', fontStyle: 'italic', fontSize: '13px', marginTop: '8px' }}
