@@ -2182,6 +2182,228 @@ function EditableHeading({ as = 'h2', value, defaultValue, onChange, editMode, s
 // Section types: text, features, table, image, identity
 // `locked: true` on a section disables its delete button (still reorderable).
 // ============================================================
+// ============================================================
+// BLOCK BODY — text field that can be upgraded to a sequence of text/table blocks
+// ============================================================
+// `value` is either a string (plain prose) or an array of blocks:
+//   [{type:'text', body:'...'}, {type:'table', columns:[...], rows:[[...]]}, ...]
+// Field starts as a plain string. Clicking "+ Insert Table" in edit mode upgrades
+// it to a blocks array. Once an array, it stays an array even if all tables are
+// removed — but that has no visible effect on the rendered output.
+function BlockBody({ value, editMode, onChange, placeholder }) {
+  const isBlocks = Array.isArray(value);
+
+  // ── String mode (back-compat) ──────────────────────────────────────────
+  if (!isBlocks) {
+    if (editMode) {
+      const upgradeToBlocks = () => {
+        const initial = [
+          { type: 'text', body: value || '' },
+          { type: 'table', columns: ['Column A', 'Column B'], rows: [['', ''], ['', '']] },
+        ];
+        onChange(initial);
+      };
+      return (
+        <>
+          <textarea
+            style={{ ...styles.textarea, minHeight: '80px' }}
+            value={value || ''}
+            placeholder={placeholder || 'Content…'}
+            onChange={(e) => onChange(e.target.value)}
+          />
+          <button
+            onClick={upgradeToBlocks}
+            style={{
+              background: 'transparent',
+              color: '#7a1f1f',
+              border: '1px dashed #8b6914',
+              borderRadius: '2px',
+              padding: '3px 10px',
+              cursor: 'pointer',
+              fontSize: '11px',
+              fontStyle: 'italic',
+              marginTop: '4px',
+            }}
+          >
+            + Insert Table
+          </button>
+        </>
+      );
+    }
+    // View mode, plain string
+    return value ? <p style={{ ...styles.bodyText, margin: '0 0 8px 0', whiteSpace: 'pre-wrap' }}>{value}</p> : null;
+  }
+
+  // ── Block mode ─────────────────────────────────────────────────────────
+  const blocks = value || [];
+  const updateBlock = (i, fields) => onChange(blocks.map((b, idx) => idx === i ? { ...b, ...fields } : b));
+  const removeBlock = (i) => onChange(blocks.filter((_, idx) => idx !== i));
+  const moveBlock = (i, dir) => {
+    const ni = i + dir;
+    if (ni < 0 || ni >= blocks.length) return;
+    const arr = [...blocks];
+    [arr[i], arr[ni]] = [arr[ni], arr[i]];
+    onChange(arr);
+  };
+  const addTextBlock = () => onChange([...blocks, { type: 'text', body: '' }]);
+  const addTableBlock = () => onChange([...blocks,
+    { type: 'table', columns: ['Column A', 'Column B'], rows: [['', ''], ['', '']] }]);
+
+  // Table helpers (scoped to a block index)
+  const updateBlockTableCol = (bi, ci, val) => {
+    const cols = [...(blocks[bi].columns || [])];
+    cols[ci] = val;
+    updateBlock(bi, { columns: cols });
+  };
+  const addBlockTableCol = (bi) => {
+    const cols = [...(blocks[bi].columns || []), `Column ${String.fromCharCode(65 + (blocks[bi].columns || []).length)}`];
+    const rows = (blocks[bi].rows || []).map((r) => [...r, '']);
+    updateBlock(bi, { columns: cols, rows });
+  };
+  const removeBlockTableCol = (bi, ci) => {
+    const cols = (blocks[bi].columns || []).filter((_, i) => i !== ci);
+    const rows = (blocks[bi].rows || []).map((r) => r.filter((_, i) => i !== ci));
+    updateBlock(bi, { columns: cols, rows });
+  };
+  const updateBlockTableCell = (bi, ri, ci, val) => {
+    const rows = (blocks[bi].rows || []).map((r, idx) => {
+      if (idx !== ri) return r;
+      const newRow = [...r];
+      newRow[ci] = val;
+      return newRow;
+    });
+    updateBlock(bi, { rows });
+  };
+  const addBlockTableRow = (bi) => {
+    const cols = blocks[bi].columns || [];
+    const rows = [...(blocks[bi].rows || []), cols.map(() => '')];
+    updateBlock(bi, { rows });
+  };
+  const removeBlockTableRow = (bi, ri) => {
+    const rows = (blocks[bi].rows || []).filter((_, i) => i !== ri);
+    updateBlock(bi, { rows });
+  };
+
+  return (
+    <div>
+      {blocks.map((b, i) => (
+        <div key={i} style={{ marginBottom: '10px', position: 'relative' }}>
+          {editMode && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '3px', marginBottom: '4px' }}>
+              <button onClick={() => moveBlock(i, -1)} title="Move up"
+                style={{ background: '#8b6914', color: '#f5ecd9', border: 'none', padding: '2px 6px',
+                  cursor: 'pointer', borderRadius: '2px', fontSize: '10px' }}>▲</button>
+              <button onClick={() => moveBlock(i, 1)} title="Move down"
+                style={{ background: '#8b6914', color: '#f5ecd9', border: 'none', padding: '2px 6px',
+                  cursor: 'pointer', borderRadius: '2px', fontSize: '10px' }}>▼</button>
+              <button onClick={() => { if (blocks.length === 1 || window.confirm('Remove this block?')) removeBlock(i); }}
+                title="Remove block"
+                style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', padding: '2px 8px',
+                  cursor: 'pointer', borderRadius: '2px', fontSize: '10px' }}>✕</button>
+            </div>
+          )}
+
+          {b.type === 'text' && (
+            editMode ? (
+              <textarea
+                style={{ ...styles.textarea, minHeight: '70px' }}
+                value={b.body || ''}
+                placeholder="Paragraph text…"
+                onChange={(e) => updateBlock(i, { body: e.target.value })}
+              />
+            ) : b.body ? (
+              <p style={{ ...styles.bodyText, margin: '0 0 8px 0', whiteSpace: 'pre-wrap' }}>{b.body}</p>
+            ) : null
+          )}
+
+          {b.type === 'table' && (() => {
+            const cols = b.columns || [];
+            const rows = b.rows || [];
+            return (
+              <div style={{ overflowX: 'auto', marginBottom: '8px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse',
+                  fontFamily: '"Palatino Linotype", serif', fontSize: '12px' }}>
+                  <thead>
+                    <tr style={{ background: '#5c1414', color: '#f5ecd9' }}>
+                      {cols.map((c, ci) => (
+                        <th key={ci} style={{ padding: '4px 8px', textAlign: 'left',
+                          fontFamily: '"Cinzel", serif', fontSize: '10px', letterSpacing: '0.05em', fontWeight: 600 }}>
+                          {editMode ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <input value={c} onChange={(e) => updateBlockTableCol(i, ci, e.target.value)}
+                                style={{ flex: 1, background: 'rgba(255,255,255,0.15)', color: '#f5ecd9',
+                                  border: '1px solid rgba(255,255,255,0.3)', padding: '2px 4px',
+                                  fontFamily: '"Cinzel", serif', fontSize: '10px' }} />
+                              {cols.length > 1 && (
+                                <button onClick={() => removeBlockTableCol(i, ci)}
+                                  style={{ background: 'rgba(139,20,20,0.8)', color: '#f5ecd9', border: 'none',
+                                    borderRadius: '2px', padding: '1px 5px', cursor: 'pointer', fontSize: '9px' }}>✕</button>
+                              )}
+                            </div>
+                          ) : c}
+                        </th>
+                      ))}
+                      {editMode && (
+                        <th style={{ padding: '3px', width: '32px' }}>
+                          <button onClick={() => addBlockTableCol(i)} title="Add column"
+                            style={{ background: 'rgba(255,255,255,0.2)', color: '#f5ecd9', border: 'none',
+                              borderRadius: '2px', padding: '2px 6px', cursor: 'pointer', fontSize: '11px' }}>+</button>
+                        </th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((row, ri) => (
+                      <tr key={ri} style={{ background: ri % 2 === 0 ? 'rgba(255,250,240,0.6)' : 'rgba(201,165,92,0.1)',
+                        borderBottom: '1px solid rgba(139,105,20,0.12)' }}>
+                        {cols.map((_, ci) => (
+                          <td key={ci} style={{ padding: '4px 8px', color: '#3b2615' }}>
+                            {editMode ? (
+                              <input value={row[ci] || ''} onChange={(e) => updateBlockTableCell(i, ri, ci, e.target.value)}
+                                style={{ width: '100%', padding: '2px 4px', border: '1px solid #8b6914',
+                                  background: '#fff8e7', fontFamily: '"Palatino Linotype", serif', fontSize: '12px' }} />
+                            ) : (row[ci] || '')}
+                          </td>
+                        ))}
+                        {editMode && (
+                          <td style={{ padding: '3px', width: '32px' }}>
+                            <button onClick={() => removeBlockTableRow(i, ri)} title="Remove row"
+                              style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px',
+                                padding: '1px 5px', cursor: 'pointer', fontSize: '9px' }}>✕</button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {editMode && (
+                  <button onClick={() => addBlockTableRow(i)}
+                    style={{ ...styles.button, fontSize: '11px', padding: '4px 10px', marginTop: '4px' }}>
+                    + Add Row
+                  </button>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      ))}
+
+      {editMode && (
+        <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+          <button onClick={addTextBlock}
+            style={{ ...styles.button, fontSize: '11px', padding: '4px 10px' }}>
+            + Text
+          </button>
+          <button onClick={addTableBlock}
+            style={{ ...styles.button, fontSize: '11px', padding: '4px 10px' }}>
+            + Table
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Sections({ sections, editMode, onChange, headingStyle, category, entryId, identityFields }) {
   const isMobile = useIsMobile();
   const list = sections || [];
@@ -2410,13 +2632,12 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                 category={category}
                 entryId={`${entryId}-${sec.id || i}`}
               />
-              {editMode ? (
-                <textarea style={{ ...styles.textarea, minHeight: '100px' }} value={sec.body || ''}
-                  placeholder="Section content…"
-                  onChange={(e) => updateSection(i, { body: e.target.value })} />
-              ) : sec.body ? (
-                <p style={{ ...styles.bodyText, whiteSpace: 'pre-wrap' }}>{sec.body}</p>
-              ) : null}
+              <BlockBody
+                value={sec.body}
+                editMode={editMode}
+                onChange={(v) => updateSection(i, { body: v })}
+                placeholder="Section content…"
+              />
             </div>
           )}
 
@@ -2455,13 +2676,12 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                         {showLevel && <div style={styles.featureLevel}>Level {f.level}</div>}
                         <div style={styles.featureName}>{f.name}</div>
                       </>}
-                      {editMode ? (
-                        <textarea style={{ ...styles.textarea, minHeight: '80px' }} value={f.text || ''}
-                          placeholder="Feature mechanics…"
-                          onChange={(e) => updateFeature(i, fi, { text: e.target.value })} />
-                      ) : (
-                        <p style={{ ...styles.bodyText, margin: 0, whiteSpace: 'pre-wrap' }}>{f.text}</p>
-                      )}
+                      <BlockBody
+                        value={f.text}
+                        editMode={editMode}
+                        onChange={(v) => updateFeature(i, fi, { text: v })}
+                        placeholder="Feature mechanics…"
+                      />
                     </div>
                   );
                 })}
@@ -2634,14 +2854,12 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                       }}>
                         <div style={{ flex: 1, minWidth: 0, order: isMobile ? 2 : 1 }}>
                           {/* Description */}
-                          {editMode ? (
-                            <textarea style={{ ...styles.textarea, minHeight: '80px', marginBottom: '10px' }}
-                              value={entry.description || ''}
-                              placeholder="Entry description / lore…"
-                              onChange={(e) => updateEntry(i, ei, { description: e.target.value })} />
-                          ) : entry.description ? (
-                            <p style={{ ...styles.bodyText, whiteSpace: 'pre-wrap' }}>{entry.description}</p>
-                          ) : null}
+                          <BlockBody
+                            value={entry.description}
+                            editMode={editMode}
+                            onChange={(v) => updateEntry(i, ei, { description: v })}
+                            placeholder="Entry description / lore…"
+                          />
 
                           {/* Feature cards — sit in the same column as description so they wrap beside image */}
                           {(entry.features || []).map((f, fi) => (
@@ -2666,13 +2884,12 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                                 {showLevel(f.level) && <div style={styles.featureLevel}>Level {f.level}</div>}
                                 <div style={styles.featureName}>{f.name}</div>
                               </>}
-                              {editMode ? (
-                                <textarea style={{ ...styles.textarea, minHeight: '70px' }} value={f.body || ''}
-                                  placeholder="Feature mechanics…"
-                                  onChange={(e) => updateEntryFeature(i, ei, fi, { body: e.target.value })} />
-                              ) : (
-                                <p style={{ ...styles.bodyText, margin: 0, whiteSpace: 'pre-wrap' }}>{f.body}</p>
-                              )}
+                              <BlockBody
+                                value={f.body}
+                                editMode={editMode}
+                                onChange={(v) => updateEntryFeature(i, ei, fi, { body: v })}
+                                placeholder="Feature mechanics…"
+                              />
                             </div>
                           ))}
                           {editMode && (
