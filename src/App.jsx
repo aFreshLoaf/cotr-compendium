@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { loadFromSupabase, saveToSupabase, subscribeToUpdates, isDMAuthenticated, authenticateDM, clearDMSession, uploadImage, deleteImage } from './storage.js';
-import { Search, Book, Users, Sword, Shield, Sparkles, ScrollText, Edit3, Plus, X, Save, ChevronRight, Home, Skull, Eye, Trash2, Image as ImageIcon, Upload, Menu } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { loadFromSupabase, saveToSupabase, subscribeToUpdates, isDMAuthenticated, authenticateDM, clearDMSession, uploadImage, deleteImage, getDMPassword } from './storage.js';
+import { deriveDMKey, encryptContent, decryptContent, decryptSections, isEncrypted } from './dmcrypto.js';
+import { Search, Book, Users, Sword, Shield, Sparkles, ScrollText, Edit3, Plus, X, Save, ChevronRight, Home, Skull, Eye, Trash2, Image as ImageIcon, Upload, Menu, Lock } from 'lucide-react';
 
 // ============================================================
 // DEFAULT CONTENT — seeded from Mikey's homebrew documents
@@ -1322,6 +1323,18 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
 // STORAGE — Supabase-backed with smart merge
 // ============================================================
 
+// Module-level DM decryption key. Set once on app init (if a DM session is
+// active) via initDMKey(). loadContent and saveContent read it to decrypt/encrypt
+// dmOnly content at the Supabase boundary.
+let DM_KEY = null;
+export async function initDMKey() {
+  const pw = getDMPassword();
+  DM_KEY = pw ? await deriveDMKey(pw) : null;
+  return DM_KEY;
+}
+function getActiveDMKey() { return DM_KEY; }
+function clearActiveDMKey() { DM_KEY = null; }
+
 async function loadContent() {
   try {
     const cached = await loadFromSupabase();
@@ -1462,7 +1475,7 @@ async function loadContent() {
           mergedClasses.push(Array.isArray(entry.sections) ? entry : migrateEntryToSections(entry, 'class'));
         }
       }
-      return {
+      const mergedContent = {
         ...DEFAULT_CONTENT,
         ...cached,
         // Always trust the canonical orderings from defaults
@@ -1483,6 +1496,9 @@ async function loadContent() {
         characters: mergedCharacters,
         classes: mergedClasses,
       };
+      // Decrypt any dmOnly content if a DM key is available; otherwise dmOnly
+      // content stays as ciphertext and renders as locked.
+      return await decryptContent(mergedContent, getActiveDMKey());
     }
   } catch (e) {
     // Key doesn't exist yet — return defaults
@@ -1499,7 +1515,10 @@ async function loadContent() {
 
 async function saveContent(content) {
   try {
-    await saveToSupabase(content);
+    // Encrypt dmOnly sections/blocks before persisting. If no DM key is active,
+    // dmOnly content is already ciphertext (loaded that way) and passes through.
+    const toSave = await encryptContent(content, getActiveDMKey());
+    await saveToSupabase(toSave);
     return true;
   } catch (e) {
     console.error('Save failed:', e);
@@ -2333,7 +2352,7 @@ function EditableHeading({ as = 'h2', value, defaultValue, onChange, editMode, s
 // Field starts as a plain string. Clicking "+ Insert Table" in edit mode upgrades
 // it to a blocks array. Once an array, it stays an array even if all tables are
 // removed — but that has no visible effect on the rendered output.
-function BlockBody({ value, editMode, onChange, placeholder, content, goTo }) {
+function BlockBody({ value, editMode, onChange, placeholder, content, goTo, isDM }) {
   const isBlocks = Array.isArray(value);
 
   // ── String mode (back-compat) ──────────────────────────────────────────
@@ -2393,6 +2412,7 @@ function BlockBody({ value, editMode, onChange, placeholder, content, goTo }) {
     { type: 'table', columns: ['Column A', 'Column B'], rows: [['', ''], ['', '']] }]);
   const addLinksBlock = () => onChange([...blocks,
     { type: 'links', items: [] }]);
+  const addDMBlock = () => onChange([...blocks, { type: 'dm', body: '' }]);
 
   // ── Link helpers ─────────────────────────────────────────────────
   const updateLink = (bi, li, fields) => {
@@ -2495,6 +2515,38 @@ function BlockBody({ value, editMode, onChange, placeholder, content, goTo }) {
             ) : b.body ? (
               <p style={{ ...styles.bodyText, margin: '0 0 8px 0', whiteSpace: 'pre-wrap' }}>{b.body}</p>
             ) : null
+          )}
+
+          {b.type === 'dm' && (
+            // Non-DM viewers never see DM blocks at all (in view mode).
+            (!isDM && !editMode) ? null : (
+              editMode ? (
+                <div style={{ borderLeft: '4px solid #7a1f1f', paddingLeft: '10px',
+                  background: 'rgba(92,20,20,0.05)', borderRadius: '2px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', margin: '4px 0',
+                    color: '#7a1f1f', fontSize: '10px', fontFamily: '"Cinzel", serif',
+                    textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    <Lock size={11} /> DM Only
+                  </div>
+                  <textarea
+                    style={{ ...styles.textarea, minHeight: '70px' }}
+                    value={b.body || ''}
+                    placeholder="DM-only note (encrypted on save)…"
+                    onChange={(e) => updateBlock(i, { body: e.target.value })}
+                  />
+                </div>
+              ) : (isDM && b.body && !isEncrypted(b.body)) ? (
+                <div style={{ borderLeft: '4px solid #c9a55c', paddingLeft: '10px',
+                  background: 'rgba(201,165,92,0.08)', borderRadius: '2px', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', margin: '4px 0',
+                    color: '#8b6914', fontSize: '10px', fontFamily: '"Cinzel", serif',
+                    textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    <Lock size={11} /> DM Only
+                  </div>
+                  <p style={{ ...styles.bodyText, margin: '0 0 6px 0', whiteSpace: 'pre-wrap' }}>{b.body}</p>
+                </div>
+              ) : null
+            )
           )}
 
           {b.type === 'table' && (() => {
@@ -2690,13 +2742,20 @@ function BlockBody({ value, editMode, onChange, placeholder, content, goTo }) {
             style={{ ...styles.button, fontSize: '11px', padding: '4px 10px' }}>
             + Links
           </button>
+          {isDM && (
+            <button onClick={addDMBlock}
+              style={{ ...styles.button, fontSize: '11px', padding: '4px 10px',
+                background: '#5c1414', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+              <Lock size={10} /> + DM
+            </button>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-function Sections({ sections, editMode, onChange, headingStyle, category, entryId, identityFields, content, goTo }) {
+function Sections({ sections, editMode, onChange, headingStyle, category, entryId, identityFields, content, goTo, isDM }) {
   const isMobile = useIsMobile();
   const list = sections || [];
   const updateSection = (i, fields) => onChange(list.map((s, idx) => idx === i ? { ...s, ...fields } : s));
@@ -2715,6 +2774,7 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
     columns: ['Column A', 'Column B'], rows: [['', '']] }]);
   const addImageSection   = () => onChange([...list, { id: newId(), heading: 'New Illustration', type: 'image', media: null, caption: '' }]);
   const addSubcategorySection = () => onChange([...list, { id: newId(), heading: 'New Subcategory', type: 'subcategory', lore: '', entries: [] }]);
+  const addDMSection = () => onChange([...list, { id: newId(), heading: 'DM Notes', type: 'text', body: '', dmOnly: true }]);
 
   // ── Subcategory entry helpers ────────────────────────────────────
   const updateEntry = (sectionIdx, entryIdx, fields) => {
@@ -2813,18 +2873,55 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
     <>
       {list.map((sec, i) => {
         const isIdentity = sec.type === 'identity';
+
+        // DM-only section that the current viewer can't decrypt: show a locked card.
+        // Detect "locked" by the heading still being ciphertext (enc:: prefix).
+        if (sec.dmOnly && !isDM) {
+          return (
+            <div key={sec.id || i} style={{ marginTop: '28px', clear: 'both' }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '10px',
+                padding: '16px 20px',
+                background: 'rgba(92, 20, 20, 0.06)',
+                border: '1px dashed #7a1f1f',
+                borderRadius: '3px',
+                color: '#7a1f1f',
+              }}>
+                <Lock size={18} />
+                <span style={{ fontFamily: '"Cinzel", serif', fontSize: '13px',
+                  letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                  DM Only — Locked
+                </span>
+              </div>
+            </div>
+          );
+        }
+
         return (
-        <div key={sec.id || i} style={{ marginTop: isIdentity ? '12px' : '28px', clear: 'both' }}>
+        <div key={sec.id || i} style={{
+          marginTop: isIdentity ? '12px' : '28px',
+          clear: 'both',
+          ...(sec.dmOnly ? {
+            border: '1px solid rgba(122, 31, 31, 0.4)',
+            borderLeft: '4px solid #7a1f1f',
+            borderRadius: '3px',
+            padding: '12px 16px',
+            background: 'rgba(92, 20, 20, 0.04)',
+          } : {}),
+        }}>
           {!isIdentity ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-              <div style={{ flex: 1 }}>
-                <EditableHeading as="h2"
-                  value={sec.heading}
-                  defaultValue="Section"
-                  onChange={(v) => updateSection(i, { heading: v })}
-                  editMode={editMode}
-                  style={headingStyle}
-                />
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {sec.dmOnly && <Lock size={15} style={{ color: '#7a1f1f', flexShrink: 0 }} />}
+                <div style={{ flex: 1 }}>
+                  <EditableHeading as="h2"
+                    value={sec.heading}
+                    defaultValue="Section"
+                    onChange={(v) => updateSection(i, { heading: v })}
+                    editMode={editMode}
+                    style={headingStyle}
+                  />
+                </div>
               </div>
               {editMode && (
                 <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
@@ -2931,6 +3028,7 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                 placeholder="Section content…"
               content={content}
                         goTo={goTo}
+                        isDM={isDM}
                       />
             </div>
           )}
@@ -2949,7 +3047,7 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                 {(sec.features || []).map((f, fi) => {
                   const showLevel = f.level != null && f.level !== '' && Number(f.level) > 0;
                   return (
-                    <div key={fi} style={styles.featureCard}>
+                    <div key={fi} className="feature-card" style={styles.featureCard}>
                       {editMode ? (
                         <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
                           <span style={{ fontSize: '11px', color: '#8b6914' }}>Lvl</span>
@@ -2977,6 +3075,7 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                         placeholder="Feature mechanics…"
                       content={content}
                         goTo={goTo}
+                        isDM={isDM}
                       />
                     </div>
                   );
@@ -3157,11 +3256,12 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                             placeholder="Entry description / lore…"
                           content={content}
                         goTo={goTo}
+                        isDM={isDM}
                       />
 
                           {/* Feature cards — sit in the same column as description so they wrap beside image */}
                           {(entry.features || []).map((f, fi) => (
-                            <div key={fi} style={styles.featureCard}>
+                            <div key={fi} className="feature-card" style={styles.featureCard}>
                               {editMode ? (
                                 <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
                                   <span style={{ fontSize: '11px', color: '#8b6914' }}>Lvl</span>
@@ -3189,6 +3289,7 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                                 placeholder="Feature mechanics…"
                               content={content}
                         goTo={goTo}
+                        isDM={isDM}
                       />
                             </div>
                           ))}
@@ -3260,6 +3361,13 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
             style={{ ...styles.button, fontSize: '12px', padding: '6px 14px' }}>+ Illustration</button>
           <button onClick={addSubcategorySection}
             style={{ ...styles.button, fontSize: '12px', padding: '6px 14px' }}>+ Subcategory</button>
+          {isDM && (
+            <button onClick={addDMSection}
+              style={{ ...styles.button, fontSize: '12px', padding: '6px 14px',
+                background: '#5c1414', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <Lock size={12} /> + DM Section
+            </button>
+          )}
         </div>
       )}
     </>
@@ -3710,14 +3818,22 @@ export default function Compendium() {
   const [dmAuthed, setDmAuthed] = useState(isDMAuthenticated());
 
   useEffect(() => {
-    loadContent().then((c) => {
-      setContent(c);
-      setLoading(false);
+    // Derive the DM decryption key first (if a DM session is active), then load.
+    initDMKey().then(() => {
+      loadContent().then((c) => {
+        setContent(c);
+        setLoading(false);
+      });
     });
     // Subscribe to real-time updates from other clients
     const unsubscribe = subscribeToUpdates((remoteContent) => {
       // While editing, ignore remote updates to avoid clobbering in-progress edits
-      setContent((current) => editModeRef.current ? current : mergeContent(remoteContent, current));
+      if (editModeRef.current) return;
+      const merged = mergeContent(remoteContent, null);
+      // Decrypt dmOnly content (async) before applying to state
+      decryptContent(merged, getActiveDMKey()).then((decrypted) => {
+        if (!editModeRef.current) setContent(decrypted);
+      });
     });
     return unsubscribe;
   }, []);
@@ -3779,6 +3895,10 @@ export default function Compendium() {
       setShowPasswordModal(false);
       setPasswordInput('');
       setPasswordError('');
+      // Derive the DM key and reload so any locked dmOnly content decrypts.
+      initDMKey().then(() => {
+        loadContent().then((c) => setContent(c));
+      });
     } else {
       setPasswordError('Incorrect password.');
     }
@@ -3899,47 +4019,91 @@ export default function Compendium() {
   const searchResults = useMemo(() => {
     if (!search.trim()) return null;
     const q = search.toLowerCase();
+
+    // Collect searchable text from an entry's sections[]. Skips dmOnly sections
+    // for non-DM viewers (their content is ciphertext anyway). Returns
+    // { text: combined lowercased string, snippet: best matching excerpt }.
+    const harvestSections = (sections) => {
+      if (!Array.isArray(sections)) return { parts: [] };
+      const parts = [];
+      const pushStr = (s) => { if (typeof s === 'string' && s) parts.push(s); };
+      const harvestBlocks = (blocks) => {
+        if (!Array.isArray(blocks)) { pushStr(blocks); return; }
+        blocks.forEach((b) => {
+          if (b.type === 'dm' && !dmAuthed) return; // skip locked dm blocks
+          pushStr(b.body);
+          (b.columns || []).forEach(pushStr);
+          (b.rows || []).forEach((row) => (row || []).forEach(pushStr));
+          // links blocks: include external labels
+          (b.items || []).forEach((it) => pushStr(it.label));
+        });
+      };
+      sections.forEach((sec) => {
+        if (sec.dmOnly && !dmAuthed) return; // skip locked sections entirely
+        pushStr(sec.heading);
+        pushStr(sec.lore);
+        pushStr(sec.caption);
+        harvestBlocks(sec.body);
+        (sec.features || []).forEach((f) => {
+          pushStr(f.name);
+          harvestBlocks(f.text);
+        });
+        (sec.columns || []).forEach(pushStr);
+        (sec.rows || []).forEach((row) => (row || []).forEach(pushStr));
+        (sec.entries || []).forEach((e) => {
+          pushStr(e.name);
+          pushStr(e.flavor);
+          harvestBlocks(e.description);
+          (e.features || []).forEach((f) => { pushStr(f.name); harvestBlocks(f.body); });
+        });
+      });
+      return { parts };
+    };
+
+    // Build a short snippet around the first match for display context.
+    const makeSnippet = (parts, lowerQ) => {
+      for (const p of parts) {
+        const idx = p.toLowerCase().indexOf(lowerQ);
+        if (idx !== -1) {
+          const start = Math.max(0, idx - 40);
+          const end = Math.min(p.length, idx + lowerQ.length + 40);
+          let snip = p.slice(start, end).replace(/\s+/g, ' ').trim();
+          if (start > 0) snip = '…' + snip;
+          if (end < p.length) snip = snip + '…';
+          return snip;
+        }
+      }
+      return null;
+    };
+
     const hits = [];
-    content.races.forEach((r) => {
-      const matches = r.name.toLowerCase().includes(q)
-        || r.description?.toLowerCase().includes(q)
-        || r.summary?.toLowerCase().includes(q)
-        || r.tagline?.toLowerCase().includes(q)
-        || (r.parentRace && r.parentRace.toLowerCase().includes(q));
-      if (matches) {
-        const isSubrace = r.parentRace && !r.isParent && r.parentRace !== r.name;
+    const scan = (entry, type, section, parent) => {
+      const nameMatch = (entry.name || '').toLowerCase().includes(q);
+      const { parts } = harvestSections(entry.sections);
+      const sectionMatch = parts.some((p) => p.toLowerCase().includes(q));
+      // Legacy field fallback (older entries not yet migrated)
+      const legacyMatch = entry.summary?.toLowerCase().includes(q)
+        || entry.description?.toLowerCase().includes(q)
+        || entry.tagline?.toLowerCase().includes(q)
+        || (parent && parent.toLowerCase().includes(q));
+      if (nameMatch || sectionMatch || legacyMatch) {
         hits.push({
-          type: isSubrace ? 'Subrace' : 'Race',
-          id: r.id,
-          name: r.name,
-          section: 'races',
-          parent: isSubrace ? r.parentRace : null,
+          type, id: entry.id, name: entry.name, section, parent: parent || null,
+          snippet: !nameMatch ? makeSnippet(parts, q) : null,
         });
       }
+    };
+
+    content.races.forEach((r) => {
+      const isSubrace = r.parentRace && !r.isParent && r.parentRace !== r.name;
+      scan(r, isSubrace ? 'Subrace' : 'Race', 'races', isSubrace ? r.parentRace : null);
     });
-    content.classes.forEach((c) => {
-      if (c.name.toLowerCase().includes(q) || c.summary?.toLowerCase().includes(q)) {
-        hits.push({ type: 'Class', id: c.id, name: c.name, section: 'classes' });
-      }
-    });
-    content.subclasses.forEach((s) => {
-      if (s.name.toLowerCase().includes(q) || s.summary?.toLowerCase().includes(q) || s.parentClass?.toLowerCase().includes(q)) {
-        hits.push({ type: 'Subclass', id: s.id, name: s.name, section: 'subclasses', parent: s.parentClass });
-      }
-    });
-    content.characters.forEach((ch) => {
-      const matches = ch.name.toLowerCase().includes(q)
-        || ch.summary?.toLowerCase().includes(q)
-        || ch.campaign?.toLowerCase().includes(q)
-        || ch.race?.toLowerCase().includes(q)
-        || ch.class?.toLowerCase().includes(q)
-        || (ch.keyTraits || []).some((t) => t.toLowerCase().includes(q));
-      if (matches) {
-        hits.push({ type: 'Character', id: ch.id, name: ch.name, section: 'characters', parent: ch.campaign });
-      }
-    });
+    content.classes.forEach((c) => scan(c, 'Class', 'classes', null));
+    content.subclasses.forEach((s) => scan(s, 'Subclass', 'subclasses', s.parentClass));
+    content.characters.forEach((ch) => scan(ch, 'Character', 'characters', ch.campaign));
+
     return hits;
-  }, [search, content]);
+  }, [search, content, dmAuthed]);
 
   if (loading) {
     return (
@@ -4002,7 +4166,8 @@ export default function Compendium() {
   };
 
   return (
-    <div style={styles.page}>
+    <div style={styles.page} className="app-page">
+      <div className="no-print">
       <Header
         content={content}
         editMode={editMode}
@@ -4015,8 +4180,9 @@ export default function Compendium() {
         isMobile={isMobile}
         onMenuClick={() => setSidebarOpen(true)}
       />
+      </div>
 
-      <div style={styles.layout}>
+      <div style={styles.layout} className="app-layout">
         {/* Mobile backdrop — clickable area to close sidebar */}
         {isMobile && sidebarOpen && (
           <div
@@ -4032,7 +4198,7 @@ export default function Compendium() {
             }}
           />
         )}
-        <aside style={{
+        <aside className="no-print" style={{
           ...styles.sidebar,
           ...(isMobile ? {
             position: 'fixed',
@@ -4370,11 +4536,11 @@ export default function Compendium() {
           })}
         </aside>
 
-        <main style={{
+        <main className="app-main" style={{
           ...styles.main,
           ...(isMobile ? { padding: '20px 16px', width: '100%' } : {}),
         }}>
-          <div style={styles.mainInner}>
+          <div style={styles.mainInner} className="printable">
             {searchResults ? (
               <SearchResults results={searchResults} onClick={goTo} query={search} />
             ) : section === 'home' ? (
@@ -4382,13 +4548,13 @@ export default function Compendium() {
             ) : section === 'campaign' ? (
               <CampaignPage content={content} editMode={editMode} persistChange={persistChange} />
             ) : section === 'races' ? (
-              <RacesPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} goTo={goTo} />
+              <RacesPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} goTo={goTo} isDM={dmAuthed} />
             ) : section === 'classes' ? (
-              <ClassesPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} goTo={goTo} />
+              <ClassesPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} goTo={goTo} isDM={dmAuthed} />
             ) : section === 'subclasses' ? (
-              <SubclassesPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} goTo={goTo} />
+              <SubclassesPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} goTo={goTo} isDM={dmAuthed} />
             ) : section === 'characters' ? (
-              <CharactersPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} goTo={goTo} />
+              <CharactersPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} goTo={goTo} isDM={dmAuthed} />
             ) : null}
           </div>
         </main>
@@ -4548,6 +4714,13 @@ function Header({ content, editMode, dirty, onEditToggle, onSave, onDiscard, onM
                 </button>
               </>
             )}
+            <button
+              style={styles.buttonGhost}
+              onClick={() => window.print()}
+              title="Print or save this page as PDF"
+            >
+              <ScrollText size={14} /> Print
+            </button>
             <button
               style={editMode ? styles.button : styles.buttonGhost}
               onClick={onEditToggle}
@@ -4755,7 +4928,7 @@ function CampaignPage({ content, editMode, persistChange }) {
   );
 }
 
-function RacesPage({ content, activeId, editMode, persistChange, goTo }) {
+function RacesPage({ content, activeId, editMode, persistChange, goTo, isDM }) {
   const race = content.races.find((r) => r.id === activeId) || content.races[0];
   if (!race) return <p style={styles.bodyText}>No races defined.</p>;
 
@@ -4797,12 +4970,13 @@ function RacesPage({ content, activeId, editMode, persistChange, goTo }) {
         entryId={race.id}
         content={content}
         goTo={goTo}
+        isDM={isDM}
       />
     </div>
   );
 }
 
-function ClassesPage({ content, activeId, editMode, persistChange, goTo }) {
+function ClassesPage({ content, activeId, editMode, persistChange, goTo, isDM }) {
   const cls = content.classes.find((c) => c.id === activeId) || content.classes[0];
   if (!cls) return <p style={styles.bodyText}>No classes defined.</p>;
 
@@ -4835,12 +5009,13 @@ function ClassesPage({ content, activeId, editMode, persistChange, goTo }) {
         entryId={cls.id}
         content={content}
         goTo={goTo}
+        isDM={isDM}
       />
     </div>
   );
 }
 
-function SubclassesPage({ content, activeId, editMode, persistChange, goTo }) {
+function SubclassesPage({ content, activeId, editMode, persistChange, goTo, isDM }) {
   const sub = content.subclasses.find((s) => s.id === activeId) || content.subclasses[0];
   if (!sub) return <p style={styles.bodyText}>No subclasses defined.</p>;
 
@@ -4873,12 +5048,13 @@ function SubclassesPage({ content, activeId, editMode, persistChange, goTo }) {
         entryId={sub.id}
         content={content}
         goTo={goTo}
+        isDM={isDM}
       />
     </div>
   );
 }
 
-function CharactersPage({ content, activeId, editMode, persistChange, goTo }) {
+function CharactersPage({ content, activeId, editMode, persistChange, goTo, isDM }) {
   const ch = content.characters.find((c) => c.id === activeId) || content.characters[0];
   if (!ch) return <p style={styles.bodyText}>No characters defined.</p>;
 
@@ -4933,6 +5109,7 @@ function CharactersPage({ content, activeId, editMode, persistChange, goTo }) {
         entryId={ch.id}
         content={content}
         goTo={goTo}
+        isDM={isDM}
         identityFields={{ entry: ch, update: updateCh, fieldRow }}
       />
     </div>
@@ -4952,9 +5129,16 @@ function SearchResults({ results, onClick, query }) {
             style={{ ...styles.card, cursor: 'pointer' }}
             onClick={() => onClick(r.section, r.id)}
           >
-            <span style={styles.pill}>{r.type}</span>
-            <strong style={{ fontFamily: '"Cinzel", serif', color: '#3b2615' }}>{r.name}</strong>
-            {r.parent && <span style={{ color: '#8b6914', fontSize: '13px', marginLeft: '8px' }}>({r.parent})</span>}
+            <div>
+              <span style={styles.pill}>{r.type}</span>
+              <strong style={{ fontFamily: '"Cinzel", serif', color: '#3b2615' }}>{r.name}</strong>
+              {r.parent && <span style={{ color: '#8b6914', fontSize: '13px', marginLeft: '8px' }}>({r.parent})</span>}
+            </div>
+            {r.snippet && (
+              <p style={{ ...styles.bodyText, margin: '6px 0 0 0', fontSize: '13px', color: '#5c4020' }}>
+                …matched: <em>{r.snippet}</em>
+              </p>
+            )}
           </div>
         ))
       )}

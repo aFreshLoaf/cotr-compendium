@@ -23,6 +23,14 @@ export function clearDMSession() {
   sessionStorage.removeItem(SESSION_KEY);
 }
 
+// Returns the active DM password (from session) for key derivation, or null.
+// When no password is configured, returns a fixed dev key so encryption still
+// round-trips locally.
+export function getDMPassword() {
+  if (!DM_PASSWORD) return 'cotr-local-dev-key';
+  return sessionStorage.getItem(SESSION_KEY) === DM_PASSWORD ? DM_PASSWORD : null;
+}
+
 // ── Load ───────────────────────────────────────────────────────────────────
 export async function loadFromSupabase() {
   if (!supabaseConfigured || !supabase) {

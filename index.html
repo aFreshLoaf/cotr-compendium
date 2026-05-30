@@ -23,6 +23,32 @@
         table { font-size: 12px !important; }
         table th, table td { padding: 4px 6px !important; }
       }
+
+      /* ── Print layout ───────────────────────────────────────────────
+         Hide all app chrome and render only the active entry content as a
+         clean single-column document. Triggered by the Print button
+         (window.print()) or the browser's native print. */
+      @media print {
+        body { background: #fff !important; }
+        .no-print { display: none !important; }
+        /* Unlock the fixed-height scrolling layout so content flows naturally */
+        .app-page { height: auto !important; display: block !important; }
+        .app-layout { display: block !important; height: auto !important; overflow: visible !important; }
+        .app-main {
+          overflow: visible !important;
+          height: auto !important;
+          padding: 0 !important;
+          max-width: 100% !important;
+        }
+        .printable { max-width: 100% !important; }
+        /* Avoid breaking feature cards / entries across pages where possible */
+        .feature-card, .subcat-entry { break-inside: avoid; }
+        /* Black text on white for ink economy and legibility */
+        h1, h2, h3, p, td, th, div, span { color: #1a1a1a !important; }
+        /* Keep table header shading subtle in print */
+        thead tr { background: #ddd !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        a { text-decoration: none; color: #1a1a1a !important; }
+      }
     </style>
   </head>
   <body>
