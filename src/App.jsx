@@ -1328,9 +1328,8 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
 
 // New per-entry storage (storage2.js) handles load/save. These thin wrappers
 // keep the existing call sites working and inject staff status where needed.
-// The legacy single-blob loadContent/saveContent and the client-side DM
-// encryption layer are retired — RLS now partitions DM content server-side.
-// (dmcrypto.js remains in the tree, dormant, to be removed in a later pass.)
+// DM content is partitioned server-side by RLS (public `data` vs staff-only
+// `dm_data`); there is no client-side encryption layer.
 async function loadContent(isStaff) {
   return await loadContent2(!!isStaff);
 }
@@ -1814,216 +1813,6 @@ function seedSectionsForType(type, opts = {}) {
   }
 }
 
-// TODO: REMOVE AFTER INITIAL SEED — Canonical lore quotes used by injectQuotes().
-const ENTRY_QUOTES = {
-  'aerial-sniper': 'From high enough, everything is still. That\'s when I prefer to shoot.',
-  'aerothel': 'Up is a direction other races treat as a destination. We treat it as a starting point.',
-  'air-acrobat': 'Gravity is a perfectly fine teacher. I simply graduated early.',
-  'air-blade': 'The cut arrives before the wind. The wind arrives before the sound. The sound arrives while you\'re wondering what happened.',
-  'air-guard': 'Stand behind me. Not because I told you to — because the wind is coming from that direction.',
-  'armorwright': 'Anyone can swing a sword. I prefer the kind of armor that swings back.',
-  'asarin': 'We were scattered. We remained. Scattered and remaining is not the same as broken.',
-  'astravori': 'Born under different stars than you. That explains more than either of us is comfortable admitting.',
-  'blood-knight': 'The wound reminds me I\'m still in the fight. I find that motivating.',
-  'catapult': 'The boulder doesn\'t know you\'re a person. I\'ve decided that\'s your problem.',
-  'circle-of-dragons': 'The oldest trees remember when they were afraid of something. They don\'t remember what.',
-  'circle-of-lycanthropy': 'On the full moon my congregants ask what it\'s like. I tell them it\'s like the most honest version of yourself, if your most honest self had better teeth.',
-  'circle-of-poison': 'Everything in nature is medicine or poison. The dose is the only difference, and I am very careful about the dose.',
-  'circle-of-the-fey': 'The forest doesn\'t lie. It just tells a different truth than the one you came looking for.',
-  'col': 'Built, not born. Chose, not assigned. The things that make me unusual are the only things about me that are entirely mine.',
-  'college-of-arcane-marksman': 'The arrow is the punchline. The song is everything before it.',
-  'college-of-souls': 'The dead have the best stories. You just have to be willing to listen very, very closely.',
-  'college-of-the-siren': 'They were going to say no. Then I started singing. They still said no, actually, but they cried about it, and that\'s something.',
-  'college-of-the-sun': 'Light doesn\'t ask your permission before it finds you.',
-  'crivans': 'We adapt. Not as a skill — as a fact of biology. The world changes, we change. We have been changing for a very long time.',
-  'crocothians': 'Patience is not waiting. Patience is knowing that the water will come to you, and being ready when it does.',
-  'dancing-flames': 'My grandmother said fire was life. My enemies say fire is the last thing they saw. We\'re both right.',
-  'death-knights-curse': 'The curse gave me power in exchange for something I hadn\'t fully finished using. I have mixed feelings about the deal.',
-  'deity-hunter-conclave': 'I\'ve hunted everything. Gods are just the ones that know they\'re being followed.',
-  'deity-nightmare-sect': 'Gods dream too. I have been to several of those dreams. None of them were pleasant.',
-  'devouring-flames': 'Fire doesn\'t have favorites. I am teaching it to have favorites.',
-  'dhampir': 'Half one thing, half another. Fully neither. I have made my peace with the fraction.',
-  'divine-wrath': 'I didn\'t choose this power. It chose me, loudly, in the middle of a crowded market. Several things caught fire.',
-  'domain-of-archangels': 'I don\'t carry a divine mandate. The divine mandate carries me.',
-  'domain-of-might': 'My god speaks in impact. I am fluent.',
-  'domain-of-platinum-dragon': 'Bahamut doesn\'t ask his servants to be invincible. He asks them to be present. The invincibility tends to follow.',
-  'dracolytes': 'The dragon\'s blood runs thin by the third generation. The stubbornness does not.',
-  'dragon-knight': 'The dragon didn\'t choose me because I was fearless. It chose me because my fear burns hot enough to be useful.',
-  'earth-shaker': 'I asked the ground to stop being polite. It agreed immediately.',
-  'earth-smith': 'The mountain doesn\'t rush. Neither do I. But we both arrive.',
-  'echoborn': 'We don\'t carry sound. We carry the shape of it — what it meant, who made it, and why they needed to.',
-  'elamesta': 'There are five elements. The fifth one is why the other four are nervous.',
-  'electric-flames': 'Lightning in a fire. Fire in lightning. My enemies call it overkill. I call it thorough.',
-  'elementalist-savant': 'Four elements. Four solutions. Whichever one you\'re not expecting.',
-  'eye-of-eternity-sect': 'I don\'t see the future. I see every future. Choosing which one to tell you about is the courtesy.',
-  'flames-of-life': 'The same fire that burns a wound closed can burn a barn down. What you do with heat is a choice.',
-  'gildratene': 'Gold is what we\'re made of in the stories. In practice we\'re made of the same things as everyone else, just arranged more attractively.',
-  'godslayer-artificer': 'The gods bleed the same color as everyone else. I just needed better instruments to prove it.',
-  'gravitorian': 'Gravity isn\'t a law. It\'s a suggestion, and I have begun ignoring suggestions.',
-  'head-hunter-conclave': 'I don\'t track prey. I track choices. Eventually, everyone\'s choices bring them somewhere they shouldn\'t be.',
-  'heiralis': 'We remember forward as well as back. Prophecy is just memory that hasn\'t arrived yet.',
-  'heldums': 'The mountain raised us. Not as a metaphor — literally the mountain. We find flatlands unsettling.',
-  'ice-blade': 'Cold enough and water becomes something that doesn\'t forgive.',
-  'kyithkin': 'The carapace is not armor. It grew there. The distinction is that armor can be removed.',
-  'lichs-curse': 'He told me the transformation would be enlightening. He was technically correct in the most frustrating way.',
-  'littorins': 'Tiny. Fast. Extremely hungry. Three things that are underestimated in combination.',
-  'lycara': 'Two natures is only a contradiction if you insist on choosing one. I have stopped insisting.',
-  'malakar': 'The infernal heritage doesn\'t define us. It\'s more like... a difficult relative who comes up in conversation more than we\'d prefer.',
-  'mind-ravager-sect': 'You\'re still thinking in here. That\'s fine. I\'ll wait.',
-  'mortal-guardian': 'I am not here because I cannot die. I am here because I have decided not to yet.',
-  'mournir': 'We carry the grief of things that haven\'t happened yet. It\'s heavy, but it makes us careful.',
-  'oath-of-heavenly-flame': 'The flame doesn\'t purge because it wants to. It purges because that is its function. I have accepted this about myself.',
-  'oath-of-necrosis': 'I swore to protect what matters. What matters sometimes requires a different kind of oath.',
-  'oath-of-renewal': 'I don\'t save people because I think they can be better. I save them because I know they already are.',
-  'oath-of-soul-destruction': 'Some things should not continue to exist. I have been given the authority to make that determination.',
-  'oath-of-the-arcane': 'The law of magic and the law of justice are the same law. I simply enforce both.',
-  'onikara': 'The masks have names. The faces under them also have names. Ask the right one.',
-  'order-of-hidden-hand': 'You won\'t see me coming. That\'s not arrogance — it\'s a calibrated promise.',
-  'order-of-the-mender': 'The mind breaks before the body does, usually. I work on the part that breaks first.',
-  'orokong': 'The size is not the point. The size is a side effect of the point.',
-  'pact-of-dragon-goddess': 'She asked me what I\'d give for her blessing. I told her anything. She smiled and said: good. That one counts.',
-  'pact-of-the-evalune': 'The Evalune doesn\'t give power. It offers perspective. The power is what you do with the perspective.',
-  'pact-of-vampirism': 'The pact required something in exchange for power. What I gave up was a sense of urgency about mortality. Honestly, fair trade.',
-  'path-of-the-drunk': 'Some warriors find their center through meditation. I find mine through the second bottle.',
-  'path-of-the-godhood': 'The difference between a god and me is that I\'m already here.',
-  'path-of-the-tarasque': 'Something hit him with a siege bolt last Drandathor. He said it tickled. I believe him. — Field report, Vanera settlement garrison',
-  'path-of-the-umber-hulk': 'He doesn\'t charge into battle. He becomes the reason battle ends. — Thourmose, on a colleague',
-  'path-of-the-war-ravager': 'I don\'t stop because I\'m winning. I stop because everyone else has.',
-  'primordial-bladeweaver': 'The blade doesn\'t have an edge. The space around it does.',
-  'psionic-executioner-sect': 'The link is already established. The rest of this conversation is just paperwork.',
-  'radiant-wave': 'The tide doesn\'t ask the shore for permission.',
-  'raka': 'Still water finds the depth by going down. We find it by going in.',
-  'reaper-of-souls-archetype': 'I don\'t take lives. I complete transactions that were always going to close.',
-  'salamandras': 'We don\'t seek warmth. We produce it. The distinction matters more than you\'d think.',
-  'school-of-bladebinding': 'The sword learns. After enough fights, it starts to anticipate. After enough years, it stops needing me to aim.',
-  'school-of-desecration': 'The others said my approach was unethical. They said this from behind a very safe distance.',
-  'school-of-infernal-summoning': 'The contract is very specific. That is the point of the contract. I am very good at contracts.',
-  'school-of-prismatics': 'Light separated is everything at once. I have always preferred everything at once.',
-  'school-of-vacuus': 'The opposite of a thing contains the shape of the thing. I learned to work with the shape.',
-  'shadowy-arrow-conclave': 'The first arrow tells you I\'m here. There isn\'t a second arrow.',
-  'shinobis-blade-archetype': 'There is a tradition here that goes back further than your kingdom. You are not the first obstacle, and I am not the last of us.',
-  'solari': 'Light is information. We were made to carry the message, not read it for you.',
-  'stone-shield': 'You\'ll have to go through the mountain to get to them. I am the mountain today.',
-  'storden': 'Built like walls. Move like doors. The difference matters at precisely the right moment.',
-  'surgeon-of-shadows-archetype': 'I don\'t aim for center mass. I aim for the thing that makes you want to keep fighting. That way it\'s quicker for everyone.',
-  'tasuma': 'The sandstorm doesn\'t hate you. It just doesn\'t care about you. I have practiced that.',
-  'tauren': 'Small means something different underground. Underground, small means fast, invisible, and already past you.',
-  'thornara': 'The thorns are not decorative. Everything about us that looks decorative is not decorative.',
-  'valkyrie': 'She didn\'t win the battle. She convinced the battle that losing was its own idea. — Chronicle of the Ashfen campaigns',
-  'vanir-archetype': 'I was trained by ghosts. They said I had a gift for this. I chose to take that as a compliment.',
-  'varnok': 'We have been here since the stone was soft. We will be here when the stone remembers.',
-  'vekkens': 'Precision is not coldness. I care very much about getting it right.',
-  'venira': 'The current takes you where you need to go, if you stop fighting it. We stopped fighting it several centuries ago.',
-  'venomous-hunter-conclave': 'The forest has been poisoning things long before I arrived. I simply have better aim.',
-  'void-clasher': 'Two voids meet in the middle. The thing caught between them is your concern, not mine.',
-  'void-guardian': 'The void doesn\'t threaten. It simply shows you how large the absence of something can be.',
-  'void-striker': 'I reach through nothing and pull out impact. The physics of this are someone else\'s problem.',
-  'void-vigilance': 'I watch the spaces between things. That\'s where everything actually happens.',
-  'voidborne': 'The void isn\'t empty. It\'s full of things that didn\'t finish becoming something. I am their reminder.',
-  'water-cannon': 'Water is patient until it isn\'t. Then it\'s a wall.',
-  'wave-step': 'I don\'t run on water. I convince it I\'m already somewhere else.',
-  'way-of-absolute-flow': 'No style. No technique. No ego. Just what\'s necessary, when it\'s necessary, and then it\'s over.',
-  'way-of-graceful-warrior': 'The most dangerous thing I do is make it look easy.',
-  'way-of-purity': 'My body is a temple. Trespassers will be removed through the ceiling.',
-  'way-of-the-divine-bane': 'I don\'t pray before a fight. I practice.',
-  'way-of-the-flaming-soul': 'My master said: become the fire, not the one who holds it. I have had to replace a great many gloves since then.',
-  'way-of-the-oni': 'The spirit of the Oni doesn\'t haunt me. It recognized something familiar and moved in.',
-  'way-of-the-raging-fist': 'Yes, I meditate. Afterward I hit things extremely hard. Both halves are important.',
-  'way-of-the-tempest': 'The storm doesn\'t hate you. I\'m the part that does.',
-};
-
-// TODO: REMOVE AFTER INITIAL SEED — One-time canonical quote injection for
-// subclasses and parent races. Skips entries whose first text section already
-// has a `lore` field (i.e. has been saved at least once). Once every entry
-// has been touched and saved, this entire block (ENTRY_QUOTES + injectQuotes
-// + call sites in loadContent) can be deleted safely.
-function injectQuotes(entry) {
-  const quote = ENTRY_QUOTES[entry.id];
-  if (!quote || !Array.isArray(entry.sections)) return entry;
-  let injected = false;
-  const sections = entry.sections.map((s) => {
-    if (s.type === 'text' && !injected) {
-      injected = true;
-      // Only seed lore on the very first text section, and only if it has
-      // never been set before (lore field absent from the saved record).
-      if (s.lore === undefined) {
-        return { ...s, lore: quote };
-      }
-    }
-    return s;
-  });
-  return { ...entry, sections };
-}
-
-// Migration scaffolding — derives sections from legacy fields.
-// For most entry types we only seed empty section headers (matching the type's
-// default structure), since the user said the actual content will be filled in
-// manually. Characters get full content migration since the data is small and useful.
-function migrateEntryToSections(entry, type) {
-  if (Array.isArray(entry.sections)) return entry; // already migrated
-  let sections = [];
-  switch (type) {
-    case 'subclass': {
-      const features = Array.isArray(entry.features) && entry.features.length > 0 ? entry.features : [];
-      sections = [
-        { id: newSectionId(), type: 'text',     heading: 'Summary',  body: '' },
-        { id: newSectionId(), type: 'features', heading: 'Features', features: features.map((f) => ({ ...f })) },
-      ];
-      break;
-    }
-    case 'race-parent': {
-      sections = [
-        { id: newSectionId(), type: 'text',        heading: 'Description',  body: '' },
-        { id: newSectionId(), type: 'subcategory', heading: 'Subraces',     lore: '', entries: [] },
-        { id: newSectionId(), type: 'subcategory', heading: 'Class Tunings',lore: '', entries: [] },
-      ];
-      break;
-    }
-    case 'race-subrace': {
-      sections = [
-        { id: newSectionId(), type: 'text',     heading: 'Summary', body: '' },
-        { id: newSectionId(), type: 'features', heading: 'Traits',  features: [] },
-      ];
-      break;
-    }
-    case 'class': {
-      sections = [
-        { id: newSectionId(), type: 'text',        heading: 'Summary',                    body: '' },
-        { id: newSectionId(), type: 'text',        heading: 'Hit Points & Starting Info', body: '' },
-        { id: newSectionId(), type: 'table',       heading: 'Class Progression',          columns: ['Level','Prof.','Features'], rows: Array.from({length:20}, (_,i) => [String(i+1),'','']) },
-        { id: newSectionId(), type: 'features',    heading: 'Core Features',              features: [] },
-        { id: newSectionId(), type: 'subcategory', heading: 'Subclasses',                 lore: '', entries: [] },
-      ];
-      break;
-    }
-    case 'character': {
-      // Full migration for characters
-      sections = [
-        { id: newSectionId(), type: 'identity', heading: 'Identity', locked: true },
-      ];
-      if (entry.summary) {
-        sections.push({ id: newSectionId(), type: 'text', heading: 'Summary',
-          body: entry.summary, media: entry.media || null });
-      } else {
-        sections.push({ id: newSectionId(), type: 'text', heading: 'Summary',
-          body: '', media: entry.media || null });
-      }
-      const kt = Array.isArray(entry.keyTraits) && entry.keyTraits.length > 0 ? entry.keyTraits : [];
-      sections.push({ id: newSectionId(), type: 'features', heading: 'Key Traits',
-        features: kt.map((t) => ({ name: '', text: t })) });
-      if (entry.note) {
-        sections.push({ id: newSectionId(), type: 'text', heading: 'Note', body: entry.note });
-      }
-      break;
-    }
-  }
-  // Append any existing customSections
-  if (Array.isArray(entry.customSections) && entry.customSections.length > 0) {
-    sections.push(...entry.customSections);
-  }
-  return { ...entry, sections };
-}
-
 // ============================================================
 // MOBILE DETECTION — used to switch layout, hide edit mode, etc.
 // ============================================================
@@ -2345,7 +2134,7 @@ function BlockBody({ value, editMode, onChange, placeholder, content, goTo, isDM
                   <textarea
                     style={{ ...styles.textarea, minHeight: '70px' }}
                     value={b.body || ''}
-                    placeholder="DM-only note (encrypted on save)…"
+                    placeholder="DM-only note (hidden from players)…"
                     onChange={(e) => updateBlock(i, { body: e.target.value })}
                   />
                 </div>
