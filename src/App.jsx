@@ -1619,6 +1619,38 @@ const styles = {
     alignItems: 'center',
     gap: '6px',
   },
+  // Header buttons sit on the dark crimson header bar, so they use light/gold
+  // colors to stand out clearly (no longer pseudo-hidden).
+  headerButton: {
+    background: '#c9a55c',
+    color: '#3b2615',
+    border: '1px solid #e8d5a0',
+    padding: '7px 15px',
+    fontFamily: '"Cinzel", serif',
+    fontSize: '13px',
+    fontWeight: 600,
+    letterSpacing: '0.05em',
+    cursor: 'pointer',
+    borderRadius: '3px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+  },
+  headerButtonGhost: {
+    background: 'rgba(245, 236, 217, 0.12)',
+    color: '#f5ecd9',
+    border: '1px solid rgba(245, 236, 217, 0.55)',
+    padding: '7px 15px',
+    fontFamily: '"Cinzel", serif',
+    fontSize: '13px',
+    fontWeight: 600,
+    cursor: 'pointer',
+    borderRadius: '3px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
   textarea: {
     width: '100%',
     minHeight: '120px',
@@ -2574,12 +2606,22 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                   </div>
                   <div>
                     <div style={{ fontSize: '11px', color: '#8b6914', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Status</div>
-                    <select value={identityFields.entry.status || ''} onChange={(e) => identityFields.update({ status: e.target.value })}
+                    <select value={(identityFields.entry.status === 'deceased' || identityFields.entry.status === '' || !identityFields.entry.status) ? (identityFields.entry.status || '') : '__custom'}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === '__custom') identityFields.update({ status: identityFields.entry.status && identityFields.entry.status !== 'deceased' ? identityFields.entry.status : 'Custom…' });
+                        else identityFields.update({ status: v });
+                      }}
                       style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px', width: '100%' }}>
                       <option value="">Alive</option>
                       <option value="deceased">Deceased (†)</option>
-                      <option value="freed">Freed</option>
+                      <option value="__custom">Custom…</option>
                     </select>
+                    {identityFields.entry.status && identityFields.entry.status !== 'deceased' && (
+                      <input value={identityFields.entry.status} placeholder="Custom status text"
+                        onChange={(e) => identityFields.update({ status: e.target.value })}
+                        style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px', width: '100%', marginTop: '6px', fontStyle: 'italic' }} />
+                    )}
                   </div>
                   <div>
                     <div style={{ fontSize: '11px', color: '#8b6914', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Category</div>
@@ -2588,12 +2630,47 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                       style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px', width: '100%' }} />
                   </div>
                 </div>
+
+                {/* Custom identity fields */}
+                {Array.isArray(identityFields.entry.customIdentity) && identityFields.entry.customIdentity.length > 0 && (
+                  <div style={{ marginTop: '14px', borderTop: '1px solid #d8c9a0', paddingTop: '12px' }}>
+                    {identityFields.entry.customIdentity.map((row, ci) => (
+                      <div key={ci} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                        <input value={row.label || ''} placeholder="Field name"
+                          onChange={(e) => {
+                            const next = identityFields.entry.customIdentity.map((r, idx) => idx === ci ? { ...r, label: e.target.value } : r);
+                            identityFields.update({ customIdentity: next });
+                          }}
+                          style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px', width: '32%' }} />
+                        <input value={row.value || ''} placeholder="Value"
+                          onChange={(e) => {
+                            const next = identityFields.entry.customIdentity.map((r, idx) => idx === ci ? { ...r, value: e.target.value } : r);
+                            identityFields.update({ customIdentity: next });
+                          }}
+                          style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px', flex: 1 }} />
+                        <button onClick={() => {
+                          const next = identityFields.entry.customIdentity.filter((_, idx) => idx !== ci);
+                          identityFields.update({ customIdentity: next });
+                        }} style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px', padding: '6px 9px', cursor: 'pointer', fontSize: '11px' }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button onClick={() => {
+                  const next = [...(identityFields.entry.customIdentity || []), { label: '', value: '' }];
+                  identityFields.update({ customIdentity: next });
+                }} style={{ ...styles.button, fontSize: '12px', padding: '5px 12px', marginTop: '8px' }}>
+                  <Plus size={12} /> Add Field
+                </button>
               </div>
-            ) : (identityFields.entry.race || identityFields.entry.class || (identityFields.entry.patron && identityFields.entry.patron !== '—' && identityFields.entry.patron !== '')) ? (
+            ) : (identityFields.entry.race || identityFields.entry.class || (identityFields.entry.patron && identityFields.entry.patron !== '—' && identityFields.entry.patron !== '') || (Array.isArray(identityFields.entry.customIdentity) && identityFields.entry.customIdentity.some((r) => r.label || r.value))) ? (
               <div>
                 {identityFields.entry.race && <span style={styles.pill}>{identityFields.entry.race}</span>}
                 {identityFields.entry.class && <span style={styles.pill}>{identityFields.entry.class}</span>}
                 {identityFields.entry.patron && identityFields.entry.patron !== '—' && identityFields.entry.patron !== '' && <span style={styles.pill}>Patron: {identityFields.entry.patron}</span>}
+                {Array.isArray(identityFields.entry.customIdentity) && identityFields.entry.customIdentity.filter((r) => r.label || r.value).map((r, ci) => (
+                  <span key={ci} style={styles.pill}>{r.label ? `${r.label}: ` : ''}{r.value}</span>
+                ))}
               </div>
             ) : null
           )}
@@ -4143,7 +4220,9 @@ export default function Compendium() {
                 >
                   <span>{c.name}</span>
                   {c.status === 'deceased' && <span style={{ ...styles.pillPriority, background: '#3b2615', color: '#e8d5a0' }}>†</span>}
-                  {c.status === 'freed' && <span style={{ ...styles.pillPriority, background: '#5c8a3a', color: '#f5ecd9' }}>FREED</span>}
+                  {c.status && c.status !== 'deceased' && (
+                    <span style={{ marginLeft: '6px', fontSize: '10px', fontStyle: 'italic', color: '#8b6914' }}>{c.status}</span>
+                  )}
                   {c.placeholder && <span style={styles.emptyMarker}>· placeholder</span>}
                   {!c.placeholder && isEmpty && <span style={styles.emptyMarker}>· empty</span>}
                 </div>
@@ -4178,9 +4257,6 @@ export default function Compendium() {
                   />
                   <span>{campaign}</span>
                   {campaignDeceased && <span style={{ ...styles.pillPriority, background: '#3b2615', color: '#e8d5a0', marginLeft: '4px' }}>†</span>}
-                  <span style={{ marginLeft: 'auto', fontSize: '10px', color: '#8b6914', fontWeight: 400, fontStyle: 'italic' }}>
-                    {charsInCampaign.length}
-                  </span>
                 </div>
                 {isExpanded && (
                   <>
@@ -4375,11 +4451,12 @@ function Header({ content, editMode, dirty, onEditToggle, onSave, onDiscard, onM
               <>
                 <button
                   style={{
-                    ...styles.button,
+                    ...styles.headerButton,
                     background: dirty ? '#c9a55c' : 'rgba(245, 236, 217, 0.15)',
-                    color: dirty ? '#3b2615' : 'rgba(245, 236, 217, 0.5)',
+                    color: dirty ? '#3b2615' : 'rgba(245, 236, 217, 0.6)',
+                    border: dirty ? '1px solid #e8d5a0' : '1px solid rgba(245, 236, 217, 0.3)',
                     cursor: dirty ? 'pointer' : 'default',
-                    opacity: dirty ? 1 : 0.6,
+                    boxShadow: dirty ? '0 1px 3px rgba(0,0,0,0.25)' : 'none',
                   }}
                   onClick={onSave}
                   disabled={!dirty || saving}
@@ -4389,7 +4466,7 @@ function Header({ content, editMode, dirty, onEditToggle, onSave, onDiscard, onM
                 </button>
                 <button
                   style={{
-                    ...styles.buttonGhost,
+                    ...styles.headerButtonGhost,
                     opacity: dirty ? 1 : 0.5,
                     cursor: dirty ? 'pointer' : 'default',
                   }}
@@ -4402,7 +4479,7 @@ function Header({ content, editMode, dirty, onEditToggle, onSave, onDiscard, onM
               </>
             )}
             <button
-              style={styles.buttonGhost}
+              style={styles.headerButtonGhost}
               onClick={() => window.print()}
               title="Print or save this page as PDF"
             >
@@ -4411,8 +4488,8 @@ function Header({ content, editMode, dirty, onEditToggle, onSave, onDiscard, onM
             {isStaff && (
               <button
                 style={{
-                  ...(revealDM ? styles.button : styles.buttonGhost),
-                  background: revealDM ? '#5c1414' : undefined,
+                  ...(revealDM ? styles.headerButton : styles.headerButtonGhost),
+                  ...(revealDM ? { background: '#7a1f1f', color: '#f5ecd9', border: '1px solid #e8d5a0' } : {}),
                 }}
                 onClick={onToggleRevealDM}
                 title={revealDM ? 'Hide DM-only content' : 'Reveal DM-only content'}
@@ -4421,21 +4498,21 @@ function Header({ content, editMode, dirty, onEditToggle, onSave, onDiscard, onM
               </button>
             )}
             <button
-              style={editMode ? styles.button : styles.buttonGhost}
+              style={editMode ? styles.headerButton : styles.headerButtonGhost}
               onClick={onEditToggle}
             >
               {editMode ? <><Eye size={14} /> View Mode</> : <><Edit3 size={14} /> Edit Mode</>}
             </button>
             {session ? (
               <button
-                style={styles.buttonGhost}
+                style={styles.headerButtonGhost}
                 onClick={onSignOut}
                 title={`Signed in as ${profile?.display_name || 'user'} (${profile?.role || 'player'})`}
               >
                 <LogOut size={14} /> {profile?.role ? profile.role[0].toUpperCase() + profile.role.slice(1) : 'Sign Out'}
               </button>
             ) : (
-              <button style={styles.buttonGhost} onClick={onLogin} title="Sign in to edit">
+              <button style={styles.headerButtonGhost} onClick={onLogin} title="Sign in to edit">
                 <LogIn size={14} /> Sign In
               </button>
             )}
@@ -4465,7 +4542,6 @@ function SectionToggle({ label, count, expanded, onClick }) {
         }}
       />
       {label}
-      <span style={styles.navSectionToggleCount}>{count}</span>
     </div>
   );
 }
@@ -4810,10 +4886,22 @@ function CharactersPage({ content, activeId, editMode, canEditEntry, persistChan
       <PillRow pills={pills} editMode={_editMode} onChange={(p) => updateCh({ pills: p })} />
 
       {ch.placeholder && (
-        <div style={{ ...styles.card, marginTop: '12px', background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c' }}>
+        <div style={{ ...styles.card, marginTop: '12px', background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
           <p style={{ ...styles.bodyText, margin: 0, fontStyle: 'italic' }}>
             <strong>Placeholder.</strong> Name and details to be filled in.
           </p>
+          {_editMode && (
+            <button
+              onClick={() => updateCh({ placeholder: false })}
+              style={{ background: '#7a1f1f', color: '#f5ecd9', border: 'none', borderRadius: '3px',
+                padding: '6px 12px', cursor: 'pointer', fontFamily: '"Cinzel", serif', fontSize: '12px',
+                whiteSpace: 'nowrap', flexShrink: 0 }}
+              title="Remove the placeholder notice"
+            >
+              <X size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />Clear Placeholder
+            </button>
+          )}
         </div>
       )}
 
