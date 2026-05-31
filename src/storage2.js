@@ -269,13 +269,13 @@ function buildRowMap(content) {
     push(e.id, 'character', data, { dm_data, sort_order: i });
   });
 
-  push(SINGLETON_META, 'meta', content.meta || {});
-  push(SINGLETON_HOME, 'home', content.home || {});
-  push(SINGLETON_CAMPAIGN, 'campaign', content.campaign || {});
-  push(SINGLETON_CAMPAIGNS, 'meta', { campaigns: content.campaigns || {} });
-  push(SINGLETON_RACE_ORDER, 'meta', { raceOrder: content.raceOrder || [] });
-  push(SINGLETON_CAMPAIGN_ORDER, 'meta', { campaignOrder: content.campaignOrder || [] });
-  push(SINGLETON_PARENT_CLASS_ORDER, 'meta', { parentClassOrder: content.parentClassOrder || [] });
+  push(SINGLETON_META, 'meta', content.meta || {}, { sort_order: 10000 });
+  push(SINGLETON_HOME, 'home', content.home || {}, { sort_order: 10001 });
+  push(SINGLETON_CAMPAIGN, 'campaign', content.campaign || {}, { sort_order: 10002 });
+  push(SINGLETON_CAMPAIGNS, 'meta', { campaigns: content.campaigns || {} }, { sort_order: 10003 });
+  push(SINGLETON_RACE_ORDER, 'meta', { raceOrder: content.raceOrder || [] }, { sort_order: 10004 });
+  push(SINGLETON_CAMPAIGN_ORDER, 'meta', { campaignOrder: content.campaignOrder || [] }, { sort_order: 10005 });
+  push(SINGLETON_PARENT_CLASS_ORDER, 'meta', { parentClassOrder: content.parentClassOrder || [] }, { sort_order: 10006 });
 
   return rows;
 }
@@ -283,9 +283,10 @@ function buildRowMap(content) {
 // Save everything (staff). Upserts all rows. Used by staff editors.
 export async function saveContent2(content) {
   if (!supabaseConfigured || !supabase) return;
-  const rows = buildRowMap(content).map((r) => ({
+  const rows = buildRowMap(content).map((r, idx) => ({
     ...r,
     dm_data: r.dm_data ?? {},
+    sort_order: (r.sort_order ?? idx),
     updated_at: new Date().toISOString(),
   }));
   const BATCH = 100;
