@@ -4034,11 +4034,6 @@ export default function Compendium() {
                             style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }} />
                         ) : <span style={{ width: '12px', display: 'inline-block' }} />}
                         {parent.name}
-                        {subraces.length > 0 && (
-                          <span style={{ marginLeft: 'auto', fontSize: '10px', color: '#8b6914', fontWeight: 400, fontStyle: 'italic' }}>
-                            {subraces.length}
-                          </span>
-                        )}
                       </div>
                       {isExpanded && (
                         <>
@@ -4172,9 +4167,6 @@ export default function Compendium() {
                     }}
                   />
                   {parentClass}
-                  <span style={{ marginLeft: 'auto', fontSize: '10px', color: '#8b6914', fontWeight: 400, fontStyle: 'italic' }}>
-                    {sortedSubs.length}
-                  </span>
                 </div>
                 {body}
                 {isExpanded && editMode && (

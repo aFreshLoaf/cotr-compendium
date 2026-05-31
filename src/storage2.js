@@ -38,11 +38,15 @@ export async function getSession() {
   try {
     const result = await withTimeout(supabase.auth.getSession(), 4000);
     if (result === TIMEOUT) {
-      // Couldn't establish the session quickly. Degrade to public view rather
-      // than hanging. We do NOT clear the token here — a transient timeout on a
-      // valid token shouldn't log the user out. Genuinely corrupt (unparseable)
-      // tokens are purged at client init in supabase.js.
-      console.warn('[CotR] getSession timed out — continuing as public view.');
+      // The session call jammed (typically an expired token whose refresh hangs).
+      // Purge the auth storage so the next load is clean, and continue as public
+      // view. The user simply signs in again — an expired/jammed token is
+      // worthless anyway. This prevents the overnight-inactivity hang.
+      console.warn('[CotR] getSession timed out — clearing auth storage and continuing as public view.');
+      try {
+        const { clearAuthStorage } = await import('./supabase.js');
+        clearAuthStorage();
+      } catch {}
       return null;
     }
     return result?.data?.session ?? null;

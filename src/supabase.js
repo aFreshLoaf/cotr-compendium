@@ -15,15 +15,19 @@ function authStorageKey() {
   }
 }
 
-// Purge a corrupt/unparseable token that would jam getSession() on load.
-// Healthy (valid-JSON) tokens are left alone so sessions persist normally.
+// Purge only a corrupt/unparseable token at startup. We deliberately do NOT
+// purge merely-expired tokens here: supabase-js can refresh an expired access
+// token using the long-lived refresh token, which legitimately keeps the user
+// logged in for weeks. If that refresh *hangs* (the overnight-inactivity hang),
+// getSession()'s timeout catches it and clears storage then. This keeps normal
+// sessions alive while still recovering from a jammed refresh.
 export function purgeCorruptAuthToken() {
   const key = authStorageKey();
   if (!key) return false;
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return false;
-    JSON.parse(raw);
+    JSON.parse(raw); // healthy tokens are valid JSON
     return false;
   } catch {
     try { localStorage.removeItem(key); } catch {}
