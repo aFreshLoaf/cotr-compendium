@@ -3654,10 +3654,16 @@ export default function Compendium() {
   }, [isStaff, ownedChars, session]);
 
   // Load content for the current staff status. Reused on auth changes.
+  // Always clears `loading`, even on error, so the app can never hang.
   const reloadContent = useCallback(async (staff) => {
-    const c = await loadContent(staff);
-    if (c) setContent(c);
-    setLoading(false);
+    try {
+      const c = await loadContent(staff);
+      if (c) setContent(c);
+    } catch (e) {
+      console.error('[CotR] content load failed:', e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   // Refs so the realtime callback always sees current values
@@ -3670,25 +3676,35 @@ export default function Compendium() {
   useEffect(() => {
     let active = true;
     (async () => {
-      const sess = await getSession();
-      if (!active) return;
-      setSession(sess);
-      let prof = null;
-      if (sess) {
-        prof = await getProfile();
+      try {
+        const sess = await getSession();
         if (!active) return;
-        setProfile(prof);
+        setSession(sess);
+        let prof = null;
+        if (sess) {
+          try {
+            prof = await getProfile();
+          } catch (e) {
+            console.error('[CotR] profile load failed:', e);
+          }
+          if (!active) return;
+          setProfile(prof);
+        }
+        setAuthReady(true);
+        const staff = prof && (prof.role === 'admin' || prof.role === 'dm');
+        await reloadContent(staff);
+      } catch (e) {
+        console.error('[CotR] init failed:', e);
+        setLoading(false); // never hang
       }
-      setAuthReady(true);
-      const staff = prof && (prof.role === 'admin' || prof.role === 'dm');
-      await reloadContent(staff);
     })();
 
     // React to auth changes (login via redirect, magic link, logout)
     const unsubAuth = onAuthChange(async (sess) => {
       setSession(sess);
       if (sess) {
-        const prof = await getProfile();
+        let prof = null;
+        try { prof = await getProfile(); } catch (e) { console.error('[CotR] profile load failed:', e); }
         setProfile(prof);
         await reloadContent(prof && (prof.role === 'admin' || prof.role === 'dm'));
       } else {
