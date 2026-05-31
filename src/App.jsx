@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { loadFromSupabase, saveToSupabase, subscribeToUpdates, isDMAuthenticated, authenticateDM, clearDMSession, uploadImage, deleteImage, getDMPassword } from './storage.js';
-import { deriveDMKey, encryptContent, decryptContent, decryptSections, isEncrypted } from './dmcrypto.js';
-import { Search, Book, Users, Sword, Shield, Sparkles, ScrollText, Edit3, Plus, X, Save, ChevronRight, Home, Skull, Eye, Trash2, Image as ImageIcon, Upload, Menu, Lock } from 'lucide-react';
+import {
+  loadContent2, saveContent2, saveCharacter2, subscribeToUpdates2,
+  getSession, getProfile, signInWithDiscord, signInWithEmail, signOut, onAuthChange,
+  uploadImage, deleteImage,
+} from './storage2.js';
+import { Search, Book, Users, Sword, Shield, Sparkles, ScrollText, Edit3, Plus, X, Save, ChevronRight, Home, Skull, Eye, Trash2, Image as ImageIcon, Upload, Menu, Lock, LogOut, LogIn } from 'lucide-react';
 
 // ============================================================
 // DEFAULT CONTENT — seeded from Mikey's homebrew documents
@@ -1323,207 +1326,18 @@ The player characters — NEXUS, a redemption-bound Conduit of Life sworn to Lat
 // STORAGE — Supabase-backed with smart merge
 // ============================================================
 
-// Module-level DM decryption key. Set once on app init (if a DM session is
-// active) via initDMKey(). loadContent and saveContent read it to decrypt/encrypt
-// dmOnly content at the Supabase boundary.
-let DM_KEY = null;
-export async function initDMKey() {
-  const pw = getDMPassword();
-  DM_KEY = pw ? await deriveDMKey(pw) : null;
-  return DM_KEY;
-}
-function getActiveDMKey() { return DM_KEY; }
-function clearActiveDMKey() { DM_KEY = null; }
-
-async function loadContent() {
-  try {
-    const cached = await loadFromSupabase();
-    if (cached) {
-      // Merge subclasses: always use the latest structural list from defaults,
-      // but preserve any user-edited summary/features/note for entries that match by id.
-      const cachedSubsById = {};
-      (cached.subclasses || []).forEach((s) => { cachedSubsById[s.id] = s; });
-      const mergedSubclasses = DEFAULT_CONTENT.subclasses.map((defaultSub) => {
-        const cachedSub = cachedSubsById[defaultSub.id];
-        if (!cachedSub) return migrateEntryToSections(defaultSub, 'subclass');
-        const merged = {
-          ...defaultSub,
-          name: cachedSub.name && cachedSub.name !== "" ? cachedSub.name : defaultSub.name,
-          summary: cachedSub.summary && cachedSub.summary !== "" ? cachedSub.summary : defaultSub.summary,
-          features: cachedSub.features && cachedSub.features.length > 0 ? cachedSub.features : defaultSub.features,
-          note: cachedSub.note && cachedSub.note !== "" ? cachedSub.note : defaultSub.note,
-          pills: cachedSub.pills,
-          headings: cachedSub.headings,
-          customSections: cachedSub.customSections,
-          media: cachedSub.media,
-          sections: cachedSub.sections,
-        };
-        return Array.isArray(merged.sections) ? merged : migrateEntryToSections(merged, 'subclass');
-      });
-      // Also include any cached subclasses not in defaults (user-created)
-      const defaultSubIds = new Set(DEFAULT_CONTENT.subclasses.map((s) => s.id));
-      for (const id in cachedSubsById) {
-        if (!defaultSubIds.has(id)) {
-          const entry = cachedSubsById[id];
-          mergedSubclasses.push(Array.isArray(entry.sections) ? entry : migrateEntryToSections(entry, 'subclass'));
-        }
-      }
-      const finalSubclasses = mergedSubclasses.map(injectQuotes);
-
-      // Same for races
-      const cachedRacesById = {};
-      (cached.races || []).forEach((r) => { cachedRacesById[r.id] = r; });
-      const mergedRaces = DEFAULT_CONTENT.races.map((defaultRace) => {
-        const cachedRace = cachedRacesById[defaultRace.id];
-        const raceType = defaultRace.isParent ? 'race-parent' : 'race-subrace';
-        if (!cachedRace) return migrateEntryToSections(defaultRace, raceType);
-        const merged = {
-          ...defaultRace,
-          name: cachedRace.name && cachedRace.name !== "" ? cachedRace.name : defaultRace.name,
-          tagline: cachedRace.tagline && cachedRace.tagline !== "" ? cachedRace.tagline : defaultRace.tagline,
-          description: cachedRace.description && cachedRace.description !== "" ? cachedRace.description : defaultRace.description,
-          summary: cachedRace.summary && cachedRace.summary !== "" ? cachedRace.summary : defaultRace.summary,
-          traits: cachedRace.traits && cachedRace.traits.length > 0 ? cachedRace.traits : defaultRace.traits,
-          archetypes: cachedRace.archetypes && cachedRace.archetypes.length > 0 ? cachedRace.archetypes : defaultRace.archetypes,
-          note: cachedRace.note && cachedRace.note !== "" ? cachedRace.note : defaultRace.note,
-          pills: cachedRace.pills,
-          headings: cachedRace.headings,
-          customSections: cachedRace.customSections,
-          media: cachedRace.media,
-          sections: cachedRace.sections,
-        };
-        return Array.isArray(merged.sections) ? merged : migrateEntryToSections(merged, raceType);
-      });
-      const defaultRaceIds = new Set(DEFAULT_CONTENT.races.map((r) => r.id));
-      for (const id in cachedRacesById) {
-        if (!defaultRaceIds.has(id)) {
-          const entry = cachedRacesById[id];
-          const t = entry.isParent ? 'race-parent' : 'race-subrace';
-          mergedRaces.push(Array.isArray(entry.sections) ? entry : migrateEntryToSections(entry, t));
-        }
-      }
-      const finalRaces = mergedRaces.map(injectQuotes);
-
-      // Same for characters
-      const cachedCharsById = {};
-      (cached.characters || []).forEach((c) => { cachedCharsById[c.id] = c; });
-      const mergedCharacters = DEFAULT_CONTENT.characters.map((defaultCh) => {
-        const cachedCh = cachedCharsById[defaultCh.id];
-        if (!cachedCh) return migrateEntryToSections(defaultCh, 'character');
-        const merged = {
-          ...defaultCh,
-          name: cachedCh.name && cachedCh.name !== "" ? cachedCh.name : defaultCh.name,
-          summary: cachedCh.summary && cachedCh.summary !== "" ? cachedCh.summary : defaultCh.summary,
-          keyTraits: cachedCh.keyTraits && cachedCh.keyTraits.length > 0 ? cachedCh.keyTraits : defaultCh.keyTraits,
-          note: cachedCh.note && cachedCh.note !== "" ? cachedCh.note : defaultCh.note,
-          race: cachedCh.race && cachedCh.race !== "" ? cachedCh.race : defaultCh.race,
-          class: cachedCh.class && cachedCh.class !== "" ? cachedCh.class : defaultCh.class,
-          patron: cachedCh.patron && cachedCh.patron !== "" ? cachedCh.patron : defaultCh.patron,
-          role: cachedCh.role || defaultCh.role,
-          status: cachedCh.status !== undefined ? cachedCh.status : defaultCh.status,
-          category: cachedCh.category !== undefined ? cachedCh.category : defaultCh.category,
-          pills: cachedCh.pills,
-          headings: cachedCh.headings,
-          customSections: cachedCh.customSections,
-          media: cachedCh.media,
-          sections: cachedCh.sections,
-        };
-        return Array.isArray(merged.sections) ? merged : migrateEntryToSections(merged, 'character');
-      });
-      const defaultCharIds = new Set(DEFAULT_CONTENT.characters.map((c) => c.id));
-      for (const id in cachedCharsById) {
-        if (!defaultCharIds.has(id)) {
-          const entry = cachedCharsById[id];
-          mergedCharacters.push(Array.isArray(entry.sections) ? entry : migrateEntryToSections(entry, 'character'));
-        }
-      }
-
-      // Merge classes — preserve user-edited fields, keep structural defaults
-      const cachedClassesById = {};
-      (cached.classes || []).forEach((c) => { cachedClassesById[c.id] = c; });
-      const mergedClasses = DEFAULT_CONTENT.classes.map((defaultCls) => {
-        const cachedCls = cachedClassesById[defaultCls.id];
-        if (!cachedCls) return migrateEntryToSections(defaultCls, 'class');
-        const preserve = (field) => cachedCls[field] && (Array.isArray(cachedCls[field]) ? cachedCls[field].length > 0 : cachedCls[field] !== "");
-        const merged = {
-          ...defaultCls,
-          name: preserve('name') ? cachedCls.name : defaultCls.name,
-          summary: preserve('summary') ? cachedCls.summary : defaultCls.summary,
-          coreFeatures: preserve('coreFeatures') ? cachedCls.coreFeatures : defaultCls.coreFeatures,
-          progression: preserve('progression') ? cachedCls.progression : defaultCls.progression,
-          tableColumns: preserve('tableColumns') ? cachedCls.tableColumns : defaultCls.tableColumns,
-          startingHP: preserve('startingHP') ? cachedCls.startingHP : defaultCls.startingHP,
-          hpPerLevel: preserve('hpPerLevel') ? cachedCls.hpPerLevel : defaultCls.hpPerLevel,
-          armorTraining: preserve('armorTraining') ? cachedCls.armorTraining : defaultCls.armorTraining,
-          savingThrows: preserve('savingThrows') ? cachedCls.savingThrows : defaultCls.savingThrows,
-          skills: preserve('skills') ? cachedCls.skills : defaultCls.skills,
-          weapons: preserve('weapons') ? cachedCls.weapons : defaultCls.weapons,
-          startingEquipment: preserve('startingEquipment') ? cachedCls.startingEquipment : defaultCls.startingEquipment,
-          notes: preserve('notes') ? cachedCls.notes : defaultCls.notes,
-          pills: cachedCls.pills,
-          headings: cachedCls.headings,
-          customSections: cachedCls.customSections,
-          media: cachedCls.media,
-          sections: cachedCls.sections,
-        };
-        return Array.isArray(merged.sections) ? merged : migrateEntryToSections(merged, 'class');
-      });
-      const defaultClassIds = new Set(DEFAULT_CONTENT.classes.map((c) => c.id));
-      for (const id in cachedClassesById) {
-        if (!defaultClassIds.has(id)) {
-          const entry = cachedClassesById[id];
-          mergedClasses.push(Array.isArray(entry.sections) ? entry : migrateEntryToSections(entry, 'class'));
-        }
-      }
-      const mergedContent = {
-        ...DEFAULT_CONTENT,
-        ...cached,
-        // Always trust the canonical orderings from defaults
-        parentClassOrder: DEFAULT_CONTENT.parentClassOrder,
-        raceOrder: DEFAULT_CONTENT.raceOrder,
-        campaignOrder: DEFAULT_CONTENT.campaignOrder,
-        // Campaigns: structural defaults + per-campaign cached overrides
-        campaigns: (() => {
-          const merged = { ...DEFAULT_CONTENT.campaigns };
-          for (const k of Object.keys(cached.campaigns || {})) {
-            merged[k] = { ...(merged[k] || {}), ...cached.campaigns[k] };
-          }
-          return merged;
-        })(),
-        // Use the smart-merged lists
-        subclasses: finalSubclasses,
-        races: finalRaces,
-        characters: mergedCharacters,
-        classes: mergedClasses,
-      };
-      // Decrypt any dmOnly content if a DM key is available; otherwise dmOnly
-      // content stays as ciphertext and renders as locked.
-      return await decryptContent(mergedContent, getActiveDMKey());
-    }
-  } catch (e) {
-    // Key doesn't exist yet — return defaults
-  }
-  // No cached content — return defaults with sections migration applied
-  return {
-    ...DEFAULT_CONTENT,
-    subclasses: DEFAULT_CONTENT.subclasses.map((s) => migrateEntryToSections(s, 'subclass')).map(injectQuotes),
-    races: DEFAULT_CONTENT.races.map((r) => migrateEntryToSections(r, r.isParent ? 'race-parent' : 'race-subrace')).map(injectQuotes),
-    classes: DEFAULT_CONTENT.classes.map((c) => migrateEntryToSections(c, 'class')),
-    characters: DEFAULT_CONTENT.characters.map((c) => migrateEntryToSections(c, 'character')),
-  };
+// New per-entry storage (storage2.js) handles load/save. These thin wrappers
+// keep the existing call sites working and inject staff status where needed.
+// The legacy single-blob loadContent/saveContent and the client-side DM
+// encryption layer are retired — RLS now partitions DM content server-side.
+// (dmcrypto.js remains in the tree, dormant, to be removed in a later pass.)
+async function loadContent(isStaff) {
+  return await loadContent2(!!isStaff);
 }
 
 async function saveContent(content) {
-  try {
-    // Encrypt dmOnly sections/blocks before persisting. If no DM key is active,
-    // dmOnly content is already ciphertext (loaded that way) and passes through.
-    const toSave = await encryptContent(content, getActiveDMKey());
-    await saveToSupabase(toSave);
-    return true;
-  } catch (e) {
-    console.error('Save failed:', e);
-    return false;
-  }
+  await saveContent2(content);
+  return true;
 }
 
 // ============================================================
@@ -2535,7 +2349,7 @@ function BlockBody({ value, editMode, onChange, placeholder, content, goTo, isDM
                     onChange={(e) => updateBlock(i, { body: e.target.value })}
                   />
                 </div>
-              ) : (isDM && b.body && !isEncrypted(b.body)) ? (
+              ) : (isDM && b.body && !(typeof b.body === 'string' && b.body.startsWith('enc::v1::'))) ? (
                 <div style={{ borderLeft: '4px solid #c9a55c', paddingLeft: '10px',
                   background: 'rgba(201,165,92,0.08)', borderRadius: '2px', marginBottom: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '5px', margin: '4px 0',
@@ -3812,54 +3626,110 @@ export default function Compendium() {
     setExpandedClasses(parentClass);
   };
 
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [passwordInput, setPasswordInput] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [dmAuthed, setDmAuthed] = useState(isDMAuthenticated());
+  // ── Auth state ──────────────────────────────────────────────────────────
+  const [session, setSession] = useState(null);
+  const [profile, setProfile] = useState(null);   // { role, owned_chars, display_name }
+  const [authReady, setAuthReady] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [emailInput, setEmailInput] = useState('');
+  const [loginMsg, setLoginMsg] = useState('');
+  const [revealDM, setRevealDM] = useState(false); // staff toggle to show DM content
 
-  useEffect(() => {
-    // Derive the DM decryption key first (if a DM session is active), then load.
-    initDMKey().then(() => {
-      loadContent().then((c) => {
-        setContent(c);
-        setLoading(false);
-      });
-    });
-    // Subscribe to real-time updates from other clients
-    const unsubscribe = subscribeToUpdates((remoteContent) => {
-      // While editing, ignore remote updates to avoid clobbering in-progress edits
-      if (editModeRef.current) return;
-      const merged = mergeContent(remoteContent, null);
-      // Decrypt dmOnly content (async) before applying to state
-      decryptContent(merged, getActiveDMKey()).then((decrypted) => {
-        if (!editModeRef.current) setContent(decrypted);
-      });
-    });
-    return unsubscribe;
+  const role = profile?.role || (session ? 'player' : null);
+  const isStaff = role === 'admin' || role === 'dm';
+  const isAdmin = role === 'admin';
+  const ownedChars = profile?.owned_chars || [];
+  // "Showing DM content right now" — only staff, and only when revealed.
+  const showingDM = isStaff && revealDM;
+
+  // Can the current user edit the given entry?
+  //  - staff: everything
+  //  - player: only a character they own
+  const canEditEntry = useCallback((sectionType, entry) => {
+    if (isStaff) return true;
+    if (sectionType === 'characters' && entry) {
+      return ownedChars.includes(entry.id) || entry.owner_id === session?.user?.id;
+    }
+    return false;
+  }, [isStaff, ownedChars, session]);
+
+  // Load content for the current staff status. Reused on auth changes.
+  const reloadContent = useCallback(async (staff) => {
+    const c = await loadContent(staff);
+    if (c) setContent(c);
+    setLoading(false);
   }, []);
 
-  // Track editMode in a ref so the realtime callback always sees the current value
+  // Refs so the realtime callback always sees current values
   const editModeRef = React.useRef(false);
   React.useEffect(() => { editModeRef.current = editMode; }, [editMode]);
+  const isStaffRef = React.useRef(false);
+  React.useEffect(() => { isStaffRef.current = isStaff; }, [isStaff]);
+
+  // Initial mount: establish session, profile, then load content.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const sess = await getSession();
+      if (!active) return;
+      setSession(sess);
+      let prof = null;
+      if (sess) {
+        prof = await getProfile();
+        if (!active) return;
+        setProfile(prof);
+      }
+      setAuthReady(true);
+      const staff = prof && (prof.role === 'admin' || prof.role === 'dm');
+      await reloadContent(staff);
+    })();
+
+    // React to auth changes (login via redirect, magic link, logout)
+    const unsubAuth = onAuthChange(async (sess) => {
+      setSession(sess);
+      if (sess) {
+        const prof = await getProfile();
+        setProfile(prof);
+        await reloadContent(prof && (prof.role === 'admin' || prof.role === 'dm'));
+      } else {
+        setProfile(null);
+        setRevealDM(false);
+        await reloadContent(false);
+      }
+    });
+
+    // Realtime: reload public content when entries change (only when not editing)
+    const unsubRealtime = subscribeToUpdates2(() => {
+      if (editModeRef.current) return;
+      loadContent(isStaffRef.current).then((c) => {
+        if (c && !editModeRef.current) setContent(c);
+      });
+    });
+
+    return () => { active = false; unsubAuth(); unsubRealtime(); };
+  }, [reloadContent]);
 
   // Track whether the current in-memory content differs from what's persisted
   const [dirty, setDirty] = useState(false);
 
-  // Merge incoming remote content with local defaults (same smart-merge logic as loadContent)
-  const mergeContent = (cached, _current) => {
-    if (!cached) return DEFAULT_CONTENT;
-    const mergedCampaigns = { ...DEFAULT_CONTENT.campaigns };
-    for (const k of Object.keys(cached.campaigns || {})) {
-      mergedCampaigns[k] = { ...(mergedCampaigns[k] || {}), ...cached.campaigns[k] };
+  // ── Auth actions ────────────────────────────────────────────────────────
+  const handleDiscordLogin = async () => {
+    try { await signInWithDiscord(); } catch (e) { setLoginMsg(e.message); }
+  };
+  const handleEmailLogin = async () => {
+    if (!emailInput.trim()) { setLoginMsg('Enter your email.'); return; }
+    try {
+      await signInWithEmail(emailInput.trim());
+      setLoginMsg('Check your email for a sign-in link.');
+    } catch (e) { setLoginMsg(e.message); }
+  };
+  const handleSignOut = async () => {
+    if (editMode && dirty) {
+      if (!window.confirm('You have unsaved changes. Sign out and discard them?')) return;
     }
-    return {
-      ...DEFAULT_CONTENT,
-      ...cached,
-      parentClassOrder: DEFAULT_CONTENT.parentClassOrder,
-      raceOrder: DEFAULT_CONTENT.raceOrder,
-      campaignOrder: DEFAULT_CONTENT.campaignOrder,
-      campaigns: mergedCampaigns,
-    };
+    await signOut();
+    setEditMode(false);
+    setDirty(false);
   };
 
   const handleEditToggle = () => {
@@ -3868,45 +3738,21 @@ export default function Compendium() {
       return;
     }
     if (editMode) {
-      // Leaving edit mode — warn if dirty
       if (dirty) {
         const proceed = window.confirm('You have unsaved changes. Discard them?');
         if (!proceed) return;
-        // Discard: reload from server
-        loadContent().then((c) => {
-          setContent(c);
-          setDirty(false);
-        });
+        loadContent(isStaff).then((c) => { if (c) setContent(c); setDirty(false); });
       }
       setEditMode(false);
       return;
     }
-    if (dmAuthed) {
-      setEditMode(true);
-    } else {
-      setShowPasswordModal(true);
-    }
+    // Entering edit mode requires being logged in. Staff or character-owners can edit.
+    if (!session) { setShowLoginModal(true); return; }
+    setEditMode(true);
   };
-
-  const handlePasswordSubmit = () => {
-    if (authenticateDM(passwordInput)) {
-      setDmAuthed(true);
-      setEditMode(true);
-      setShowPasswordModal(false);
-      setPasswordInput('');
-      setPasswordError('');
-      // Derive the DM key and reload so any locked dmOnly content decrypts.
-      initDMKey().then(() => {
-        loadContent().then((c) => setContent(c));
-      });
-    } else {
-      setPasswordError('Incorrect password.');
-    }
-  };
-
-  const handlePasswordKeyDown = (e) => {
-    if (e.key === 'Enter') handlePasswordSubmit();
-    if (e.key === 'Escape') { setShowPasswordModal(false); setPasswordInput(''); setPasswordError(''); }
+  const handleLoginKeyDown = (e) => {
+    if (e.key === 'Enter') handleEmailLogin();
+    if (e.key === 'Escape') { setShowLoginModal(false); setEmailInput(''); setLoginMsg(''); }
   };
 
   // Staged edit — updates local content only; does NOT write to Supabase.
@@ -3981,24 +3827,36 @@ export default function Compendium() {
   const handleSave = async () => {
     if (!dirty) return;
     setSaveStatus('Saving…');
-    const ok = await saveContent(content);
-    if (ok) {
+    try {
+      if (isStaff) {
+        await saveContent2(content);
+      } else {
+        // Player: save only the character(s) they own that changed.
+        // Simplest correct behavior: save every owned character present.
+        const owned = (content.characters || []).filter(
+          (c) => ownedChars.includes(c.id) || c.owner_id === session?.user?.id
+        );
+        for (const ch of owned) {
+          await saveCharacter2(ch);
+        }
+      }
       setDirty(false);
       setSaveStatus('Saved');
-    } else {
+    } catch (e) {
+      console.error(e);
       setSaveStatus('Save failed');
     }
     setTimeout(() => setSaveStatus(''), 2000);
   };
 
-  // Discard staged changes — reload from Supabase
+  // Discard staged changes — reload from Supabase at current staff level
   const handleDiscard = async () => {
     if (!dirty) return;
     const proceed = window.confirm('Discard all unsaved changes?');
     if (!proceed) return;
     setSaveStatus('Reloading…');
-    const c = await loadContent();
-    setContent(c);
+    const c = await loadContent(isStaff);
+    if (c) setContent(c);
     setDirty(false);
     setSaveStatus('');
   };
@@ -4030,7 +3888,7 @@ export default function Compendium() {
       const harvestBlocks = (blocks) => {
         if (!Array.isArray(blocks)) { pushStr(blocks); return; }
         blocks.forEach((b) => {
-          if (b.type === 'dm' && !dmAuthed) return; // skip locked dm blocks
+          if (b.type === 'dm' && !showingDM) return; // skip locked dm blocks
           pushStr(b.body);
           (b.columns || []).forEach(pushStr);
           (b.rows || []).forEach((row) => (row || []).forEach(pushStr));
@@ -4039,7 +3897,7 @@ export default function Compendium() {
         });
       };
       sections.forEach((sec) => {
-        if (sec.dmOnly && !dmAuthed) return; // skip locked sections entirely
+        if (sec.dmOnly && !showingDM) return; // skip locked sections entirely
         pushStr(sec.heading);
         pushStr(sec.lore);
         pushStr(sec.caption);
@@ -4103,7 +3961,7 @@ export default function Compendium() {
     content.characters.forEach((ch) => scan(ch, 'Character', 'characters', ch.campaign));
 
     return hits;
-  }, [search, content, dmAuthed]);
+  }, [search, content, showingDM]);
 
   if (loading) {
     return (
@@ -4179,6 +4037,13 @@ export default function Compendium() {
         onMetaChange={(meta) => persistChange({ ...content, meta })}
         isMobile={isMobile}
         onMenuClick={() => setSidebarOpen(true)}
+        session={session}
+        profile={profile}
+        isStaff={isStaff}
+        revealDM={revealDM}
+        onToggleRevealDM={() => setRevealDM((v) => !v)}
+        onLogin={() => setShowLoginModal(true)}
+        onSignOut={handleSignOut}
       />
       </div>
 
@@ -4544,17 +4409,17 @@ export default function Compendium() {
             {searchResults ? (
               <SearchResults results={searchResults} onClick={goTo} query={search} />
             ) : section === 'home' ? (
-              <HomePage content={content} goTo={goTo} editMode={editMode} persistChange={persistChange} />
+              <HomePage content={content} goTo={goTo} editMode={editMode && isStaff} persistChange={persistChange} />
             ) : section === 'campaign' ? (
-              <CampaignPage content={content} editMode={editMode} persistChange={persistChange} />
+              <CampaignPage content={content} editMode={editMode && isStaff} persistChange={persistChange} />
             ) : section === 'races' ? (
-              <RacesPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} goTo={goTo} isDM={dmAuthed} />
+              <RacesPage content={content} activeId={activeId} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} />
             ) : section === 'classes' ? (
-              <ClassesPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} goTo={goTo} isDM={dmAuthed} />
+              <ClassesPage content={content} activeId={activeId} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} />
             ) : section === 'subclasses' ? (
-              <SubclassesPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} goTo={goTo} isDM={dmAuthed} />
+              <SubclassesPage content={content} activeId={activeId} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} />
             ) : section === 'characters' ? (
-              <CharactersPage content={content} activeId={activeId} editMode={editMode} persistChange={persistChange} goTo={goTo} isDM={dmAuthed} />
+              <CharactersPage content={content} activeId={activeId} editMode={editMode} canEditEntry={canEditEntry} persistChange={persistChange} goTo={goTo} isDM={showingDM} />
             ) : null}
           </div>
         </main>
@@ -4564,8 +4429,8 @@ export default function Compendium() {
         {saveStatus}
       </div>
 
-      {/* DM Password Modal */}
-      {showPasswordModal && (
+      {/* Login Modal — Discord OAuth + email magic link */}
+      {showLoginModal && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(30,15,5,0.7)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -4573,46 +4438,63 @@ export default function Compendium() {
         }}>
           <div style={{
             background: '#f5ecd9', border: '2px solid #8b1414', borderRadius: '6px',
-            padding: '32px', width: '360px', boxShadow: '0 8px 40px rgba(0,0,0,0.5)',
+            padding: '32px', width: '380px', boxShadow: '0 8px 40px rgba(0,0,0,0.5)',
             fontFamily: '"Palatino Linotype", serif',
           }}>
             <div style={{
               fontFamily: '"Cinzel", serif', fontSize: '16px', fontWeight: 700,
               color: '#5c1414', textTransform: 'uppercase', letterSpacing: '0.1em',
               marginBottom: '8px',
-            }}>DM Access Required</div>
+            }}>Sign In</div>
             <p style={{ fontSize: '13px', color: '#5c4020', marginBottom: '20px', fontStyle: 'italic' }}>
-              Enter the DM password to enable Edit Mode.
+              Sign in to edit. Players can edit their own character; DMs can edit everything.
             </p>
+
+            <button
+              onClick={handleDiscordLogin}
+              style={{
+                width: '100%', padding: '11px', background: '#5865F2', color: '#fff',
+                border: 'none', borderRadius: '4px', fontFamily: '"Cinzel", serif',
+                fontSize: '13px', fontWeight: 600, letterSpacing: '0.06em', cursor: 'pointer',
+                marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+              }}
+            >Continue with Discord</button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '0 0 16px 0', color: '#8b6914', fontSize: '11px' }}>
+              <div style={{ flex: 1, height: '1px', background: '#c9a55c' }} />
+              OR
+              <div style={{ flex: 1, height: '1px', background: '#c9a55c' }} />
+            </div>
+
             <input
               autoFocus
-              type="password"
-              value={passwordInput}
-              onChange={(e) => { setPasswordInput(e.target.value); setPasswordError(''); }}
-              onKeyDown={handlePasswordKeyDown}
-              placeholder="Password"
+              type="email"
+              value={emailInput}
+              onChange={(e) => { setEmailInput(e.target.value); setLoginMsg(''); }}
+              onKeyDown={handleLoginKeyDown}
+              placeholder="you@example.com"
               style={{
                 width: '100%', padding: '10px 14px', border: '1px solid #8b6914',
                 borderRadius: '4px', fontFamily: 'inherit', fontSize: '14px',
                 background: '#fffaf0', color: '#3b2615', marginBottom: '8px',
-                outline: 'none',
+                outline: 'none', boxSizing: 'border-box',
               }}
             />
-            {passwordError && (
-              <div style={{ color: '#8b1414', fontSize: '12px', marginBottom: '8px' }}>{passwordError}</div>
+            {loginMsg && (
+              <div style={{ color: loginMsg.startsWith('Check') ? '#2d5c2d' : '#8b1414', fontSize: '12px', marginBottom: '8px' }}>{loginMsg}</div>
             )}
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
-                onClick={handlePasswordSubmit}
+                onClick={handleEmailLogin}
                 style={{
                   flex: 1, padding: '10px', background: '#5c1414', color: '#f5ecd9',
                   border: 'none', borderRadius: '4px', fontFamily: '"Cinzel", serif',
                   fontSize: '13px', fontWeight: 600, textTransform: 'uppercase',
                   letterSpacing: '0.08em', cursor: 'pointer',
                 }}
-              >Unlock</button>
+              >Email me a link</button>
               <button
-                onClick={() => { setShowPasswordModal(false); setPasswordInput(''); setPasswordError(''); }}
+                onClick={() => { setShowLoginModal(false); setEmailInput(''); setLoginMsg(''); }}
                 style={{
                   padding: '10px 18px', background: 'transparent', color: '#5c4020',
                   border: '1px solid #8b6914', borderRadius: '4px', fontFamily: '"Cinzel", serif',
@@ -4630,7 +4512,7 @@ export default function Compendium() {
 // ============================================================
 // COMPONENTS
 // ============================================================
-function Header({ content, editMode, dirty, onEditToggle, onSave, onDiscard, onMetaChange, saving, isMobile, onMenuClick }) {
+function Header({ content, editMode, dirty, onEditToggle, onSave, onDiscard, onMetaChange, saving, isMobile, onMenuClick, session, profile, isStaff, revealDM, onToggleRevealDM, onLogin, onSignOut }) {
   const logoSrc = `${import.meta.env.BASE_URL}logo.png`;
   const logoSize = isMobile ? 44 : 72;
   return (
@@ -4721,12 +4603,37 @@ function Header({ content, editMode, dirty, onEditToggle, onSave, onDiscard, onM
             >
               <ScrollText size={14} /> Print
             </button>
+            {isStaff && (
+              <button
+                style={{
+                  ...(revealDM ? styles.button : styles.buttonGhost),
+                  background: revealDM ? '#5c1414' : undefined,
+                }}
+                onClick={onToggleRevealDM}
+                title={revealDM ? 'Hide DM-only content' : 'Reveal DM-only content'}
+              >
+                <Lock size={14} /> {revealDM ? 'Hide DM' : 'Reveal DM'}
+              </button>
+            )}
             <button
               style={editMode ? styles.button : styles.buttonGhost}
               onClick={onEditToggle}
             >
               {editMode ? <><Eye size={14} /> View Mode</> : <><Edit3 size={14} /> Edit Mode</>}
             </button>
+            {session ? (
+              <button
+                style={styles.buttonGhost}
+                onClick={onSignOut}
+                title={`Signed in as ${profile?.display_name || 'user'} (${profile?.role || 'player'})`}
+              >
+                <LogOut size={14} /> {profile?.role ? profile.role[0].toUpperCase() + profile.role.slice(1) : 'Sign Out'}
+              </button>
+            ) : (
+              <button style={styles.buttonGhost} onClick={onLogin} title="Sign in to edit">
+                <LogIn size={14} /> Sign In
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -5054,9 +4961,14 @@ function SubclassesPage({ content, activeId, editMode, persistChange, goTo, isDM
   );
 }
 
-function CharactersPage({ content, activeId, editMode, persistChange, goTo, isDM }) {
+function CharactersPage({ content, activeId, editMode, canEditEntry, persistChange, goTo, isDM }) {
   const ch = content.characters.find((c) => c.id === activeId) || content.characters[0];
   if (!ch) return <p style={styles.bodyText}>No characters defined.</p>;
+
+  // A player may edit only a character they own; staff may edit any.
+  const mayEdit = editMode && (canEditEntry ? canEditEntry('characters', ch) : false);
+  // Below this point, the page uses `mayEdit` as its effective edit flag.
+  const _editMode = mayEdit;
 
   const updateCh = (fields) => {
     const updated = content.characters.map((c) => c.id === ch.id ? { ...c, ...fields } : c);
@@ -5086,11 +4998,11 @@ function CharactersPage({ content, activeId, editMode, persistChange, goTo, isDM
         value={ch.name}
         defaultValue="Character"
         onChange={(v) => updateCh({ name: v })}
-        editMode={editMode}
+        editMode={_editMode}
         style={styles.pageHeading}
       />
 
-      <PillRow pills={pills} editMode={editMode} onChange={(p) => updateCh({ pills: p })} />
+      <PillRow pills={pills} editMode={_editMode} onChange={(p) => updateCh({ pills: p })} />
 
       {ch.placeholder && (
         <div style={{ ...styles.card, marginTop: '12px', background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c' }}>
@@ -5102,7 +5014,7 @@ function CharactersPage({ content, activeId, editMode, persistChange, goTo, isDM
 
       <Sections
         sections={sections}
-        editMode={editMode}
+        editMode={_editMode}
         onChange={(s) => updateCh({ sections: s })}
         headingStyle={styles.sectionHeading}
         category="characters"
