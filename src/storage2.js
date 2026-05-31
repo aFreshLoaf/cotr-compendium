@@ -24,18 +24,27 @@ const SINGLETON_PARENT_CLASS_ORDER = '__parentClassOrder';
 
 // ── Auth ────────────────────────────────────────────────────────────────────
 
-// Wrap a promise so it can never hang the app: resolves to `fallback` after `ms`.
-function withTimeout(promise, ms, fallback) {
+// Wrap a promise so it can never hang: resolves to TIMEOUT sentinel after `ms`.
+const TIMEOUT = Symbol('timeout');
+function withTimeout(promise, ms) {
   return Promise.race([
     promise,
-    new Promise((resolve) => setTimeout(() => resolve(fallback), ms)),
+    new Promise((resolve) => setTimeout(() => resolve(TIMEOUT), ms)),
   ]);
 }
 
 export async function getSession() {
   if (!supabaseConfigured) return null;
   try {
-    const result = await withTimeout(supabase.auth.getSession(), 4000, { data: { session: null } });
+    const result = await withTimeout(supabase.auth.getSession(), 4000);
+    if (result === TIMEOUT) {
+      // Couldn't establish the session quickly. Degrade to public view rather
+      // than hanging. We do NOT clear the token here — a transient timeout on a
+      // valid token shouldn't log the user out. Genuinely corrupt (unparseable)
+      // tokens are purged at client init in supabase.js.
+      console.warn('[CotR] getSession timed out — continuing as public view.');
+      return null;
+    }
     return result?.data?.session ?? null;
   } catch (e) {
     console.error('[CotR] getSession error:', e);
@@ -46,14 +55,18 @@ export async function getSession() {
 export async function getProfile() {
   if (!supabaseConfigured) return null;
   try {
-    const userRes = await withTimeout(supabase.auth.getUser(), 4000, { data: { user: null } });
+    const userRes = await withTimeout(supabase.auth.getUser(), 4000);
+    if (userRes === TIMEOUT) { console.warn('[CotR] getUser timed out'); return null; }
     const user = userRes?.data?.user;
     if (!user) return null;
     const res = await withTimeout(
       supabase.from('profiles').select('id, role, owned_chars, display_name').eq('id', user.id).maybeSingle(),
-      4000,
-      { data: null, error: { message: 'profile query timed out' } }
+      4000
     );
+    if (res === TIMEOUT) {
+      console.warn('[CotR] profile query timed out');
+      return { id: user.id, role: 'player', owned_chars: [], display_name: user.email };
+    }
     if (res.error) {
       console.error('[CotR] profile load error:', res.error.message);
       return { id: user.id, role: 'player', owned_chars: [], display_name: user.email };
