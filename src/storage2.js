@@ -224,7 +224,7 @@ export async function loadContent2(isStaff) {
     if (!rows || rows.length === 0) return null;
 
     const content = {
-      subclasses: [], races: [], classes: [], characters: [],
+      subclasses: [], races: [], classes: [], characters: [], items: [], locations: [],
       meta: {}, home: {}, campaign: {}, campaigns: {},
       raceOrder: [], campaignOrder: [], parentClassOrder: [],
     };
@@ -238,6 +238,8 @@ export async function loadContent2(isStaff) {
         case 'subclass': content.subclasses.push(merged); break;
         case 'race':     content.races.push(merged); break;
         case 'class':    content.classes.push(merged); break;
+        case 'item':     content.items.push(merged); break;
+        case 'location': content.locations.push(merged); break;
         case 'character':
           content.characters.push({ ...merged, owner_id: row.owner_id ?? null });
           break;
@@ -285,6 +287,14 @@ function buildRowMap(content) {
     const { owner_id, ...rest } = e;
     const { data, dm_data } = splitEntryForSave(rest);
     push(e.id, 'character', data, { dm_data, sort_order: i });
+  });
+  (content.items || []).forEach((e, i) => {
+    const { data, dm_data } = splitEntryForSave(e);
+    push(e.id, 'item', data, { dm_data, sort_order: i });
+  });
+  (content.locations || []).forEach((e, i) => {
+    const { data, dm_data } = splitEntryForSave(e);
+    push(e.id, 'location', data, { dm_data, sort_order: i });
   });
 
   push(SINGLETON_META, 'meta', content.meta || {}, { sort_order: 10000 });

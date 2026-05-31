@@ -10,6 +10,8 @@ import { Search, Book, Users, Sword, Shield, Sparkles, ScrollText, Edit3, Plus, 
 // DEFAULT CONTENT — seeded from Mikey's homebrew documents
 // ============================================================
 const DEFAULT_CONTENT = {
+  items: [],
+  locations: [],
   meta: {
     title: "Chronicles of the Realms",
     subtitle: "A Homebrew Compendium",
@@ -1840,6 +1842,16 @@ function seedSectionsForType(type, opts = {}) {
         { id: id(), type: 'text',     heading: 'Summary',    body: '' },
         { id: id(), type: 'features', heading: 'Key Traits', features: [] },
       ];
+    case 'item':
+      return [
+        { id: id(), type: 'text',     heading: 'Description', body: '' },
+        { id: id(), type: 'features', heading: 'Properties',  features: [] },
+      ];
+    case 'location':
+      return [
+        { id: id(), type: 'text',     heading: 'Overview',         body: '' },
+        { id: id(), type: 'features', heading: 'Notable Features', features: [] },
+      ];
     default:
       return [];
   }
@@ -2079,6 +2091,8 @@ function BlockBody({ value, editMode, onChange, placeholder, content, goTo, isDM
       : item.section === 'races' ? content.races
       : item.section === 'classes' ? content.classes
       : item.section === 'characters' ? content.characters
+      : item.section === 'items' ? (content.items || [])
+      : item.section === 'locations' ? (content.locations || [])
       : [];
     const entry = collection.find((e) => e.id === item.id);
     if (!entry) return null;
@@ -2262,6 +2276,8 @@ function BlockBody({ value, editMode, onChange, placeholder, content, goTo, isDM
               races:      (content?.races || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')),
               classes:    (content?.classes || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')),
               characters: (content?.characters || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')),
+              items:      (content?.items || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')),
+              locations:  (content?.locations || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')),
             };
             // Kind selector value: 'internal' (with section as suffix) or 'external'
             const kindValue = (item) => (item.kind === 'external' ? 'external' : (item.section || 'subclasses'));
@@ -2288,6 +2304,8 @@ function BlockBody({ value, editMode, onChange, placeholder, content, goTo, isDM
                             <option value="races">Race</option>
                             <option value="classes">Class</option>
                             <option value="characters">Character</option>
+                            <option value="items">Item</option>
+                            <option value="locations">Location</option>
                             <option value="external">External URL</option>
                           </select>
                           {isExternal ? (
@@ -3441,6 +3459,7 @@ export default function Compendium() {
   const [expandedClasses, setExpandedClasses] = useState(null);
   const [expandedRaces, setExpandedRaces] = useState(new Set());
   const [expandedCampaigns, setExpandedCampaigns] = useState(new Set());
+  const [expandedLocations, setExpandedLocations] = useState(new Set());
   const [expandedSections, setExpandedSections] = useState(new Set()); // collapsed by default
 
   // Force exit of edit mode on mobile resize
@@ -3733,6 +3752,70 @@ export default function Compendium() {
     goTo('characters', id);
   };
 
+  const createItem = () => {
+    const name = promptName('Item');
+    if (!name) return;
+    const existing = (content.items || []).map((it) => it.id);
+    const id = uniqueId(slugify(name), existing);
+    const newItem = {
+      id, name, group: '',
+      sections: seedSectionsForType('item'),
+    };
+    persistChange({ ...content, items: [...(content.items || []), newItem] });
+    goTo('items', id);
+  };
+
+  const createLocation = (parentId) => {
+    const name = promptName('Location');
+    if (!name) return;
+    const existing = (content.locations || []).map((l) => l.id);
+    const id = uniqueId(slugify(name), existing);
+    const newLoc = {
+      id, name, parentId: parentId || null,
+      sections: seedSectionsForType('location'),
+    };
+    persistChange({ ...content, locations: [...(content.locations || []), newLoc] });
+    // Auto-expand the parent so the new child is visible
+    if (parentId) {
+      setExpandedLocations((prev) => { const n = new Set(prev); n.add(parentId); return n; });
+    }
+    goTo('locations', id);
+  };
+
+  const deleteItem = (itemId) => {
+    const it = (content.items || []).find((x) => x.id === itemId);
+    if (!it) return;
+    if (!window.confirm(`Delete item "${it.name}"? This cannot be undone (until you discard without saving).`)) return;
+    const items = (content.items || []).filter((x) => x.id !== itemId);
+    persistChange({ ...content, items });
+    goTo('items', items[0]?.id || null);
+  };
+
+  const deleteLocation = (locId) => {
+    const loc = (content.locations || []).find((x) => x.id === locId);
+    if (!loc) return;
+    // Gather this location and all descendants (recursive) so we delete the subtree.
+    const all = content.locations || [];
+    const toDelete = new Set([locId]);
+    let added = true;
+    while (added) {
+      added = false;
+      for (const l of all) {
+        if (l.parentId && toDelete.has(l.parentId) && !toDelete.has(l.id)) {
+          toDelete.add(l.id); added = true;
+        }
+      }
+    }
+    const descCount = toDelete.size - 1;
+    const msg = descCount > 0
+      ? `Delete "${loc.name}" and its ${descCount} sub-location${descCount === 1 ? '' : 's'}? This cannot be undone (until you discard without saving).`
+      : `Delete location "${loc.name}"? This cannot be undone (until you discard without saving).`;
+    if (!window.confirm(msg)) return;
+    const locations = all.filter((l) => !toDelete.has(l.id));
+    persistChange({ ...content, locations });
+    goTo('locations', locations.find((l) => !l.parentId)?.id || locations[0]?.id || null);
+  };
+
   // Flush staged content to Supabase. Triggered by the Save button.
   const handleSave = async () => {
     if (!dirty) return;
@@ -3869,6 +3952,11 @@ export default function Compendium() {
     content.classes.forEach((c) => scan(c, 'Class', 'classes', null));
     content.subclasses.forEach((s) => scan(s, 'Subclass', 'subclasses', s.parentClass));
     content.characters.forEach((ch) => scan(ch, 'Character', 'characters', ch.campaign));
+    (content.items || []).forEach((it) => scan(it, 'Item', 'items', it.group || null));
+    (content.locations || []).forEach((loc) => {
+      const parentLoc = loc.parentId ? (content.locations || []).find((l) => l.id === loc.parentId) : null;
+      scan(loc, 'Location', 'locations', parentLoc?.name || null);
+    });
 
     return hits;
   }, [search, content, showingDM]);
@@ -3893,7 +3981,7 @@ export default function Compendium() {
         next.add('classes-and-subclasses');
         return next;
       });
-    } else if (['races', 'characters'].includes(sect)) {
+    } else if (['races', 'characters', 'items', 'locations'].includes(sect)) {
       setExpandedSections((prev) => {
         const next = new Set(prev);
         next.add(sect);
@@ -3927,6 +4015,26 @@ export default function Compendium() {
         setExpandedCampaigns((prev) => {
           const next = new Set(prev);
           next.add(ch.campaign);
+          return next;
+        });
+      }
+    }
+    // Auto-expand the full ancestor chain when navigating to a location
+    if (sect === 'locations' && id) {
+      const locs = content.locations || [];
+      const ancestors = new Set();
+      let cur = locs.find((l) => l.id === id);
+      // Walk up via parentId, guarding against cycles
+      const guard = new Set();
+      while (cur && cur.parentId && !guard.has(cur.parentId)) {
+        ancestors.add(cur.parentId);
+        guard.add(cur.parentId);
+        cur = locs.find((l) => l.id === cur.parentId);
+      }
+      if (ancestors.size > 0) {
+        setExpandedLocations((prev) => {
+          const next = new Set(prev);
+          ancestors.forEach((a) => next.add(a));
           return next;
         });
       }
@@ -4300,6 +4408,126 @@ export default function Compendium() {
               </div>
             );
           })}
+
+          {/* ITEMS — flat list with optional freeform groups */}
+          <SectionToggle
+            label="Items"
+            expanded={expandedSections.has('items')}
+            onClick={() => toggleSectionExpanded('items')}
+          />
+          {expandedSections.has('items') && (() => {
+            const items = content.items || [];
+            // Bucket by group; ungrouped items collected separately.
+            const groups = [];
+            const groupMap = {};
+            const ungrouped = [];
+            items.forEach((it) => {
+              const g = (it.group || '').trim();
+              if (!g) { ungrouped.push(it); return; }
+              if (!groupMap[g]) { groupMap[g] = []; groups.push(g); }
+              groupMap[g].push(it);
+            });
+            const renderItem = (it) => {
+              const isActive = section === 'items' && activeId === it.id;
+              return (
+                <div key={it.id}
+                  style={{ ...styles.subclassChild, ...(isActive ? styles.subclassChildActive : {}) }}
+                  onClick={() => goTo('items', it.id)}
+                >
+                  <span>{it.name}</span>
+                </div>
+              );
+            };
+            const groupHeader = (label) => (
+              <div style={{ padding: '4px 20px 2px 44px', fontSize: '10px', textTransform: 'uppercase',
+                letterSpacing: '0.08em', color: '#8b6914', fontWeight: 700, fontFamily: '"Cinzel", serif', marginTop: '4px' }}>
+                {label}
+              </div>
+            );
+            return (
+              <>
+                {groups.map((g) => (
+                  <div key={g}>
+                    {groupHeader(g)}
+                    {groupMap[g].map(renderItem)}
+                  </div>
+                ))}
+                {ungrouped.length > 0 && (
+                  <>
+                    {groups.length > 0 && groupHeader('Ungrouped')}
+                    {ungrouped.map(renderItem)}
+                  </>
+                )}
+                {editMode && isStaff && (
+                  <div style={{ ...styles.subclassChild, color: '#7a1f1f', fontStyle: 'italic', cursor: 'pointer' }}
+                    onClick={(e) => { e.stopPropagation(); createItem(); }}>
+                    <Plus size={11} style={{ marginRight: '4px' }} /> New Item
+                  </div>
+                )}
+              </>
+            );
+          })()}
+
+          {/* LOCATIONS — arbitrary-depth tree (each node has its own page) */}
+          <SectionToggle
+            label="Locations"
+            expanded={expandedSections.has('locations')}
+            onClick={() => toggleSectionExpanded('locations')}
+          />
+          {expandedSections.has('locations') && (() => {
+            const locations = content.locations || [];
+            const childrenOf = (pid) => locations.filter((l) => (l.parentId || null) === pid);
+            const renderNode = (loc, depth) => {
+              const kids = childrenOf(loc.id);
+              const hasKids = kids.length > 0;
+              const isExpanded = expandedLocations.has(loc.id);
+              const isActive = section === 'locations' && activeId === loc.id;
+              return (
+                <div key={loc.id}>
+                  <div
+                    style={{ ...styles.subclassChild, ...(isActive ? styles.subclassChildActive : {}),
+                      paddingLeft: `${28 + depth * 16}px`, display: 'flex', alignItems: 'center', gap: '4px' }}
+                    onClick={() => {
+                      goTo('locations', loc.id);
+                      if (hasKids) {
+                        setExpandedLocations((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(loc.id)) next.delete(loc.id); else next.add(loc.id);
+                          return next;
+                        });
+                      }
+                    }}
+                  >
+                    {hasKids ? (
+                      <ChevronRight size={11}
+                        style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s', flexShrink: 0 }} />
+                    ) : <span style={{ width: '11px', display: 'inline-block', flexShrink: 0 }} />}
+                    <span>{loc.name}</span>
+                  </div>
+                  {editMode && isStaff && (
+                    <div style={{ ...styles.subclassChild, paddingLeft: `${44 + depth * 16}px`,
+                      color: '#7a1f1f', fontStyle: 'italic', fontSize: '11px', cursor: 'pointer' }}
+                      onClick={(e) => { e.stopPropagation(); createLocation(loc.id); }}>
+                      <Plus size={10} style={{ marginRight: '3px' }} /> Sub-location
+                    </div>
+                  )}
+                  {hasKids && isExpanded && kids.map((k) => renderNode(k, depth + 1))}
+                </div>
+              );
+            };
+            const roots = childrenOf(null);
+            return (
+              <>
+                {roots.map((r) => renderNode(r, 0))}
+                {editMode && isStaff && (
+                  <div style={{ ...styles.subclassChild, color: '#7a1f1f', fontStyle: 'italic', cursor: 'pointer' }}
+                    onClick={(e) => { e.stopPropagation(); createLocation(null); }}>
+                    <Plus size={11} style={{ marginRight: '4px' }} /> New Location
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </aside>
 
         <main className="app-main" style={{
@@ -4321,6 +4549,10 @@ export default function Compendium() {
               <SubclassesPage content={content} activeId={activeId} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} />
             ) : section === 'characters' ? (
               <CharactersPage content={content} activeId={activeId} editMode={editMode} canEditEntry={canEditEntry} persistChange={persistChange} goTo={goTo} isDM={showingDM} />
+            ) : section === 'items' ? (
+              <ItemsPage content={content} activeId={activeId} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} onDelete={deleteItem} />
+            ) : section === 'locations' ? (
+              <LocationsPage content={content} activeId={activeId} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} onDelete={deleteLocation} />
             ) : null}
           </div>
         </main>
@@ -4600,6 +4832,8 @@ function HomePage({ content, goTo, editMode, persistChange }) {
         <QuickCard icon={<Sword size={20} />} label="Classes" count={content.classes.length} onClick={() => goTo('classes', content.classes[0]?.id)} />
         <QuickCard icon={<Shield size={20} />} label="Subclasses" count={content.subclasses.length} onClick={() => goTo('subclasses', content.subclasses[0]?.id)} />
         <QuickCard icon={<Users size={20} />} label="Characters" count={content.characters.length} onClick={() => goTo('characters', content.characters[0]?.id)} />
+        <QuickCard icon={<Sword size={20} />} label="Items" count={(content.items || []).length} onClick={() => goTo('items', (content.items || [])[0]?.id)} />
+        <QuickCard icon={<Book size={20} />} label="Locations" count={(content.locations || []).length} onClick={() => goTo('locations', (content.locations || []).find((l) => !l.parentId)?.id)} />
       </div>
 
       <h2 style={styles.sectionHeading}>The Story So Far</h2>
@@ -4936,6 +5170,145 @@ function CharactersPage({ content, activeId, editMode, canEditEntry, persistChan
         goTo={goTo}
         isDM={isDM}
         identityFields={{ entry: ch, update: updateCh, fieldRow }}
+      />
+    </div>
+  );
+}
+
+function ItemsPage({ content, activeId, editMode, persistChange, goTo, isDM, onDelete }) {
+  const items = content.items || [];
+  const item = items.find((x) => x.id === activeId) || items[0];
+  if (!item) {
+    return (
+      <div>
+        <h1 style={styles.pageHeading}>Items</h1>
+        <p style={styles.bodyText}>No items yet.{editMode ? ' Use “+ New Item” in the sidebar to create one.' : ''}</p>
+      </div>
+    );
+  }
+  const updateItem = (fields) => {
+    persistChange({ ...content, items: items.map((x) => x.id === item.id ? { ...x, ...fields } : x) });
+  };
+  // Known groups for quick assignment (datalist suggestions)
+  const knownGroups = Array.from(new Set(items.map((x) => (x.group || '').trim()).filter(Boolean)));
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+        <div style={{ flex: 1 }}>
+          <EditableHeading as="h1" value={item.name} defaultValue="Item"
+            onChange={(v) => updateItem({ name: v })} editMode={editMode} style={styles.pageHeading} />
+        </div>
+        {editMode && (
+          <button onClick={() => onDelete(item.id)}
+            style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '3px',
+              padding: '7px 12px', cursor: 'pointer', fontFamily: '"Cinzel", serif', fontSize: '12px',
+              whiteSpace: 'nowrap', flexShrink: 0, marginTop: '4px' }}>
+            <Trash2 size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />Delete
+          </button>
+        )}
+      </div>
+
+      {editMode ? (
+        <div style={{ ...styles.card, marginTop: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '11px', color: '#8b6914', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Group</span>
+          <input value={item.group || ''} placeholder="Optional — e.g. Weapons, Artifacts…"
+            list="cotr-item-groups"
+            onChange={(e) => updateItem({ group: e.target.value })}
+            style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px', flex: 1 }} />
+          <datalist id="cotr-item-groups">
+            {knownGroups.map((g) => <option key={g} value={g} />)}
+          </datalist>
+        </div>
+      ) : item.group ? (
+        <div style={{ marginTop: '4px', marginBottom: '8px' }}>
+          <span style={styles.pill}>{item.group}</span>
+        </div>
+      ) : null}
+
+      <Sections
+        sections={item.sections || []}
+        editMode={editMode}
+        onChange={(s) => updateItem({ sections: s })}
+        headingStyle={styles.sectionHeading}
+        category="items"
+        entryId={item.id}
+        content={content}
+        goTo={goTo}
+        isDM={isDM}
+      />
+    </div>
+  );
+}
+
+function LocationsPage({ content, activeId, editMode, persistChange, goTo, isDM, onDelete }) {
+  const locations = content.locations || [];
+  const loc = locations.find((x) => x.id === activeId) || locations.find((x) => !x.parentId) || locations[0];
+  if (!loc) {
+    return (
+      <div>
+        <h1 style={styles.pageHeading}>Locations</h1>
+        <p style={styles.bodyText}>No locations yet.{editMode ? ' Use “+ New Location” in the sidebar to create one.' : ''}</p>
+      </div>
+    );
+  }
+  const updateLoc = (fields) => {
+    persistChange({ ...content, locations: locations.map((x) => x.id === loc.id ? { ...x, ...fields } : x) });
+  };
+  // Build the ancestor breadcrumb (root → … → current)
+  const crumbs = [];
+  {
+    let cur = loc;
+    const guard = new Set();
+    while (cur) {
+      crumbs.unshift(cur);
+      if (!cur.parentId || guard.has(cur.parentId)) break;
+      guard.add(cur.parentId);
+      cur = locations.find((l) => l.id === cur.parentId);
+    }
+  }
+  const childCount = locations.filter((l) => l.parentId === loc.id).length;
+  return (
+    <div>
+      {crumbs.length > 1 && (
+        <div style={{ marginBottom: '6px', fontSize: '12px', color: '#8b6914', fontFamily: '"Cinzel", serif' }}>
+          {crumbs.map((c, i) => (
+            <span key={c.id}>
+              {i > 0 && <span style={{ margin: '0 6px', opacity: 0.6 }}>›</span>}
+              {c.id === loc.id ? (
+                <span style={{ color: '#5c1414', fontWeight: 600 }}>{c.name}</span>
+              ) : (
+                <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => goTo('locations', c.id)}>{c.name}</span>
+              )}
+            </span>
+          ))}
+        </div>
+      )}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+        <div style={{ flex: 1 }}>
+          <EditableHeading as="h1" value={loc.name} defaultValue="Location"
+            onChange={(v) => updateLoc({ name: v })} editMode={editMode} style={styles.pageHeading} />
+        </div>
+        {editMode && (
+          <button onClick={() => onDelete(loc.id)}
+            style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '3px',
+              padding: '7px 12px', cursor: 'pointer', fontFamily: '"Cinzel", serif', fontSize: '12px',
+              whiteSpace: 'nowrap', flexShrink: 0, marginTop: '4px' }}
+            title={childCount > 0 ? `Deletes this and ${childCount} sub-location(s)` : 'Delete this location'}>
+            <Trash2 size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />Delete
+          </button>
+        )}
+      </div>
+
+      <Sections
+        sections={loc.sections || []}
+        editMode={editMode}
+        onChange={(s) => updateLoc({ sections: s })}
+        headingStyle={styles.sectionHeading}
+        category="locations"
+        entryId={loc.id}
+        content={content}
+        goTo={goTo}
+        isDM={isDM}
       />
     </div>
   );
