@@ -3537,6 +3537,12 @@ export default function Compendium() {
   React.useEffect(() => { editModeRef.current = editMode; }, [editMode]);
   const isStaffRef = React.useRef(false);
   React.useEffect(() => { isStaffRef.current = isStaff; }, [isStaff]);
+  // Refs so the auth-change callback can compare against current session/profile
+  // without re-subscribing or seeing stale closure values.
+  const sessionRef = React.useRef(null);
+  React.useEffect(() => { sessionRef.current = session; }, [session]);
+  const profileRef = React.useRef(null);
+  React.useEffect(() => { profileRef.current = profile; }, [profile]);
 
   // Initial mount: establish session, profile, then load content.
   useEffect(() => {
@@ -3565,17 +3571,39 @@ export default function Compendium() {
       }
     })();
 
-    // React to auth changes (login via redirect, magic link, logout)
+    // React to auth changes. IMPORTANT: events like TOKEN_REFRESHED fire on tab
+    // refocus and must NOT clobber a known-good profile. We only re-fetch the
+    // profile when the user identity actually changes (real login / logout /
+    // account switch), and we never overwrite an existing profile with a failed
+    // fetch result.
     const unsubAuth = onAuthChange(async (sess) => {
+      const prevUserId = sessionRef.current?.user?.id || null;
+      const nextUserId = sess?.user?.id || null;
       setSession(sess);
-      if (sess) {
-        let prof = null;
-        try { prof = await getProfile(); } catch (e) { console.error('[CotR] profile load failed:', e); }
-        setProfile(prof);
-        await reloadContent(prof && (prof.role === 'admin' || prof.role === 'dm'));
-      } else {
+
+      if (!sess) {
+        // Genuine sign-out.
         setProfile(null);
         setRevealDM(false);
+        await reloadContent(false);
+        return;
+      }
+
+      // Same user as before (e.g. token refresh on tab return): keep the profile
+      // we already have. Do not re-fetch, do not reload content, do not demote.
+      if (nextUserId && nextUserId === prevUserId && profileRef.current) {
+        return;
+      }
+
+      // New / changed user: fetch their profile. Only apply it if the fetch
+      // succeeded; a null result (timeout/error) leaves any existing profile intact.
+      let prof = null;
+      try { prof = await getProfile(); } catch (e) { console.error('[CotR] profile load failed:', e); }
+      if (prof) {
+        setProfile(prof);
+        await reloadContent(prof.role === 'admin' || prof.role === 'dm');
+      } else if (!profileRef.current) {
+        // No prior profile and fetch failed — load as public, but don't fabricate a role.
         await reloadContent(false);
       }
     });

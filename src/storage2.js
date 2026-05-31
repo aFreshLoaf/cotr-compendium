@@ -67,15 +67,16 @@ export async function getProfile() {
       supabase.from('profiles').select('id, role, owned_chars, display_name').eq('id', user.id).maybeSingle(),
       4000
     );
-    if (res === TIMEOUT) {
-      console.warn('[CotR] profile query timed out');
-      return { id: user.id, role: 'player', owned_chars: [], display_name: user.email };
-    }
-    if (res.error) {
-      console.error('[CotR] profile load error:', res.error.message);
-      return { id: user.id, role: 'player', owned_chars: [], display_name: user.email };
-    }
-    return res.data || { id: user.id, role: 'player', owned_chars: [], display_name: user.email };
+    // On timeout or error we return null ("couldn't determine") rather than a
+    // fabricated player profile — fabricating one would silently demote an
+    // admin/dm on a transient failure (e.g. token refresh on tab return).
+    if (res === TIMEOUT) { console.warn('[CotR] profile query timed out'); return null; }
+    if (res.error) { console.error('[CotR] profile load error:', res.error.message); return null; }
+    // Query succeeded. If a row exists, use it. If genuinely no row (should not
+    // happen — the signup trigger creates one — but handle gracefully), treat as
+    // a default player since the query itself worked.
+    if (res.data) return res.data;
+    return { id: user.id, role: 'player', owned_chars: [], display_name: user.email };
   } catch (e) {
     console.error('[CotR] getProfile exception:', e);
     return null;
