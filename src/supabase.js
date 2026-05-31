@@ -39,6 +39,13 @@ export function clearAuthStorage() {
 
 if (supabaseConfigured) purgeCorruptAuthToken();
 
+// No-op lock: bypass the Web Locks API (navigator.locks) that supabase-js uses
+// to serialize auth operations across tabs. A stale/never-released lock causes
+// getSession()/getUser() to hang forever on reload even with a perfectly valid
+// token. For a single-user-per-browser app, cross-tab serialization is
+// unnecessary, so we run the callback directly without acquiring any lock.
+const noOpLock = async (_name, _acquireTimeout, fn) => fn();
+
 export const supabase = supabaseConfigured
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
@@ -46,6 +53,7 @@ export const supabase = supabaseConfigured
         autoRefreshToken: true,
         detectSessionInUrl: true,
         flowType: 'implicit',
+        lock: noOpLock,
       },
     })
   : null;
