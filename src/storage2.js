@@ -24,26 +24,45 @@ const SINGLETON_PARENT_CLASS_ORDER = '__parentClassOrder';
 
 // ── Auth ────────────────────────────────────────────────────────────────────
 
+// Wrap a promise so it can never hang the app: resolves to `fallback` after `ms`.
+function withTimeout(promise, ms, fallback) {
+  return Promise.race([
+    promise,
+    new Promise((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
+
 export async function getSession() {
   if (!supabaseConfigured) return null;
-  const { data } = await supabase.auth.getSession();
-  return data?.session ?? null;
+  try {
+    const result = await withTimeout(supabase.auth.getSession(), 4000, { data: { session: null } });
+    return result?.data?.session ?? null;
+  } catch (e) {
+    console.error('[CotR] getSession error:', e);
+    return null;
+  }
 }
 
 export async function getProfile() {
   if (!supabaseConfigured) return null;
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, role, owned_chars, display_name')
-    .eq('id', user.id)
-    .maybeSingle();
-  if (error) {
-    console.error('[CotR] profile load error:', error.message);
-    return { id: user.id, role: 'player', owned_chars: [], display_name: user.email };
+  try {
+    const userRes = await withTimeout(supabase.auth.getUser(), 4000, { data: { user: null } });
+    const user = userRes?.data?.user;
+    if (!user) return null;
+    const res = await withTimeout(
+      supabase.from('profiles').select('id, role, owned_chars, display_name').eq('id', user.id).maybeSingle(),
+      4000,
+      { data: null, error: { message: 'profile query timed out' } }
+    );
+    if (res.error) {
+      console.error('[CotR] profile load error:', res.error.message);
+      return { id: user.id, role: 'player', owned_chars: [], display_name: user.email };
+    }
+    return res.data || { id: user.id, role: 'player', owned_chars: [], display_name: user.email };
+  } catch (e) {
+    console.error('[CotR] getProfile exception:', e);
+    return null;
   }
-  return data;
 }
 
 export async function signInWithDiscord() {
