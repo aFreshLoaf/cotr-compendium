@@ -140,8 +140,13 @@ function reinsertBlock(section, at, block) {
 }
 
 function mergeDmIntoEntry(dataObj, dmData) {
-  const entry = { ...dataObj };
   const dm = dmData || {};
+  // Entry-level DM-only: the full entry was stashed in dm_data.entry. Reconstruct
+  // it wholesale (staff view) and mark it dmOnly so the UI gates it behind Reveal.
+  if (dm.entry) {
+    return { ...dm.entry, dmOnly: true };
+  }
+  const entry = { ...dataObj };
   if (!Array.isArray(dm.sections)) return entry;
   const sections = [...(entry.sections || [])];
   const whole = dm.sections.filter((s) => !s.__inlineFor);
@@ -189,6 +194,15 @@ function scrubInlineDmBlocks(sec) {
 }
 
 function splitEntryForSave(entry) {
+  // Entry-level DM-only: the whole entry is hidden from non-staff. Its entire
+  // content goes into dm_data; public data is a bare stub that reveals nothing
+  // (no name, no sections), so non-staff never see it exist.
+  if (entry.dmOnly) {
+    return {
+      data: { id: entry.id, __dmOnly: true },           // stub only
+      dm_data: { entry },                                 // full entry preserved
+    };
+  }
   const publicSections = [];
   const dmSections = [];
   for (const sec of (entry.sections || [])) {
@@ -224,12 +238,17 @@ export async function loadContent2(isStaff) {
     if (!rows || rows.length === 0) return null;
 
     const content = {
-      subclasses: [], races: [], classes: [], characters: [], items: [], locations: [],
+      subclasses: [], races: [], classes: [], characters: [], items: [], locations: [], magic: [],
       meta: {}, home: {}, campaign: {}, campaigns: {},
       raceOrder: [], campaignOrder: [], parentClassOrder: [],
     };
 
     for (const row of rows) {
+      // Entry-level DM-only stub: for non-staff, the public data is just a stub
+      // ({id, __dmOnly}). Skip it entirely so the entry never appears for them.
+      if (row.data && row.data.__dmOnly && !(isStaff && row.dm_data)) {
+        continue;
+      }
       const merged = (isStaff && row.dm_data)
         ? mergeDmIntoEntry(row.data, row.dm_data)
         : row.data;
@@ -240,6 +259,7 @@ export async function loadContent2(isStaff) {
         case 'class':    content.classes.push(merged); break;
         case 'item':     content.items.push(merged); break;
         case 'location': content.locations.push(merged); break;
+        case 'magic':    content.magic.push(merged); break;
         case 'character':
           content.characters.push({ ...merged, owner_id: row.owner_id ?? null });
           break;
@@ -291,6 +311,10 @@ function buildRowMap(content) {
   (content.items || []).forEach((e, i) => {
     const { data, dm_data } = splitEntryForSave(e);
     push(e.id, 'item', data, { dm_data, sort_order: i });
+  });
+  (content.magic || []).forEach((e, i) => {
+    const { data, dm_data } = splitEntryForSave(e);
+    push(e.id, 'magic', data, { dm_data, sort_order: i });
   });
   (content.locations || []).forEach((e, i) => {
     const { data, dm_data } = splitEntryForSave(e);

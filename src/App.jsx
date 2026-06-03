@@ -4,7 +4,7 @@ import {
   getSession, getProfile, signInWithDiscord, signInWithEmail, signOut, onAuthChange,
   uploadImage, deleteImage,
 } from './storage2.js';
-import { Search, Book, Users, Sword, Shield, Sparkles, ScrollText, Edit3, Plus, X, Save, ChevronRight, Home, Skull, Eye, Trash2, Image as ImageIcon, Upload, Menu, Lock, LogOut, LogIn } from 'lucide-react';
+import { Search, Book, Users, Sword, Shield, Sparkles, ScrollText, Edit3, Plus, X, Save, ChevronRight, Home, Skull, Eye, Trash2, Image as ImageIcon, Upload, Menu, Lock, LogOut, LogIn, Copy } from 'lucide-react';
 
 // ============================================================
 // DEFAULT CONTENT — seeded from Mikey's homebrew documents
@@ -12,6 +12,7 @@ import { Search, Book, Users, Sword, Shield, Sparkles, ScrollText, Edit3, Plus, 
 const DEFAULT_CONTENT = {
   items: [],
   locations: [],
+  magic: [],
   meta: {
     title: "Chronicles of the Realms",
     subtitle: "A Homebrew Compendium",
@@ -1847,6 +1848,11 @@ function seedSectionsForType(type, opts = {}) {
         { id: id(), type: 'text',     heading: 'Description', body: '' },
         { id: id(), type: 'features', heading: 'Properties',  features: [] },
       ];
+    case 'magic':
+      return [
+        { id: id(), type: 'text',     heading: 'Description', body: '' },
+        { id: id(), type: 'features', heading: 'Effects',     features: [] },
+      ];
     case 'location':
       return [
         { id: id(), type: 'text',     heading: 'Overview',         body: '' },
@@ -2092,6 +2098,7 @@ function BlockBody({ value, editMode, onChange, placeholder, content, goTo, isDM
       : item.section === 'classes' ? content.classes
       : item.section === 'characters' ? content.characters
       : item.section === 'items' ? (content.items || [])
+      : item.section === 'magic' ? (content.magic || [])
       : item.section === 'locations' ? (content.locations || [])
       : [];
     const entry = collection.find((e) => e.id === item.id);
@@ -2277,6 +2284,7 @@ function BlockBody({ value, editMode, onChange, placeholder, content, goTo, isDM
               classes:    (content?.classes || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')),
               characters: (content?.characters || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')),
               items:      (content?.items || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')),
+              magic:      (content?.magic || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')),
               locations:  (content?.locations || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')),
             };
             // Kind selector value: 'internal' (with section as suffix) or 'external'
@@ -2305,6 +2313,7 @@ function BlockBody({ value, editMode, onChange, placeholder, content, goTo, isDM
                             <option value="classes">Class</option>
                             <option value="characters">Character</option>
                             <option value="items">Item</option>
+                            <option value="magic">Magic</option>
                             <option value="locations">Location</option>
                             <option value="external">External URL</option>
                           </select>
@@ -3744,11 +3753,41 @@ export default function Compendium() {
     const existing = content.characters.map((c) => c.id);
     const id = uniqueId(slugify(name), existing);
     const newCh = {
-      id, name, campaign, role: 'player', status: '',
+      id, name, campaign: campaign || '', role: 'player', status: '',
       race: '', class: '', patron: '', summary: '', keyTraits: [], note: '',
       sections: seedSectionsForType('character'),
     };
     persistChange({ ...content, characters: [...content.characters, newCh] });
+    goTo('characters', id);
+  };
+
+  // Copy an existing character into another campaign as an independent entry.
+  // Edits to the copy never affect the original (Option A). The copy is stamped
+  // with copiedFrom so the two can be cross-referenced in the UI.
+  const copyCharacterToCampaign = (sourceId, targetCampaign) => {
+    const src = content.characters.find((c) => c.id === sourceId);
+    if (!src) return;
+    const existing = content.characters.map((c) => c.id);
+    // Derive a new id incorporating the target campaign for clarity/uniqueness.
+    const campSlug = slugify(targetCampaign || 'unassigned');
+    const id = uniqueId(`${slugify(src.name)}-${campSlug}`, existing);
+    // Deep clone so nested sections aren't shared by reference.
+    const clone = JSON.parse(JSON.stringify(src));
+    // Reassign section ids so they don't collide with the source's sections.
+    if (Array.isArray(clone.sections)) {
+      clone.sections = clone.sections.map((s) => ({ ...s, id: newSectionId() }));
+    }
+    const copy = {
+      ...clone,
+      id,
+      campaign: targetCampaign || '',
+      owner_id: undefined,            // copies start unowned
+      copiedFrom: src.id,             // back-reference to the source
+    };
+    persistChange({ ...content, characters: [...content.characters, copy] });
+    if (targetCampaign) {
+      setExpandedCampaigns((prev) => { const n = new Set(prev); n.add(targetCampaign); return n; });
+    }
     goTo('characters', id);
   };
 
@@ -3763,6 +3802,28 @@ export default function Compendium() {
     };
     persistChange({ ...content, items: [...(content.items || []), newItem] });
     goTo('items', id);
+  };
+
+  const createMagic = () => {
+    const name = promptName('Magic');
+    if (!name) return;
+    const existing = (content.magic || []).map((m) => m.id);
+    const id = uniqueId(slugify(name), existing);
+    const newMagic = {
+      id, name, group: '',
+      sections: seedSectionsForType('magic'),
+    };
+    persistChange({ ...content, magic: [...(content.magic || []), newMagic] });
+    goTo('magic', id);
+  };
+
+  const deleteMagic = (magicId) => {
+    const m = (content.magic || []).find((x) => x.id === magicId);
+    if (!m) return;
+    if (!window.confirm(`Delete "${m.name}"? This cannot be undone (until you discard without saving).`)) return;
+    const magic = (content.magic || []).filter((x) => x.id !== magicId);
+    persistChange({ ...content, magic });
+    goTo('magic', magic[0]?.id || null);
   };
 
   const createLocation = (parentId) => {
@@ -3953,6 +4014,7 @@ export default function Compendium() {
     content.subclasses.forEach((s) => scan(s, 'Subclass', 'subclasses', s.parentClass));
     content.characters.forEach((ch) => scan(ch, 'Character', 'characters', ch.campaign));
     (content.items || []).forEach((it) => scan(it, 'Item', 'items', it.group || null));
+    (content.magic || []).forEach((m) => scan(m, 'Magic', 'magic', m.group || null));
     (content.locations || []).forEach((loc) => {
       const parentLoc = loc.parentId ? (content.locations || []).find((l) => l.id === loc.parentId) : null;
       scan(loc, 'Location', 'locations', parentLoc?.name || null);
@@ -3981,7 +4043,7 @@ export default function Compendium() {
         next.add('classes-and-subclasses');
         return next;
       });
-    } else if (['races', 'characters', 'items', 'locations'].includes(sect)) {
+    } else if (['races', 'characters', 'items', 'locations', 'magic'].includes(sect)) {
       setExpandedSections((prev) => {
         const next = new Set(prev);
         next.add(sect);
@@ -4347,6 +4409,7 @@ export default function Compendium() {
                   onClick={() => goTo('characters', c.id)}
                 >
                   <span>{c.name}</span>
+                  {c.dmOnly && <Lock size={10} style={{ color: '#7a1f1f', marginLeft: '4px', flexShrink: 0 }} />}
                   {c.status === 'deceased' && <span style={{ ...styles.pillPriority, background: '#3b2615', color: '#e8d5a0' }}>†</span>}
                   {c.status && c.status !== 'deceased' && (
                     <span style={{ marginLeft: '6px', fontSize: '10px', fontStyle: 'italic', color: '#8b6914' }}>{c.status}</span>
@@ -4409,6 +4472,103 @@ export default function Compendium() {
             );
           })}
 
+          {/* Unassigned characters (no campaign) + top-level new-character action */}
+          {expandedSections.has('characters') && (() => {
+            const unassigned = content.characters.filter((c) => !c.campaign);
+            const renderUnassigned = (c) => {
+              const isActive = section === 'characters' && activeId === c.id;
+              return (
+                <div key={c.id}
+                  style={{ ...styles.subclassChild, ...(isActive ? styles.subclassChildActive : {}) }}
+                  onClick={() => goTo('characters', c.id)}>
+                  <span>{c.name}</span>
+                  {c.dmOnly && <Lock size={10} style={{ color: '#7a1f1f', marginLeft: '4px', flexShrink: 0 }} />}
+                  {c.status === 'deceased' && <span style={{ ...styles.pillPriority, background: '#3b2615', color: '#e8d5a0' }}>†</span>}
+                  {c.status && c.status !== 'deceased' && (
+                    <span style={{ marginLeft: '6px', fontSize: '10px', fontStyle: 'italic', color: '#8b6914' }}>{c.status}</span>
+                  )}
+                </div>
+              );
+            };
+            return (
+              <>
+                {unassigned.length > 0 && (
+                  <>
+                    <div style={{ padding: '4px 20px 2px 28px', fontSize: '10px', textTransform: 'uppercase',
+                      letterSpacing: '0.08em', color: '#8b6914', fontWeight: 700, fontFamily: '"Cinzel", serif', marginTop: '4px' }}>
+                      Unassigned
+                    </div>
+                    {unassigned.map(renderUnassigned)}
+                  </>
+                )}
+                {editMode && isStaff && (
+                  <div style={{ ...styles.subclassChild, color: '#7a1f1f', fontStyle: 'italic', cursor: 'pointer' }}
+                    onClick={(e) => { e.stopPropagation(); createCharacter(''); }}>
+                    <Plus size={11} style={{ marginRight: '4px' }} /> New Character (unassigned)
+                  </div>
+                )}
+              </>
+            );
+          })()}
+
+          {/* MAGIC — flat list with optional freeform groups (mirrors Items) */}
+          <SectionToggle
+            label="Magic"
+            expanded={expandedSections.has('magic')}
+            onClick={() => toggleSectionExpanded('magic')}
+          />
+          {expandedSections.has('magic') && (() => {
+            const magic = content.magic || [];
+            const groups = [];
+            const groupMap = {};
+            const ungrouped = [];
+            magic.forEach((m) => {
+              const g = (m.group || '').trim();
+              if (!g) { ungrouped.push(m); return; }
+              if (!groupMap[g]) { groupMap[g] = []; groups.push(g); }
+              groupMap[g].push(m);
+            });
+            const renderMagic = (m) => {
+              const isActive = section === 'magic' && activeId === m.id;
+              return (
+                <div key={m.id}
+                  style={{ ...styles.subclassChild, ...(isActive ? styles.subclassChildActive : {}) }}
+                  onClick={() => goTo('magic', m.id)}>
+                  <span>{m.name}</span>
+                  {m.dmOnly && <Lock size={10} style={{ color: '#7a1f1f', marginLeft: '4px', flexShrink: 0 }} />}
+                </div>
+              );
+            };
+            const groupHeader = (label) => (
+              <div style={{ padding: '4px 20px 2px 44px', fontSize: '10px', textTransform: 'uppercase',
+                letterSpacing: '0.08em', color: '#8b6914', fontWeight: 700, fontFamily: '"Cinzel", serif', marginTop: '4px' }}>
+                {label}
+              </div>
+            );
+            return (
+              <>
+                {groups.map((g) => (
+                  <div key={g}>
+                    {groupHeader(g)}
+                    {groupMap[g].map(renderMagic)}
+                  </div>
+                ))}
+                {ungrouped.length > 0 && (
+                  <>
+                    {groups.length > 0 && groupHeader('Ungrouped')}
+                    {ungrouped.map(renderMagic)}
+                  </>
+                )}
+                {editMode && isStaff && (
+                  <div style={{ ...styles.subclassChild, color: '#7a1f1f', fontStyle: 'italic', cursor: 'pointer' }}
+                    onClick={(e) => { e.stopPropagation(); createMagic(); }}>
+                    <Plus size={11} style={{ marginRight: '4px' }} /> New Magic
+                  </div>
+                )}
+              </>
+            );
+          })()}
+
           {/* ITEMS — flat list with optional freeform groups */}
           <SectionToggle
             label="Items"
@@ -4435,6 +4595,7 @@ export default function Compendium() {
                   onClick={() => goTo('items', it.id)}
                 >
                   <span>{it.name}</span>
+                  {it.dmOnly && <Lock size={10} style={{ color: '#7a1f1f', marginLeft: '4px', flexShrink: 0 }} />}
                 </div>
               );
             };
@@ -4503,6 +4664,7 @@ export default function Compendium() {
                         style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s', flexShrink: 0 }} />
                     ) : <span style={{ width: '11px', display: 'inline-block', flexShrink: 0 }} />}
                     <span>{loc.name}</span>
+                    {loc.dmOnly && <Lock size={10} style={{ color: '#7a1f1f', marginLeft: '4px', flexShrink: 0 }} />}
                   </div>
                   {editMode && isStaff && (
                     <div style={{ ...styles.subclassChild, paddingLeft: `${44 + depth * 16}px`,
@@ -4548,9 +4710,11 @@ export default function Compendium() {
             ) : section === 'subclasses' ? (
               <SubclassesPage content={content} activeId={activeId} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} />
             ) : section === 'characters' ? (
-              <CharactersPage content={content} activeId={activeId} editMode={editMode} canEditEntry={canEditEntry} persistChange={persistChange} goTo={goTo} isDM={showingDM} />
+              <CharactersPage content={content} activeId={activeId} editMode={editMode} canEditEntry={canEditEntry} persistChange={persistChange} goTo={goTo} isDM={showingDM} isStaff={isStaff} onCopyToCampaign={copyCharacterToCampaign} />
             ) : section === 'items' ? (
               <ItemsPage content={content} activeId={activeId} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} onDelete={deleteItem} />
+            ) : section === 'magic' ? (
+              <MagicPage content={content} activeId={activeId} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} onDelete={deleteMagic} />
             ) : section === 'locations' ? (
               <LocationsPage content={content} activeId={activeId} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} onDelete={deleteLocation} />
             ) : null}
@@ -4833,6 +4997,7 @@ function HomePage({ content, goTo, editMode, persistChange }) {
         <QuickCard icon={<Shield size={20} />} label="Subclasses" count={content.subclasses.length} onClick={() => goTo('subclasses', content.subclasses[0]?.id)} />
         <QuickCard icon={<Users size={20} />} label="Characters" count={content.characters.length} onClick={() => goTo('characters', content.characters[0]?.id)} />
         <QuickCard icon={<Sword size={20} />} label="Items" count={(content.items || []).length} onClick={() => goTo('items', (content.items || [])[0]?.id)} />
+        <QuickCard icon={<Sparkles size={20} />} label="Magic" count={(content.magic || []).length} onClick={() => goTo('magic', (content.magic || [])[0]?.id)} />
         <QuickCard icon={<Book size={20} />} label="Locations" count={(content.locations || []).length} onClick={() => goTo('locations', (content.locations || []).find((l) => !l.parentId)?.id)} />
       </div>
 
@@ -5096,8 +5261,9 @@ function SubclassesPage({ content, activeId, editMode, persistChange, goTo, isDM
   );
 }
 
-function CharactersPage({ content, activeId, editMode, canEditEntry, persistChange, goTo, isDM }) {
+function CharactersPage({ content, activeId, editMode, canEditEntry, persistChange, goTo, isDM, isStaff, onCopyToCampaign }) {
   const ch = content.characters.find((c) => c.id === activeId) || content.characters[0];
+  const [copyTarget, setCopyTarget] = React.useState('');
   if (!ch) return <p style={styles.bodyText}>No characters defined.</p>;
 
   // A player may edit only a character they own; staff may edit any.
@@ -5127,6 +5293,13 @@ function CharactersPage({ content, activeId, editMode, canEditEntry, persistChan
   const pills = ch.pills || characterDefaultPills(ch);
   const sections = ch.sections;
 
+  // Campaigns this character could be copied into (exclude its current one).
+  const campaignList = (content.campaignOrder || []).filter((c) => c !== ch.campaign);
+  // Where else this same source/copy appears (cross-reference).
+  const relatedCopies = (content.characters || []).filter((c) =>
+    c.id !== ch.id && (c.copiedFrom === ch.id || c.id === ch.copiedFrom || (ch.copiedFrom && c.copiedFrom === ch.copiedFrom))
+  );
+
   return (
     <div>
       <EditableHeading as="h1"
@@ -5138,6 +5311,50 @@ function CharactersPage({ content, activeId, editMode, canEditEntry, persistChan
       />
 
       <PillRow pills={pills} editMode={_editMode} onChange={(p) => updateCh({ pills: p })} />
+
+      {/* Cross-reference to the same character in other campaigns */}
+      {relatedCopies.length > 0 && (
+        <div style={{ marginTop: '6px', fontSize: '12px', color: '#8b6914', fontStyle: 'italic' }}>
+          Also appears in:{' '}
+          {relatedCopies.map((c, i) => (
+            <span key={c.id}>
+              {i > 0 && ', '}
+              <span style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                onClick={() => goTo('characters', c.id)}>
+                {c.campaign || 'Unassigned'}
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Staff-only: DM-only page toggle + copy-to-campaign */}
+      {_editMode && isStaff && <DmOnlyBar entry={ch} update={updateCh} />}
+      {_editMode && isStaff && onCopyToCampaign && (
+        <div style={{ ...styles.card, marginTop: '8px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '11px', color: '#8b6914', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Copy to campaign</span>
+          <select value={copyTarget} onChange={(e) => setCopyTarget(e.target.value)}
+            style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px', flex: '1 1 160px' }}>
+            <option value="">— choose campaign —</option>
+            {campaignList.map((c) => <option key={c} value={c}>{c}</option>)}
+            <option value="__unassigned">(Unassigned)</option>
+          </select>
+          <button
+            disabled={!copyTarget}
+            onClick={() => {
+              if (!copyTarget) return;
+              onCopyToCampaign(ch.id, copyTarget === '__unassigned' ? '' : copyTarget);
+              setCopyTarget('');
+            }}
+            style={{ ...styles.button, opacity: copyTarget ? 1 : 0.5, cursor: copyTarget ? 'pointer' : 'default',
+              fontSize: '12px', padding: '6px 14px' }}>
+            <Copy size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />Copy
+          </button>
+          <span style={{ fontSize: '11px', color: '#8b6914', flexBasis: '100%' }}>
+            Creates an independent copy in that campaign — edits to the copy won't affect this one.
+          </span>
+        </div>
+      )}
 
       {ch.placeholder && (
         <div style={{ ...styles.card, marginTop: '12px', background: 'rgba(201, 165, 92, 0.15)', borderColor: '#c9a55c',
@@ -5175,6 +5392,24 @@ function CharactersPage({ content, activeId, editMode, canEditEntry, persistChan
   );
 }
 
+// A small edit-mode control to mark a whole entry DM-only (hidden from players;
+// staff see it gated behind the Reveal DM toggle). Shown only in edit mode.
+function DmOnlyBar({ entry, update }) {
+  return (
+    <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px',
+      padding: '8px 12px', borderRadius: '3px',
+      background: entry.dmOnly ? 'rgba(92,20,20,0.08)' : 'rgba(0,0,0,0.03)',
+      border: entry.dmOnly ? '1px solid #7a1f1f' : '1px solid #d8c9a0' }}>
+      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer',
+        fontFamily: '"Cinzel", serif', fontSize: '12px', color: entry.dmOnly ? '#7a1f1f' : '#5c4020' }}>
+        <input type="checkbox" checked={!!entry.dmOnly}
+          onChange={(e) => update({ dmOnly: e.target.checked })} />
+        <Lock size={13} /> DM-Only Page {entry.dmOnly ? '(hidden from players)' : ''}
+      </label>
+    </div>
+  );
+}
+
 function ItemsPage({ content, activeId, editMode, persistChange, goTo, isDM, onDelete }) {
   const items = content.items || [];
   const item = items.find((x) => x.id === activeId) || items[0];
@@ -5189,7 +5424,6 @@ function ItemsPage({ content, activeId, editMode, persistChange, goTo, isDM, onD
   const updateItem = (fields) => {
     persistChange({ ...content, items: items.map((x) => x.id === item.id ? { ...x, ...fields } : x) });
   };
-  // Known groups for quick assignment (datalist suggestions)
   const knownGroups = Array.from(new Set(items.map((x) => (x.group || '').trim()).filter(Boolean)));
   return (
     <div>
@@ -5207,6 +5441,8 @@ function ItemsPage({ content, activeId, editMode, persistChange, goTo, isDM, onD
           </button>
         )}
       </div>
+
+      {editMode && <DmOnlyBar entry={item} update={updateItem} />}
 
       {editMode ? (
         <div style={{ ...styles.card, marginTop: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -5232,6 +5468,72 @@ function ItemsPage({ content, activeId, editMode, persistChange, goTo, isDM, onD
         headingStyle={styles.sectionHeading}
         category="items"
         entryId={item.id}
+        content={content}
+        goTo={goTo}
+        isDM={isDM}
+      />
+    </div>
+  );
+}
+
+function MagicPage({ content, activeId, editMode, persistChange, goTo, isDM, onDelete }) {
+  const magic = content.magic || [];
+  const m = magic.find((x) => x.id === activeId) || magic[0];
+  if (!m) {
+    return (
+      <div>
+        <h1 style={styles.pageHeading}>Magic</h1>
+        <p style={styles.bodyText}>No magic entries yet.{editMode ? ' Use “+ New Magic” in the sidebar to create one.' : ''}</p>
+      </div>
+    );
+  }
+  const updateMagic = (fields) => {
+    persistChange({ ...content, magic: magic.map((x) => x.id === m.id ? { ...x, ...fields } : x) });
+  };
+  const knownGroups = Array.from(new Set(magic.map((x) => (x.group || '').trim()).filter(Boolean)));
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+        <div style={{ flex: 1 }}>
+          <EditableHeading as="h1" value={m.name} defaultValue="Magic"
+            onChange={(v) => updateMagic({ name: v })} editMode={editMode} style={styles.pageHeading} />
+        </div>
+        {editMode && (
+          <button onClick={() => onDelete(m.id)}
+            style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '3px',
+              padding: '7px 12px', cursor: 'pointer', fontFamily: '"Cinzel", serif', fontSize: '12px',
+              whiteSpace: 'nowrap', flexShrink: 0, marginTop: '4px' }}>
+            <Trash2 size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />Delete
+          </button>
+        )}
+      </div>
+
+      {editMode && <DmOnlyBar entry={m} update={updateMagic} />}
+
+      {editMode ? (
+        <div style={{ ...styles.card, marginTop: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '11px', color: '#8b6914', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Group</span>
+          <input value={m.group || ''} placeholder="Optional — e.g. Spells, Enchantments, Rituals…"
+            list="cotr-magic-groups"
+            onChange={(e) => updateMagic({ group: e.target.value })}
+            style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px', flex: 1 }} />
+          <datalist id="cotr-magic-groups">
+            {knownGroups.map((g) => <option key={g} value={g} />)}
+          </datalist>
+        </div>
+      ) : m.group ? (
+        <div style={{ marginTop: '4px', marginBottom: '8px' }}>
+          <span style={styles.pill}>{m.group}</span>
+        </div>
+      ) : null}
+
+      <Sections
+        sections={m.sections || []}
+        editMode={editMode}
+        onChange={(s) => updateMagic({ sections: s })}
+        headingStyle={styles.sectionHeading}
+        category="magic"
+        entryId={m.id}
         content={content}
         goTo={goTo}
         isDM={isDM}
@@ -5298,6 +5600,8 @@ function LocationsPage({ content, activeId, editMode, persistChange, goTo, isDM,
           </button>
         )}
       </div>
+
+      {editMode && <DmOnlyBar entry={loc} update={updateLoc} />}
 
       <Sections
         sections={loc.sections || []}
