@@ -2434,7 +2434,7 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
   const addFeatureSection = () => onChange([...list, { id: newId(), heading: 'New Section', type: 'features', features: [] }]);
   const addTableSection   = () => onChange([...list, { id: newId(), heading: 'New Table', type: 'table',
     columns: ['Column A', 'Column B'], rows: [['', '']] }]);
-  const addImageSection   = () => onChange([...list, { id: newId(), heading: 'New Illustration', type: 'image', media: null, caption: '' }]);
+  const addImageSection   = () => onChange([...list, { id: newId(), heading: 'New Illustration', type: 'image', images: [] }]);
   const addSubcategorySection = () => onChange([...list, { id: newId(), heading: 'New Subcategory', type: 'subcategory', lore: '', entries: [] }]);
   const addDMSection = () => onChange([...list, { id: newId(), heading: 'DM Notes', type: 'text', body: '', dmOnly: true }]);
 
@@ -2871,30 +2871,71 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
           })()}
 
           {/* IMAGE — standalone illustration with optional caption */}
-          {sec.type === 'image' && (
-            <div style={{ clear: 'both', textAlign: 'center' }}>
-              <div style={{ display: 'inline-block', maxWidth: '100%' }}>
-                <FloatingImage
-                  media={sec.media}
-                  editMode={editMode}
-                  onChange={(m) => updateSection(i, { media: m })}
-                  category={category}
-                  entryId={`${entryId}-${sec.id || i}`}
-                />
+          {sec.type === 'image' && (() => {
+            // Gallery model: sec.images is an array. Back-compat: an older single
+            // sec.media becomes a one-element gallery.
+            const images = Array.isArray(sec.images)
+              ? sec.images
+              : (sec.media ? [{ media: sec.media, caption: sec.caption || '' }] : []);
+
+            const setImages = (next) => {
+              // Write the array; clear legacy single-image fields so they don't shadow it.
+              updateSection(i, { images: next, media: undefined, caption: undefined });
+            };
+            const updateImage = (idx, fields) =>
+              setImages(images.map((im, k) => k === idx ? { ...im, ...fields } : im));
+            const addImage = () => setImages([...images, { media: null, caption: '' }]);
+            const removeImage = (idx) => setImages(images.filter((_, k) => k !== idx));
+
+            return (
+              <div style={{ clear: 'both' }}>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+                  gap: '14px',
+                  alignItems: 'start',
+                }}>
+                  {images.map((im, idx) => (
+                    <div key={idx} style={{ display: 'flex', flexDirection: 'column' }}>
+                      <FloatingImage
+                        media={im.media}
+                        editMode={editMode}
+                        onChange={(m) => updateImage(idx, { media: m })}
+                        category={category}
+                        entryId={`${entryId}-${sec.id || i}-img-${idx}`}
+                        mode="fill"
+                      />
+                      {editMode ? (
+                        <>
+                          <input value={im.caption || ''} placeholder="Caption (optional)…"
+                            onChange={(e) => updateImage(idx, { caption: e.target.value })}
+                            style={{ ...styles.textarea, minHeight: 'unset', padding: '5px 8px',
+                              width: '100%', marginTop: '6px', fontStyle: 'italic',
+                              textAlign: 'center', fontSize: '12px' }} />
+                          <button onClick={() => removeImage(idx)}
+                            style={{ background: '#8b1414', color: '#f5ecd9', border: 'none',
+                              borderRadius: '2px', padding: '3px 8px', cursor: 'pointer',
+                              fontSize: '10px', fontFamily: '"Cinzel", serif', marginTop: '4px',
+                              letterSpacing: '0.05em', textTransform: 'uppercase', alignSelf: 'center' }}>
+                            Remove Image
+                          </button>
+                        </>
+                      ) : im.caption ? (
+                        <p style={{ ...styles.bodyText, fontStyle: 'italic', color: '#5c4020',
+                          fontSize: '13px', marginTop: '6px', textAlign: 'center' }}>{im.caption}</p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+                {editMode && (
+                  <button onClick={addImage}
+                    style={{ ...styles.button, fontSize: '12px', padding: '6px 16px', marginTop: '12px' }}>
+                    <Plus size={12} /> Add Image
+                  </button>
+                )}
               </div>
-              <div style={{ clear: 'both' }} />
-              {editMode ? (
-                <input value={sec.caption || ''} placeholder="Caption (optional)…"
-                  onChange={(e) => updateSection(i, { caption: e.target.value })}
-                  style={{ ...styles.textarea, minHeight: 'unset', padding: '6px 10px',
-                    width: '100%', maxWidth: '500px', marginTop: '6px', fontStyle: 'italic',
-                    textAlign: 'center', fontSize: '13px' }} />
-              ) : sec.caption ? (
-                <p style={{ ...styles.bodyText, fontStyle: 'italic', color: '#5c4020',
-                  fontSize: '13px', marginTop: '6px', textAlign: 'center' }}>{sec.caption}</p>
-              ) : null}
-            </div>
-          )}
+            );
+          })()}
 
           {/* SUBCATEGORY — named container with entries (subraces, archetypes, etc.) */}
           {sec.type === 'subcategory' && (() => {
@@ -2945,16 +2986,21 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                         onChange={(p) => updateEntry(i, ei, { pills: p })}
                       />
 
-                      {/* Description + features (left column) and image (right column).
-                          On mobile, image stacks above content. */}
-                      <div style={{
-                        display: 'flex',
-                        flexDirection: isMobile ? 'column' : 'row',
-                        gap: isMobile ? '12px' : '20px',
-                        alignItems: 'flex-start',
-                        marginBottom: '8px',
-                      }}>
-                        <div style={{ flex: 1, minWidth: 0, order: isMobile ? 2 : 1 }}>
+                      {/* Description + features with the illustration floated
+                          inside the text flow so text wraps around it. The image
+                          carries its own size/placement controls. On mobile it
+                          stacks full-width above (handled inside FloatingImage). */}
+                      <div style={{ marginBottom: '8px' }}>
+                        {(entry.media || editMode) && (
+                          <FloatingImage
+                            media={entry.media}
+                            editMode={editMode}
+                            onChange={(m) => updateEntry(i, ei, { media: m })}
+                            category={category}
+                            entryId={`${entryId}-${sec.id || i}-entry-${ei}`}
+                          />
+                        )}
+                        <div style={{ minWidth: 0 }}>
                           {/* Description */}
                           <BlockBody
                             value={entry.description}
@@ -3007,22 +3053,7 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                             </button>
                           )}
                         </div>
-                        {(entry.media || editMode) && (
-                          <div style={{
-                            width: isMobile ? '100%' : '180px',
-                            flexShrink: 0,
-                            order: isMobile ? 1 : 2,
-                          }}>
-                            <FloatingImage
-                              media={entry.media}
-                              editMode={editMode}
-                              onChange={(m) => updateEntry(i, ei, { media: m })}
-                              category={category}
-                              entryId={`${entryId}-${sec.id || i}-entry-${ei}`}
-                              mode="fill"
-                            />
-                          </div>
-                        )}
+                        <div style={{ clear: 'both' }} />
                       </div>
 
                       {/* Optional flavor line — always full width below image+content row */}
