@@ -3536,6 +3536,22 @@ export default function Compendium() {
   // "Showing DM content right now" — only staff, and only when revealed.
   const showingDM = isStaff && revealDM;
 
+  // View-layer content: when DM content is NOT being shown, hide whole DM-only
+  // entries from the sidebar, pages, and search. (Non-staff never receive these
+  // at all; this governs what staff see while Reveal DM is off.) The full
+  // `content` remains the source of truth for saving.
+  const viewContent = React.useMemo(() => {
+    if (showingDM) return content;
+    const stripDmOnly = (arr) => (arr || []).filter((e) => !e.dmOnly);
+    return {
+      ...content,
+      characters: stripDmOnly(content.characters),
+      items: stripDmOnly(content.items),
+      magic: stripDmOnly(content.magic),
+      locations: stripDmOnly(content.locations),
+    };
+  }, [content, showingDM]);
+
   // Can the current user edit the given entry?
   //  - staff: everything
   //  - player: only a character they own
@@ -3826,6 +3842,17 @@ export default function Compendium() {
     goTo('magic', magic[0]?.id || null);
   };
 
+  const deleteCharacter = (charId) => {
+    const c = (content.characters || []).find((x) => x.id === charId);
+    if (!c) return;
+    if (!window.confirm(`Delete character "${c.name}"? This cannot be undone (until you discard without saving).`)) return;
+    const characters = (content.characters || []).filter((x) => x.id !== charId);
+    persistChange({ ...content, characters });
+    // Navigate to another character in the same campaign if possible, else first.
+    const sameCamp = characters.find((x) => x.campaign === c.campaign);
+    goTo('characters', sameCamp?.id || characters[0]?.id || null);
+  };
+
   const createLocation = (parentId) => {
     const name = promptName('Location');
     if (!name) return;
@@ -4006,16 +4033,19 @@ export default function Compendium() {
       }
     };
 
+    const showHidden = showingDM;
+    const okDm = (e) => showHidden || !e.dmOnly;
     content.races.forEach((r) => {
       const isSubrace = r.parentRace && !r.isParent && r.parentRace !== r.name;
       scan(r, isSubrace ? 'Subrace' : 'Race', 'races', isSubrace ? r.parentRace : null);
     });
     content.classes.forEach((c) => scan(c, 'Class', 'classes', null));
     content.subclasses.forEach((s) => scan(s, 'Subclass', 'subclasses', s.parentClass));
-    content.characters.forEach((ch) => scan(ch, 'Character', 'characters', ch.campaign));
-    (content.items || []).forEach((it) => scan(it, 'Item', 'items', it.group || null));
-    (content.magic || []).forEach((m) => scan(m, 'Magic', 'magic', m.group || null));
+    content.characters.forEach((ch) => { if (okDm(ch)) scan(ch, 'Character', 'characters', ch.campaign); });
+    (content.items || []).forEach((it) => { if (okDm(it)) scan(it, 'Item', 'items', it.group || null); });
+    (content.magic || []).forEach((m) => { if (okDm(m)) scan(m, 'Magic', 'magic', m.group || null); });
     (content.locations || []).forEach((loc) => {
+      if (!okDm(loc)) return;
       const parentLoc = loc.parentId ? (content.locations || []).find((l) => l.id === loc.parentId) : null;
       scan(loc, 'Location', 'locations', parentLoc?.name || null);
     });
@@ -4387,7 +4417,7 @@ export default function Compendium() {
             onClick={() => toggleSectionExpanded('characters')}
           />
           {expandedSections.has('characters') && (content.campaignOrder || []).map((campaign) => {
-            const charsInCampaign = content.characters.filter((c) => c.campaign === campaign);
+            const charsInCampaign = viewContent.characters.filter((c) => c.campaign === campaign);
             if (charsInCampaign.length === 0) return null;
             const isExpanded = expandedCampaigns.has(campaign);
             const hasActive = section === 'characters' && charsInCampaign.some((c) => c.id === activeId);
@@ -4474,7 +4504,7 @@ export default function Compendium() {
 
           {/* Unassigned characters (no campaign) + top-level new-character action */}
           {expandedSections.has('characters') && (() => {
-            const unassigned = content.characters.filter((c) => !c.campaign);
+            const unassigned = viewContent.characters.filter((c) => !c.campaign);
             const renderUnassigned = (c) => {
               const isActive = section === 'characters' && activeId === c.id;
               return (
@@ -4518,7 +4548,7 @@ export default function Compendium() {
             onClick={() => toggleSectionExpanded('magic')}
           />
           {expandedSections.has('magic') && (() => {
-            const magic = content.magic || [];
+            const magic = viewContent.magic || [];
             const groups = [];
             const groupMap = {};
             const ungrouped = [];
@@ -4576,7 +4606,7 @@ export default function Compendium() {
             onClick={() => toggleSectionExpanded('items')}
           />
           {expandedSections.has('items') && (() => {
-            const items = content.items || [];
+            const items = viewContent.items || [];
             // Bucket by group; ungrouped items collected separately.
             const groups = [];
             const groupMap = {};
@@ -4636,7 +4666,7 @@ export default function Compendium() {
             onClick={() => toggleSectionExpanded('locations')}
           />
           {expandedSections.has('locations') && (() => {
-            const locations = content.locations || [];
+            const locations = viewContent.locations || [];
             const childrenOf = (pid) => locations.filter((l) => (l.parentId || null) === pid);
             const renderNode = (loc, depth) => {
               const kids = childrenOf(loc.id);
@@ -4697,27 +4727,36 @@ export default function Compendium() {
           ...(isMobile ? { padding: '20px 16px', width: '100%' } : {}),
         }}>
           <div style={styles.mainInner} className="printable">
-            {searchResults ? (
+            {(() => {
+              // If the active entry is a hidden DM-only entry (Reveal off), don't
+              // resolve to it — let the page fall back to its first visible entry.
+              const hiddenActive = !showingDM && activeId && ['characters', 'items', 'magic', 'locations'].includes(section)
+                && (content[section] || []).some((e) => e.id === activeId && e.dmOnly);
+              const aid = hiddenActive ? null : activeId;
+              return (
+            searchResults ? (
               <SearchResults results={searchResults} onClick={goTo} query={search} />
             ) : section === 'home' ? (
               <HomePage content={content} goTo={goTo} editMode={editMode && isStaff} persistChange={persistChange} />
             ) : section === 'campaign' ? (
               <CampaignPage content={content} editMode={editMode && isStaff} persistChange={persistChange} />
             ) : section === 'races' ? (
-              <RacesPage content={content} activeId={activeId} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} />
+              <RacesPage content={content} activeId={aid} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} />
             ) : section === 'classes' ? (
-              <ClassesPage content={content} activeId={activeId} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} />
+              <ClassesPage content={content} activeId={aid} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} />
             ) : section === 'subclasses' ? (
-              <SubclassesPage content={content} activeId={activeId} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} />
+              <SubclassesPage content={content} activeId={aid} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} />
             ) : section === 'characters' ? (
-              <CharactersPage content={content} activeId={activeId} editMode={editMode} canEditEntry={canEditEntry} persistChange={persistChange} goTo={goTo} isDM={showingDM} isStaff={isStaff} onCopyToCampaign={copyCharacterToCampaign} />
+              <CharactersPage content={content} activeId={aid} viewContent={viewContent} editMode={editMode} canEditEntry={canEditEntry} persistChange={persistChange} goTo={goTo} isDM={showingDM} isStaff={isStaff} onCopyToCampaign={copyCharacterToCampaign} onDelete={deleteCharacter} />
             ) : section === 'items' ? (
-              <ItemsPage content={content} activeId={activeId} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} onDelete={deleteItem} />
+              <ItemsPage content={content} activeId={aid} viewContent={viewContent} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} onDelete={deleteItem} />
             ) : section === 'magic' ? (
-              <MagicPage content={content} activeId={activeId} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} onDelete={deleteMagic} />
+              <MagicPage content={content} activeId={aid} viewContent={viewContent} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} onDelete={deleteMagic} />
             ) : section === 'locations' ? (
-              <LocationsPage content={content} activeId={activeId} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} onDelete={deleteLocation} />
-            ) : null}
+              <LocationsPage content={content} activeId={aid} viewContent={viewContent} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} onDelete={deleteLocation} />
+            ) : null
+              );
+            })()}
           </div>
         </main>
       </div>
@@ -5261,8 +5300,9 @@ function SubclassesPage({ content, activeId, editMode, persistChange, goTo, isDM
   );
 }
 
-function CharactersPage({ content, activeId, editMode, canEditEntry, persistChange, goTo, isDM, isStaff, onCopyToCampaign }) {
-  const ch = content.characters.find((c) => c.id === activeId) || content.characters[0];
+function CharactersPage({ content, activeId, viewContent, editMode, canEditEntry, persistChange, goTo, isDM, isStaff, onCopyToCampaign, onDelete }) {
+  const list = (viewContent || content).characters;
+  const ch = list.find((c) => c.id === activeId) || content.characters.find((c) => c.id === activeId) || list[0];
   const [copyTarget, setCopyTarget] = React.useState('');
   if (!ch) return <p style={styles.bodyText}>No characters defined.</p>;
 
@@ -5302,13 +5342,26 @@ function CharactersPage({ content, activeId, editMode, canEditEntry, persistChan
 
   return (
     <div>
-      <EditableHeading as="h1"
-        value={ch.name}
-        defaultValue="Character"
-        onChange={(v) => updateCh({ name: v })}
-        editMode={_editMode}
-        style={styles.pageHeading}
-      />
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+        <div style={{ flex: 1 }}>
+          <EditableHeading as="h1"
+            value={ch.name}
+            defaultValue="Character"
+            onChange={(v) => updateCh({ name: v })}
+            editMode={_editMode}
+            style={styles.pageHeading}
+          />
+        </div>
+        {_editMode && isStaff && onDelete && (
+          <button onClick={() => onDelete(ch.id)}
+            style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '3px',
+              padding: '7px 12px', cursor: 'pointer', fontFamily: '"Cinzel", serif', fontSize: '12px',
+              whiteSpace: 'nowrap', flexShrink: 0, marginTop: '4px' }}
+            title="Delete this character">
+            <Trash2 size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />Delete
+          </button>
+        )}
+      </div>
 
       <PillRow pills={pills} editMode={_editMode} onChange={(p) => updateCh({ pills: p })} />
 
@@ -5410,9 +5463,10 @@ function DmOnlyBar({ entry, update }) {
   );
 }
 
-function ItemsPage({ content, activeId, editMode, persistChange, goTo, isDM, onDelete }) {
+function ItemsPage({ content, activeId, viewContent, editMode, persistChange, goTo, isDM, onDelete }) {
   const items = content.items || [];
-  const item = items.find((x) => x.id === activeId) || items[0];
+  const visible = (viewContent || content).items || [];
+  const item = visible.find((x) => x.id === activeId) || items.find((x) => x.id === activeId) || visible[0];
   if (!item) {
     return (
       <div>
@@ -5476,9 +5530,10 @@ function ItemsPage({ content, activeId, editMode, persistChange, goTo, isDM, onD
   );
 }
 
-function MagicPage({ content, activeId, editMode, persistChange, goTo, isDM, onDelete }) {
+function MagicPage({ content, activeId, viewContent, editMode, persistChange, goTo, isDM, onDelete }) {
   const magic = content.magic || [];
-  const m = magic.find((x) => x.id === activeId) || magic[0];
+  const visible = (viewContent || content).magic || [];
+  const m = visible.find((x) => x.id === activeId) || magic.find((x) => x.id === activeId) || visible[0];
   if (!m) {
     return (
       <div>
@@ -5542,9 +5597,10 @@ function MagicPage({ content, activeId, editMode, persistChange, goTo, isDM, onD
   );
 }
 
-function LocationsPage({ content, activeId, editMode, persistChange, goTo, isDM, onDelete }) {
+function LocationsPage({ content, activeId, viewContent, editMode, persistChange, goTo, isDM, onDelete }) {
   const locations = content.locations || [];
-  const loc = locations.find((x) => x.id === activeId) || locations.find((x) => !x.parentId) || locations[0];
+  const visible = (viewContent || content).locations || [];
+  const loc = visible.find((x) => x.id === activeId) || locations.find((x) => x.id === activeId) || visible.find((x) => !x.parentId) || visible[0];
   if (!loc) {
     return (
       <div>
