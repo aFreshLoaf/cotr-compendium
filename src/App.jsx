@@ -3153,13 +3153,41 @@ function FloatingImage({ media, editMode, onChange, category, entryId, mode = 'f
       if (media?.path) {
         deleteImage(media.path).catch(() => {});
       }
+      // Smart default: detect aspect ratio to pick an initial desktop layout.
+      // Wide/landscape images default to full-width (avoids the stranded-thumbnail
+      // gutter); tall/portrait images default to a medium left float.
+      let smartShape = media?.shape || 'portrait';
+      let smartPlacement = media?.deskPlacement || 'left';
+      let smartWidth = media?.deskWidth || 'medium';
+      try {
+        const dims = await new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+          img.onerror = reject;
+          img.src = url;
+        });
+        if (dims.w && dims.h) {
+          const ratio = dims.w / dims.h;
+          if (ratio >= 1.4) {           // clearly wide
+            smartShape = 'landscape';
+            smartPlacement = 'full';
+          } else if (ratio <= 0.85) {   // clearly tall
+            smartShape = 'portrait';
+            smartPlacement = 'left';
+            smartWidth = 'medium';
+          }
+          // near-square: leave defaults
+        }
+      } catch { /* dimension probe failed — keep defaults */ }
       onChange({
         url,
         path,
-        shape: media?.shape || 'portrait',
+        shape: smartShape,
         zoom: media?.zoom ?? 1,
         posX: media?.posX ?? 50,
         posY: media?.posY ?? 50,
+        deskWidth: smartWidth,
+        deskPlacement: smartPlacement,
       });
     } catch (err) {
       setUploadError(err.message || 'Upload failed.');
@@ -3240,46 +3268,48 @@ function FloatingImage({ media, editMode, onChange, category, entryId, mode = 'f
   const posY = media.posY ?? 50;
   const isFill = mode === 'fill';
 
-  // Three layouts:
-  //   - fill: container takes 100% width of parent, frame keeps aspect ratio (parent controls placement)
-  //   - mobile (default mode): full-width above content
-  //   - desktop (default mode): fixed pixel size, floating left
-  const containerStyle = isFill
-    ? {
-        width: '100%',
-        position: 'relative',
-      }
-    : isMobile
-      ? {
-          width: '100%',
-          marginBottom: '16px',
-          position: 'relative',
-        }
-      : {
-          float: 'left',
-          width: frame.width,
-          marginRight: '16px',
-          marginBottom: '12px',
-          position: 'relative',
-        };
+  // Desktop per-image layout (ignored on mobile and in fill mode).
+  // For images predating this feature (no deskWidth set), fall back to a width
+  // that approximates the old fixed-pixel sizing: portraits were ~200px (small),
+  // landscapes ~320px (medium), so existing images keep roughly their look.
+  const deskWidth = media.deskWidth || (shape === 'landscape' ? 'medium' : 'small');
+  const deskPlacement = media.deskPlacement || 'left'; // left | right | full | center
+  // Float/centered widths as a fraction of the content column.
+  const WIDTH_PCT = { small: '30%', medium: '45%', large: '60%' };
+  const widthPct = WIDTH_PCT[deskWidth] || WIDTH_PCT.medium;
 
-  const frameStyle = (isFill || isMobile)
-    ? {
-        width: '100%',
-        aspectRatio: `${frame.width} / ${frame.height}`,
-        overflow: 'hidden',
-        borderRadius: '2px',
-        position: 'relative',
-        background: '#3b2615',
-      }
-    : {
-        width: frame.width,
-        height: frame.height,
-        overflow: 'hidden',
-        borderRadius: '2px',
-        position: 'relative',
-        background: '#3b2615',
-      };
+  // Three layout regimes:
+  //   - fill: container is 100% of parent; parent controls placement (unchanged)
+  //   - mobile: full-width above content (unchanged — mobile is untouched)
+  //   - desktop: honors deskPlacement (left/right float, full-width, or centered)
+  let containerStyle;
+  if (isFill) {
+    containerStyle = { width: '100%', position: 'relative' };
+  } else if (isMobile) {
+    containerStyle = { width: '100%', marginBottom: '16px', position: 'relative' };
+  } else {
+    // Desktop
+    if (deskPlacement === 'full') {
+      containerStyle = { width: '100%', marginBottom: '16px', position: 'relative' };
+    } else if (deskPlacement === 'center') {
+      containerStyle = { width: widthPct, margin: '0 auto 16px', position: 'relative' };
+    } else if (deskPlacement === 'right') {
+      containerStyle = { float: 'right', width: widthPct, marginLeft: '16px', marginBottom: '12px', position: 'relative' };
+    } else { // left (default)
+      containerStyle = { float: 'left', width: widthPct, marginRight: '16px', marginBottom: '12px', position: 'relative' };
+    }
+  }
+
+  // Frame now always uses aspect-ratio sizing on desktop too (width drives
+  // height), so percentage widths scale cleanly.
+  const frameStyle = {
+    width: '100%',
+    aspectRatio: `${frame.width} / ${frame.height}`,
+    overflow: 'hidden',
+    borderRadius: '2px',
+    position: 'relative',
+    background: '#3b2615',
+  };
 
   return (
     <div style={containerStyle}>
@@ -3358,6 +3388,66 @@ function FloatingImage({ media, editMode, onChange, category, entryId, mode = 'f
                     }}>Landscape</button>
                 </div>
               </div>
+
+              {/* Desktop layout: size + placement. No effect on mobile or in
+                  fill-mode contexts, so only shown when relevant. */}
+              {!isFill && !isMobile && (
+                <>
+                  <div style={{ marginBottom: '8px' }}>
+                    <div style={{ fontFamily: '"Cinzel", serif', fontSize: '10px',
+                      textTransform: 'uppercase', letterSpacing: '0.06em',
+                      color: '#5c4020', marginBottom: '3px' }}>Size (desktop)</div>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      {[['small', 'S'], ['medium', 'M'], ['large', 'L']].map(([val, lbl]) => {
+                        const effectiveWidth = media.deskWidth || (shape === 'landscape' ? 'medium' : 'small');
+                        const active = effectiveWidth === val;
+                        const isFullW = (media.deskPlacement || 'left') === 'full';
+                        return (
+                          <button key={val} disabled={isFullW}
+                            onClick={() => onChange({ ...media, deskWidth: val })}
+                            title={isFullW ? 'Size is ignored for full-width placement' : `Set ${val} width`}
+                            style={{
+                              flex: 1, padding: '3px 6px', fontSize: '10px',
+                              cursor: isFullW ? 'default' : 'pointer', opacity: isFullW ? 0.4 : 1,
+                              border: active ? '2px solid #7a1f1f' : '1px solid #8b6914',
+                              background: active ? '#7a1f1f' : 'transparent',
+                              color: active ? '#f5ecd9' : '#3b2615',
+                              fontFamily: '"Cinzel", serif', textTransform: 'uppercase',
+                              letterSpacing: '0.05em', borderRadius: '2px',
+                            }}>{lbl}</button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '8px' }}>
+                    <div style={{ fontFamily: '"Cinzel", serif', fontSize: '10px',
+                      textTransform: 'uppercase', letterSpacing: '0.06em',
+                      color: '#5c4020', marginBottom: '3px' }}>Placement (desktop)</div>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      {[['left', '◧ Left'], ['right', 'Right ◨'], ['center', '▢ Center'], ['full', '▭ Full']].map(([val, lbl]) => {
+                        const active = (media.deskPlacement || 'left') === val;
+                        return (
+                          <button key={val}
+                            onClick={() => onChange({ ...media, deskPlacement: val })}
+                            style={{
+                              flex: 1, padding: '3px 4px', fontSize: '9px',
+                              cursor: 'pointer',
+                              border: active ? '2px solid #7a1f1f' : '1px solid #8b6914',
+                              background: active ? '#7a1f1f' : 'transparent',
+                              color: active ? '#f5ecd9' : '#3b2615',
+                              fontFamily: '"Cinzel", serif',
+                              letterSpacing: '0.03em', borderRadius: '2px', whiteSpace: 'nowrap',
+                            }}>{lbl}</button>
+                        );
+                      })}
+                    </div>
+                    <div style={{ fontSize: '9px', color: '#8b6914', marginTop: '3px', fontStyle: 'italic' }}>
+                      Full-width &amp; Center put text above/below; Left/Right wrap text beside. (Mobile always stacks full-width.)
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div style={{ marginBottom: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between',
