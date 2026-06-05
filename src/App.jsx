@@ -13,6 +13,8 @@ const DEFAULT_CONTENT = {
   items: [],
   locations: [],
   magic: [],
+  itemGroupOrder: [],
+  magicGroupOrder: [],
   meta: {
     title: "Chronicles of the Realms",
     subtitle: "A Homebrew Compendium",
@@ -3963,6 +3965,18 @@ export default function Compendium() {
     goTo('magic', magic[0]?.id || null);
   };
 
+  // Reorder a named order-array (campaignOrder / parentClassOrder / raceOrder /
+  // itemGroupOrder / magicGroupOrder) by moving one entry up (-1) or down (+1).
+  const moveInOrder = (orderKey, value, dir) => {
+    const arr = [...(content[orderKey] || [])];
+    const idx = arr.indexOf(value);
+    if (idx === -1) return;
+    const swap = idx + dir;
+    if (swap < 0 || swap >= arr.length) return;
+    [arr[idx], arr[swap]] = [arr[swap], arr[idx]];
+    persistChange({ ...content, [orderKey]: arr });
+  };
+
   const deleteCharacter = (charId) => {
     const c = (content.characters || []).find((x) => x.id === charId);
     if (!c) return;
@@ -4349,7 +4363,7 @@ export default function Compendium() {
             const order = content.raceOrder || [];
             return (
               <>
-                {order.map((parentRace) => {
+                {order.map((parentRace, raceIdx) => {
                   const racesInFamily = content.races.filter((r) => r.parentRace === parentRace);
                   if (racesInFamily.length === 0) return null;
                   const parent = racesInFamily.find((r) => r.isParent);
@@ -4383,6 +4397,18 @@ export default function Compendium() {
                             style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }} />
                         ) : <span style={{ width: '12px', display: 'inline-block' }} />}
                         {parent.name}
+                        {editMode && isAdmin && (
+                          <span style={{ marginLeft: 'auto', display: 'flex', gap: '2px' }} onClick={(e) => e.stopPropagation()}>
+                            <button onClick={() => moveInOrder('raceOrder', parentRace, -1)}
+                              disabled={raceIdx === 0} title="Move up"
+                              style={{ background: 'none', border: 'none', cursor: raceIdx === 0 ? 'default' : 'pointer',
+                                color: '#8b6914', opacity: raceIdx === 0 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▲</button>
+                            <button onClick={() => moveInOrder('raceOrder', parentRace, 1)}
+                              disabled={raceIdx === order.length - 1} title="Move down"
+                              style={{ background: 'none', border: 'none', cursor: raceIdx === order.length - 1 ? 'default' : 'pointer',
+                                color: '#8b6914', opacity: raceIdx === order.length - 1 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▼</button>
+                          </span>
+                        )}
                       </div>
                       {isExpanded && (
                         <>
@@ -4430,7 +4456,7 @@ export default function Compendium() {
             expanded={expandedSections.has('classes-and-subclasses')}
             onClick={() => toggleSectionExpanded('classes-and-subclasses')}
           />
-          {expandedSections.has('classes-and-subclasses') && content.parentClassOrder.map((parentClass) => {
+          {expandedSections.has('classes-and-subclasses') && content.parentClassOrder.map((parentClass, classIdx) => {
             const subsForClass = content.subclasses.filter((s) => s.parentClass === parentClass);
             // Sort: anti-divine pinned first (authoritative), then alphabetical
             const sortedSubs = [...subsForClass].sort((a, b) => {
@@ -4516,6 +4542,18 @@ export default function Compendium() {
                     }}
                   />
                   {parentClass}
+                  {editMode && isAdmin && (
+                    <span style={{ marginLeft: 'auto', display: 'flex', gap: '2px' }} onClick={(e) => e.stopPropagation()}>
+                      <button onClick={() => moveInOrder('parentClassOrder', parentClass, -1)}
+                        disabled={classIdx === 0} title="Move up"
+                        style={{ background: 'none', border: 'none', cursor: classIdx === 0 ? 'default' : 'pointer',
+                          color: '#8b6914', opacity: classIdx === 0 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▲</button>
+                      <button onClick={() => moveInOrder('parentClassOrder', parentClass, 1)}
+                        disabled={classIdx === content.parentClassOrder.length - 1} title="Move down"
+                        style={{ background: 'none', border: 'none', cursor: classIdx === content.parentClassOrder.length - 1 ? 'default' : 'pointer',
+                          color: '#8b6914', opacity: classIdx === content.parentClassOrder.length - 1 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▼</button>
+                    </span>
+                  )}
                 </div>
                 {body}
                 {isExpanded && editMode && (
@@ -4537,7 +4575,7 @@ export default function Compendium() {
             expanded={expandedSections.has('characters')}
             onClick={() => toggleSectionExpanded('characters')}
           />
-          {expandedSections.has('characters') && (content.campaignOrder || []).map((campaign) => {
+          {expandedSections.has('characters') && (content.campaignOrder || []).map((campaign, campaignIdx) => {
             const charsInCampaign = viewContent.characters.filter((c) => c.campaign === campaign);
             if (charsInCampaign.length === 0) return null;
             const isExpanded = expandedCampaigns.has(campaign);
@@ -4545,10 +4583,11 @@ export default function Compendium() {
             const campaignMeta = content.campaigns?.[campaign] || {};
             const campaignDeceased = campaignMeta.status === 'deceased';
 
-            // Group within campaign by role
-            const players = charsInCampaign.filter((c) => c.role === 'player');
-            const connected = charsInCampaign.filter((c) => c.role === 'connected');
-            const enemies = charsInCampaign.filter((c) => c.role === 'enemy');
+            // Group within campaign by role, each sorted alphabetically by name.
+            const byName = (a, b) => (a.name || '').localeCompare(b.name || '');
+            const players = charsInCampaign.filter((c) => c.role === 'player').sort(byName);
+            const connected = charsInCampaign.filter((c) => c.role === 'connected').sort(byName);
+            const enemies = charsInCampaign.filter((c) => c.role === 'enemy').sort(byName);
 
             const renderChar = (c) => {
               const isActive = section === 'characters' && activeId === c.id;
@@ -4599,6 +4638,18 @@ export default function Compendium() {
                   />
                   <span>{campaign}</span>
                   {campaignDeceased && <span style={{ ...styles.pillPriority, background: '#3b2615', color: '#e8d5a0', marginLeft: '4px' }}>†</span>}
+                  {editMode && isAdmin && (
+                    <span style={{ marginLeft: 'auto', display: 'flex', gap: '2px' }} onClick={(e) => e.stopPropagation()}>
+                      <button onClick={() => moveInOrder('campaignOrder', campaign, -1)}
+                        disabled={campaignIdx === 0} title="Move campaign up"
+                        style={{ background: 'none', border: 'none', cursor: campaignIdx === 0 ? 'default' : 'pointer',
+                          color: '#8b6914', opacity: campaignIdx === 0 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▲</button>
+                      <button onClick={() => moveInOrder('campaignOrder', campaign, 1)}
+                        disabled={campaignIdx === (content.campaignOrder || []).length - 1} title="Move campaign down"
+                        style={{ background: 'none', border: 'none', cursor: campaignIdx === (content.campaignOrder || []).length - 1 ? 'default' : 'pointer',
+                          color: '#8b6914', opacity: campaignIdx === (content.campaignOrder || []).length - 1 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▼</button>
+                    </span>
+                  )}
                 </div>
                 {isExpanded && (
                   <>
@@ -4625,7 +4676,7 @@ export default function Compendium() {
 
           {/* Unassigned characters (no campaign) + top-level new-character action */}
           {expandedSections.has('characters') && (() => {
-            const unassigned = viewContent.characters.filter((c) => !c.campaign);
+            const unassigned = viewContent.characters.filter((c) => !c.campaign).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
             const renderUnassigned = (c) => {
               const isActive = section === 'characters' && activeId === c.id;
               return (
@@ -4670,15 +4721,22 @@ export default function Compendium() {
           />
           {expandedSections.has('magic') && (() => {
             const magic = viewContent.magic || [];
-            const groups = [];
+            const byName = (a, b) => (a.name || '').localeCompare(b.name || '');
             const groupMap = {};
             const ungrouped = [];
             magic.forEach((m) => {
               const g = (m.group || '').trim();
               if (!g) { ungrouped.push(m); return; }
-              if (!groupMap[g]) { groupMap[g] = []; groups.push(g); }
+              if (!groupMap[g]) groupMap[g] = [];
               groupMap[g].push(m);
             });
+            // Order groups by stored magicGroupOrder; any groups not yet in the
+            // order list are appended alphabetically. Leaves sort alphabetically.
+            const presentGroups = Object.keys(groupMap);
+            const ordered = (content.magicGroupOrder || []).filter((g) => groupMap[g]);
+            const groups = [...ordered, ...presentGroups.filter((g) => !ordered.includes(g)).sort((a, b) => a.localeCompare(b))];
+            Object.keys(groupMap).forEach((g) => groupMap[g].sort(byName));
+            ungrouped.sort(byName);
             const renderMagic = (m) => {
               const isActive = section === 'magic' && activeId === m.id;
               return (
@@ -4690,23 +4748,35 @@ export default function Compendium() {
                 </div>
               );
             };
-            const groupHeader = (label) => (
-              <div style={{ padding: '4px 20px 2px 44px', fontSize: '10px', textTransform: 'uppercase',
-                letterSpacing: '0.08em', color: '#8b6914', fontWeight: 700, fontFamily: '"Cinzel", serif', marginTop: '4px' }}>
-                {label}
+            const groupHeader = (label, gi) => (
+              <div style={{ padding: '4px 20px 2px 44px', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em',
+                  color: '#8b6914', fontWeight: 700, fontFamily: '"Cinzel", serif', flex: 1 }}>{label}</span>
+                {editMode && isAdmin && gi != null && (
+                  <span style={{ display: 'flex', gap: '2px' }}>
+                    <button onClick={(e) => { e.stopPropagation(); moveInOrder('magicGroupOrder', label, -1); }}
+                      disabled={gi === 0} title="Move group up"
+                      style={{ background: 'none', border: 'none', cursor: gi === 0 ? 'default' : 'pointer',
+                        color: '#8b6914', opacity: gi === 0 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▲</button>
+                    <button onClick={(e) => { e.stopPropagation(); moveInOrder('magicGroupOrder', label, 1); }}
+                      disabled={gi === groups.length - 1} title="Move group down"
+                      style={{ background: 'none', border: 'none', cursor: gi === groups.length - 1 ? 'default' : 'pointer',
+                        color: '#8b6914', opacity: gi === groups.length - 1 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▼</button>
+                  </span>
+                )}
               </div>
             );
             return (
               <>
-                {groups.map((g) => (
+                {groups.map((g, gi) => (
                   <div key={g}>
-                    {groupHeader(g)}
+                    {groupHeader(g, gi)}
                     {groupMap[g].map(renderMagic)}
                   </div>
                 ))}
                 {ungrouped.length > 0 && (
                   <>
-                    {groups.length > 0 && groupHeader('Ungrouped')}
+                    {groups.length > 0 && groupHeader('Ungrouped', null)}
                     {ungrouped.map(renderMagic)}
                   </>
                 )}
@@ -4728,16 +4798,20 @@ export default function Compendium() {
           />
           {expandedSections.has('items') && (() => {
             const items = viewContent.items || [];
-            // Bucket by group; ungrouped items collected separately.
-            const groups = [];
+            const byName = (a, b) => (a.name || '').localeCompare(b.name || '');
             const groupMap = {};
             const ungrouped = [];
             items.forEach((it) => {
               const g = (it.group || '').trim();
               if (!g) { ungrouped.push(it); return; }
-              if (!groupMap[g]) { groupMap[g] = []; groups.push(g); }
+              if (!groupMap[g]) groupMap[g] = [];
               groupMap[g].push(it);
             });
+            const presentGroups = Object.keys(groupMap);
+            const ordered = (content.itemGroupOrder || []).filter((g) => groupMap[g]);
+            const groups = [...ordered, ...presentGroups.filter((g) => !ordered.includes(g)).sort((a, b) => a.localeCompare(b))];
+            Object.keys(groupMap).forEach((g) => groupMap[g].sort(byName));
+            ungrouped.sort(byName);
             const renderItem = (it) => {
               const isActive = section === 'items' && activeId === it.id;
               return (
@@ -4750,23 +4824,35 @@ export default function Compendium() {
                 </div>
               );
             };
-            const groupHeader = (label) => (
-              <div style={{ padding: '4px 20px 2px 44px', fontSize: '10px', textTransform: 'uppercase',
-                letterSpacing: '0.08em', color: '#8b6914', fontWeight: 700, fontFamily: '"Cinzel", serif', marginTop: '4px' }}>
-                {label}
+            const groupHeader = (label, gi) => (
+              <div style={{ padding: '4px 20px 2px 44px', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em',
+                  color: '#8b6914', fontWeight: 700, fontFamily: '"Cinzel", serif', flex: 1 }}>{label}</span>
+                {editMode && isAdmin && gi != null && (
+                  <span style={{ display: 'flex', gap: '2px' }}>
+                    <button onClick={(e) => { e.stopPropagation(); moveInOrder('itemGroupOrder', label, -1); }}
+                      disabled={gi === 0} title="Move group up"
+                      style={{ background: 'none', border: 'none', cursor: gi === 0 ? 'default' : 'pointer',
+                        color: '#8b6914', opacity: gi === 0 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▲</button>
+                    <button onClick={(e) => { e.stopPropagation(); moveInOrder('itemGroupOrder', label, 1); }}
+                      disabled={gi === groups.length - 1} title="Move group down"
+                      style={{ background: 'none', border: 'none', cursor: gi === groups.length - 1 ? 'default' : 'pointer',
+                        color: '#8b6914', opacity: gi === groups.length - 1 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▼</button>
+                  </span>
+                )}
               </div>
             );
             return (
               <>
-                {groups.map((g) => (
+                {groups.map((g, gi) => (
                   <div key={g}>
-                    {groupHeader(g)}
+                    {groupHeader(g, gi)}
                     {groupMap[g].map(renderItem)}
                   </div>
                 ))}
                 {ungrouped.length > 0 && (
                   <>
-                    {groups.length > 0 && groupHeader('Ungrouped')}
+                    {groups.length > 0 && groupHeader('Ungrouped', null)}
                     {ungrouped.map(renderItem)}
                   </>
                 )}
@@ -4788,7 +4874,9 @@ export default function Compendium() {
           />
           {expandedSections.has('locations') && (() => {
             const locations = viewContent.locations || [];
-            const childrenOf = (pid) => locations.filter((l) => (l.parentId || null) === pid);
+            const childrenOf = (pid) => locations
+              .filter((l) => (l.parentId || null) === pid)
+              .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
             const renderNode = (loc, depth) => {
               const kids = childrenOf(loc.id);
               const hasKids = kids.length > 0;
@@ -5089,6 +5177,24 @@ function Header({ content, editMode, dirty, onEditToggle, onSave, onDiscard, onM
               </button>
             ) : (
               <button style={styles.headerButtonGhost} onClick={onLogin} title="Sign in to edit">
+                <LogIn size={14} /> Sign In
+              </button>
+            )}
+          </div>
+        )}
+        {/* Mobile: accounts control only (no edit/reveal/print on mobile). */}
+        {isMobile && (
+          <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            {session ? (
+              <button
+                style={{ ...styles.headerButtonGhost, padding: '6px 10px' }}
+                onClick={onSignOut}
+                title={`Signed in as ${profile?.display_name || 'user'} (${profile?.role || 'player'})`}
+              >
+                <LogOut size={14} /> {profile?.role ? profile.role[0].toUpperCase() + profile.role.slice(1) : 'Out'}
+              </button>
+            ) : (
+              <button style={{ ...styles.headerButtonGhost, padding: '6px 10px' }} onClick={onLogin} title="Sign in">
                 <LogIn size={14} /> Sign In
               </button>
             )}
@@ -5456,9 +5562,14 @@ function CharactersPage({ content, activeId, viewContent, editMode, canEditEntry
 
   // Campaigns this character could be copied into (exclude its current one).
   const campaignList = (content.campaignOrder || []).filter((c) => c !== ch.campaign);
-  // Where else this same source/copy appears (cross-reference).
+  // Where else this same source/copy appears (cross-reference). Self-healing:
+  // only includes characters that currently exist (deleted ones drop out
+  // automatically). The user can also manually hide specific links.
+  const hiddenLinks = ch.hiddenCrossLinks || [];
   const relatedCopies = (content.characters || []).filter((c) =>
-    c.id !== ch.id && (c.copiedFrom === ch.id || c.id === ch.copiedFrom || (ch.copiedFrom && c.copiedFrom === ch.copiedFrom))
+    c.id !== ch.id
+    && !hiddenLinks.includes(c.id)
+    && (c.copiedFrom === ch.id || c.id === ch.copiedFrom || (ch.copiedFrom && c.copiedFrom === ch.copiedFrom))
   );
 
   return (
@@ -5497,6 +5608,13 @@ function CharactersPage({ content, activeId, viewContent, editMode, canEditEntry
                 onClick={() => goTo('characters', c.id)}>
                 {c.campaign || 'Unassigned'}
               </span>
+              {_editMode && isStaff && (
+                <button
+                  onClick={() => updateCh({ hiddenCrossLinks: [...hiddenLinks, c.id] })}
+                  title="Remove this cross-link"
+                  style={{ background: 'none', border: 'none', color: '#8b1414', cursor: 'pointer',
+                    fontSize: '11px', padding: '0 2px', fontStyle: 'normal' }}>✕</button>
+              )}
             </span>
           ))}
         </div>

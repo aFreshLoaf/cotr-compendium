@@ -21,6 +21,8 @@ const SINGLETON_CAMPAIGNS = '__campaigns';
 const SINGLETON_RACE_ORDER = '__raceOrder';
 const SINGLETON_CAMPAIGN_ORDER = '__campaignOrder';
 const SINGLETON_PARENT_CLASS_ORDER = '__parentClassOrder';
+const SINGLETON_ITEM_GROUP_ORDER = '__itemGroupOrder';
+const SINGLETON_MAGIC_GROUP_ORDER = '__magicGroupOrder';
 
 // ── Auth ────────────────────────────────────────────────────────────────────
 
@@ -261,7 +263,7 @@ export async function loadContent2(isStaff) {
     const content = {
       subclasses: [], races: [], classes: [], characters: [], items: [], locations: [], magic: [],
       meta: {}, home: {}, campaign: {}, campaigns: {},
-      raceOrder: [], campaignOrder: [], parentClassOrder: [],
+      raceOrder: [], campaignOrder: [], parentClassOrder: [], itemGroupOrder: [], magicGroupOrder: [],
     };
 
     for (const row of rows) {
@@ -292,6 +294,8 @@ export async function loadContent2(isStaff) {
           else if (row.id === SINGLETON_RACE_ORDER) content.raceOrder = row.data.raceOrder || [];
           else if (row.id === SINGLETON_CAMPAIGN_ORDER) content.campaignOrder = row.data.campaignOrder || [];
           else if (row.id === SINGLETON_PARENT_CLASS_ORDER) content.parentClassOrder = row.data.parentClassOrder || [];
+          else if (row.id === SINGLETON_ITEM_GROUP_ORDER) content.itemGroupOrder = row.data.itemGroupOrder || [];
+          else if (row.id === SINGLETON_MAGIC_GROUP_ORDER) content.magicGroupOrder = row.data.magicGroupOrder || [];
           break;
         default: break;
       }
@@ -349,6 +353,8 @@ function buildRowMap(content) {
   push(SINGLETON_RACE_ORDER, 'meta', { raceOrder: content.raceOrder || [] }, { sort_order: 10004 });
   push(SINGLETON_CAMPAIGN_ORDER, 'meta', { campaignOrder: content.campaignOrder || [] }, { sort_order: 10005 });
   push(SINGLETON_PARENT_CLASS_ORDER, 'meta', { parentClassOrder: content.parentClassOrder || [] }, { sort_order: 10006 });
+  push(SINGLETON_ITEM_GROUP_ORDER, 'meta', { itemGroupOrder: content.itemGroupOrder || [] }, { sort_order: 10007 });
+  push(SINGLETON_MAGIC_GROUP_ORDER, 'meta', { magicGroupOrder: content.magicGroupOrder || [] }, { sort_order: 10008 });
 
   return rows;
 }
