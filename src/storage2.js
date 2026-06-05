@@ -38,17 +38,38 @@ export async function getSession() {
   try {
     const result = await withTimeout(supabase.auth.getSession(), 4000);
     if (result === TIMEOUT) {
-      // The session call jammed (typically an expired token whose refresh hangs).
-      // Purge the auth storage so the next load is clean, and continue as public
-      // view. The user simply signs in again — an expired/jammed token is
-      // worthless anyway. This prevents the overnight-inactivity hang.
-      console.warn('[CotR] getSession timed out — clearing auth storage and continuing as public view.');
+      // The session call jammed — typically an expired access token whose refresh
+      // request hangs (the in-memory client holds a lock and can't recover without
+      // a fresh page). We recover in two stages to avoid needlessly logging the
+      // user out for a *transient* hang while still bottoming out safely:
+      //
+      //   Stage 1 (first hang): reload WITHOUT clearing the token. A fresh client
+      //     often completes the refresh fine, keeping the user logged in.
+      //   Stage 2 (hang again right after reload): the token is genuinely
+      //     unrecoverable, so clear it and reload to a clean public state.
+      const FLAG = 'cotr-auth-recovery';
+      let stage = 0;
+      try { stage = parseInt(sessionStorage.getItem(FLAG) || '0', 10) || 0; } catch {}
+
+      if (stage === 0) {
+        console.warn('[CotR] getSession timed out — reloading once with token intact to recover.');
+        try { sessionStorage.setItem(FLAG, '1'); } catch {}
+        try { window.location.reload(); } catch {}
+        // Return null while the reload happens; the page is about to be replaced.
+        return null;
+      }
+
+      // Stage 2: already tried a clean reload and it hung again → clear and reset.
+      console.warn('[CotR] getSession timed out again after reload — clearing auth storage and loading public.');
       try {
         const { clearAuthStorage } = await import('./supabase.js');
         clearAuthStorage();
       } catch {}
+      try { sessionStorage.removeItem(FLAG); } catch {}
       return null;
     }
+    // Success — clear any recovery flag so future hangs start fresh at stage 1.
+    try { sessionStorage.removeItem('cotr-auth-recovery'); } catch {}
     return result?.data?.session ?? null;
   } catch (e) {
     console.error('[CotR] getSession error:', e);
