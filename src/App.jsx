@@ -4360,7 +4360,8 @@ export default function Compendium() {
             onClick={() => toggleSectionExpanded('races')}
           />
           {expandedSections.has('races') && (() => {
-            const order = content.raceOrder || [];
+            // Race families ordered alphabetically by family name.
+            const order = [...(content.raceOrder || [])].sort((a, b) => a.localeCompare(b));
             return (
               <>
                 {order.map((parentRace, raceIdx) => {
@@ -4397,18 +4398,6 @@ export default function Compendium() {
                             style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }} />
                         ) : <span style={{ width: '12px', display: 'inline-block' }} />}
                         {parent.name}
-                        {editMode && isAdmin && (
-                          <span style={{ marginLeft: 'auto', display: 'flex', gap: '2px' }} onClick={(e) => e.stopPropagation()}>
-                            <button onClick={() => moveInOrder('raceOrder', parentRace, -1)}
-                              disabled={raceIdx === 0} title="Move up"
-                              style={{ background: 'none', border: 'none', cursor: raceIdx === 0 ? 'default' : 'pointer',
-                                color: '#8b6914', opacity: raceIdx === 0 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▲</button>
-                            <button onClick={() => moveInOrder('raceOrder', parentRace, 1)}
-                              disabled={raceIdx === order.length - 1} title="Move down"
-                              style={{ background: 'none', border: 'none', cursor: raceIdx === order.length - 1 ? 'default' : 'pointer',
-                                color: '#8b6914', opacity: raceIdx === order.length - 1 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▼</button>
-                          </span>
-                        )}
                       </div>
                       {isExpanded && (
                         <>
@@ -4456,16 +4445,12 @@ export default function Compendium() {
             expanded={expandedSections.has('classes-and-subclasses')}
             onClick={() => toggleSectionExpanded('classes-and-subclasses')}
           />
-          {expandedSections.has('classes-and-subclasses') && content.parentClassOrder.map((parentClass, classIdx) => {
+          {expandedSections.has('classes-and-subclasses') && [...content.parentClassOrder].sort((a, b) => a.localeCompare(b)).map((parentClass, classIdx) => {
             const subsForClass = content.subclasses.filter((s) => s.parentClass === parentClass);
-            // Sort: anti-divine pinned first (authoritative), then alphabetical
-            const sortedSubs = [...subsForClass].sort((a, b) => {
-              const aAd = !!a.antiDivine;
-              const bAd = !!b.antiDivine;
-              if (aAd && !bAd) return -1;
-              if (!aAd && bAd) return 1;
-              return (a.name || '').localeCompare(b.name || '');
-            });
+            // Sort alphabetically by name.
+            const sortedSubs = [...subsForClass].sort((a, b) =>
+              (a.name || '').localeCompare(b.name || '')
+            );
             const isExpanded = expandedClasses === parentClass;
             const stripParen = (s) => (s || '').replace(/\s*\([^)]*\)\s*/g, '').trim();
             const slug = parentClass.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -4542,18 +4527,6 @@ export default function Compendium() {
                     }}
                   />
                   {parentClass}
-                  {editMode && isAdmin && (
-                    <span style={{ marginLeft: 'auto', display: 'flex', gap: '2px' }} onClick={(e) => e.stopPropagation()}>
-                      <button onClick={() => moveInOrder('parentClassOrder', parentClass, -1)}
-                        disabled={classIdx === 0} title="Move up"
-                        style={{ background: 'none', border: 'none', cursor: classIdx === 0 ? 'default' : 'pointer',
-                          color: '#8b6914', opacity: classIdx === 0 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▲</button>
-                      <button onClick={() => moveInOrder('parentClassOrder', parentClass, 1)}
-                        disabled={classIdx === content.parentClassOrder.length - 1} title="Move down"
-                        style={{ background: 'none', border: 'none', cursor: classIdx === content.parentClassOrder.length - 1 ? 'default' : 'pointer',
-                          color: '#8b6914', opacity: classIdx === content.parentClassOrder.length - 1 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▼</button>
-                    </span>
-                  )}
                 </div>
                 {body}
                 {isExpanded && editMode && (

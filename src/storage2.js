@@ -359,7 +359,8 @@ function buildRowMap(content) {
   return rows;
 }
 
-// Save everything (staff). Upserts all rows. Used by staff editors.
+// Save everything (staff). Upserts all current rows AND deletes rows that no
+// longer exist in the content, so deletions actually persist across reloads.
 export async function saveContent2(content) {
   if (!supabaseConfigured || !supabase) return;
   const rows = buildRowMap(content).map((r, idx) => ({
@@ -368,11 +369,38 @@ export async function saveContent2(content) {
     sort_order: (r.sort_order ?? idx),
     updated_at: new Date().toISOString(),
   }));
+
+  // Upsert all current rows.
   const BATCH = 100;
   for (let i = 0; i < rows.length; i += BATCH) {
     const chunk = rows.slice(i, i + BATCH);
     const { error } = await supabase.from('content_entries').upsert(chunk, { onConflict: 'id' });
     if (error) { console.error('[CotR] save error:', error.message); throw new Error(error.message); }
+  }
+
+  // Delete orphans: any DB row whose id is no longer present in the content.
+  // Without this, removing an entry from the array leaves its row in the DB and
+  // it reappears on reload. Singleton/meta rows (ids prefixed with '__') are
+  // never orphan-deleted; they're managed purely by upsert.
+  try {
+    const keepIds = new Set(rows.map((r) => r.id));
+    const { data: existing, error: fetchErr } = await supabase
+      .from('content_entries')
+      .select('id');
+    if (fetchErr) { console.warn('[CotR] orphan-scan skipped:', fetchErr.message); return; }
+    const orphanIds = (existing || [])
+      .map((r) => r.id)
+      .filter((id) => !keepIds.has(id) && !id.startsWith('__'));
+    if (orphanIds.length === 0) return;
+    for (let i = 0; i < orphanIds.length; i += BATCH) {
+      const chunk = orphanIds.slice(i, i + BATCH);
+      const { error: delErr } = await supabase.from('content_entries').delete().in('id', chunk);
+      if (delErr) { console.error('[CotR] orphan delete error:', delErr.message); throw new Error(delErr.message); }
+    }
+    console.info(`[CotR] removed ${orphanIds.length} deleted entr${orphanIds.length === 1 ? 'y' : 'ies'}.`);
+  } catch (err) {
+    console.error('[CotR] orphan cleanup failed:', err);
+    throw err;
   }
 }
 
