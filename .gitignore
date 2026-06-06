@@ -1,8 +1,39 @@
+# ── Dependencies & build output ──
 node_modules/
 dist/
+
+# ── Environment / secrets ──
 .env
 .env.local
 .env.*.local
 *.local
+
+# ── OS cruft ──
 .DS_Store
 Thumbs.db
+
+# ── Personal data & one-off scripts (NOT for the public repo) ──
+# Your live campaign backup — private content, regenerable.
+COTR_BACKUP.txt
+# One-time migration/verification scripts specific to the original setup.
+migrate.mjs
+verify.mjs
+
+# ── Generated exports (private content, regenerable via export-canon.mjs) ──
+# Dated canon exports of your actual campaign content. Cloners generate their
+# own; these shouldn't be committed.
+cotr-canon-*.md
+classes-current.md
+# Personal command cheat-sheets that may contain keys/paths.
+EXPORT-COMMANDS.txt
+
+# ── Source material scratch (Wikidot text used to build classes-data.mjs) ──
+# Optional: keep these out of the repo since they're raw working notes.
+WD_*.txt
+
+# NOTE: the following ARE intentionally tracked so people who clone the repo
+# can use the tooling (with their own keys):
+#   export-canon.mjs          — canon exporter
+#   import-classes.mjs         — class importer
+#   classes-data-blanks.mjs    — reusable blank-class template
+#   classes-data.mjs           — base-class definitions (generic 5.5e scaffolding)
