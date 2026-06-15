@@ -2691,7 +2691,7 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
               PCs may see this block. The page owner and staff always can. */}
           {editMode && canAuthorHere && sec.hidden && !sec.dmOnly && (() => {
             const pcs = (content?.characters || [])
-              .filter((c) => c.role === 'player')
+              .filter((c) => c.role === 'player' && c.status !== 'deceased')
               .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
             const audience = sec.audience || [];
             const toggle = (id) => {
@@ -3127,7 +3127,7 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                       {/* Audience picker for a hidden entry */}
                       {editMode && entryCanAuthor && entry.hidden && (() => {
                         const pcs = (content?.characters || [])
-                          .filter((c) => c.role === 'player')
+                          .filter((c) => c.role === 'player' && c.status !== 'deceased')
                           .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
                         const audience = entry.audience || [];
                         const toggleAud = (id) => {
@@ -3196,10 +3196,29 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                       />
 
                           {/* Feature cards — sit in the same column as description so they wrap beside image */}
-                          {(entry.features || []).map((f, fi) => (
-                            <div key={fi} className="feature-card" style={styles.featureCard}>
+                          {(entry.features || []).map((f, fi) => {
+                            // Per-feature-block HIDDEN gating (Stage 3): each inner
+                            // block can be hidden with its OWN independent audience.
+                            const fCanSee = canViewHiddenBlock(f, viewer, pageOwnerCharId);
+                            if (f.hidden && !fCanSee && !(editMode && entryCanAuthor)) {
+                              return null; // fully invisible
+                            }
+                            const fPcs = (content?.characters || [])
+                              .filter((c) => c.role === 'player' && c.status !== 'deceased')
+                              .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                            const fAudience = f.audience || [];
+                            const toggleFAud = (id) => {
+                              const next = fAudience.includes(id) ? fAudience.filter((x) => x !== id) : [...fAudience, id];
+                              updateEntryFeature(i, ei, fi, { audience: next });
+                            };
+                            return (
+                            <div key={fi} className="feature-card" style={{
+                              ...styles.featureCard,
+                              ...(f.hidden ? { borderLeft: '4px solid #8b6914', background: 'rgba(139,105,20,0.05)' } : {}),
+                            }}>
                               {editMode ? (
                                 <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                                  {f.hidden && <EyeOff size={13} style={{ color: '#8b6914', flexShrink: 0 }} />}
                                   <span style={{ fontSize: '11px', color: '#8b6914' }}>Lvl</span>
                                   <input type="number" value={f.level ?? ''}
                                     onChange={(e) => updateEntryFeature(i, ei, fi, { level: e.target.value === '' ? 0 : (parseInt(e.target.value) || 0) })}
@@ -3210,6 +3229,16 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                                     onChange={(e) => updateEntryFeature(i, ei, fi, { name: e.target.value })}
                                     placeholder="Feature name"
                                     style={{ ...styles.textarea, flex: 1, minHeight: 'unset', padding: '4px 8px' }} />
+                                  {entryCanAuthor && (
+                                    <button onClick={() => updateEntryFeature(i, ei, fi, { hidden: !f.hidden, audience: f.audience || [] })}
+                                      title={f.hidden ? 'Hidden — click to make visible to all' : 'Hide this block from players'}
+                                      style={{ background: f.hidden ? '#8b6914' : 'transparent',
+                                        color: f.hidden ? '#f5ecd9' : '#8b6914',
+                                        border: '1px solid #8b6914', borderRadius: '2px', padding: '4px 8px',
+                                        cursor: 'pointer', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                      <EyeOff size={11} />{f.hidden ? 'Hidden' : 'Hide'}
+                                    </button>
+                                  )}
                                   <button onClick={() => removeEntryFeature(i, ei, fi)}
                                     style={{ background: '#8b1414', color: '#f5ecd9', border: 'none',
                                       borderRadius: '2px', padding: '4px 8px', cursor: 'pointer', fontSize: '11px' }}>✕</button>
@@ -3218,6 +3247,32 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                                 {showLevel(f.level) && <div style={styles.featureLevel}>Level {f.level}</div>}
                                 <div style={styles.featureName}>{f.name}</div>
                               </>}
+                              {editMode && entryCanAuthor && f.hidden && (
+                                <div style={{ marginBottom: '8px', padding: '6px 8px',
+                                  background: 'rgba(139,105,20,0.06)', border: '1px solid rgba(139,105,20,0.3)', borderRadius: '3px' }}>
+                                  <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.07em',
+                                    color: '#5c4020', marginBottom: '5px', fontFamily: '"Cinzel", serif' }}>
+                                    Visible to {pageOwnerCharId ? "owner, " : ''}staff, + selected players
+                                  </div>
+                                  {fPcs.length === 0 ? (
+                                    <div style={{ fontSize: '11px', color: '#8b6914', fontStyle: 'italic' }}>No living Player Characters.</div>
+                                  ) : (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                                      {fPcs.map((c) => {
+                                        const on = fAudience.includes(c.id);
+                                        return (
+                                          <button key={c.id} onClick={() => toggleFAud(c.id)}
+                                            style={{ padding: '2px 9px', fontSize: '11px', cursor: 'pointer', borderRadius: '11px',
+                                              border: on ? '1px solid #7a1f1f' : '1px solid #c9b896',
+                                              background: on ? '#7a1f1f' : 'transparent', color: on ? '#f5ecd9' : '#5c4020' }}>
+                                            {on ? '✓ ' : ''}{c.name}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                               <BlockBody
                                 value={f.body}
                                 editMode={editMode}
@@ -3228,7 +3283,8 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                         isDM={isDM}
                       />
                             </div>
-                          ))}
+                            );
+                          })}
                           {editMode && (
                             <button onClick={() => addEntryFeature(i, ei)}
                               style={{ ...styles.button, marginTop: '4px', fontSize: '11px', padding: '4px 12px' }}>
@@ -4319,7 +4375,7 @@ export default function Compendium() {
           pushStr(e.name);
           pushStr(e.flavor);
           harvestBlocks(e.description);
-          (e.features || []).forEach((f) => { pushStr(f.name); harvestBlocks(f.body); });
+          (e.features || []).forEach((f) => { if (f.hidden && !canViewHiddenBlock(f, viewer, ownerCharId)) return; pushStr(f.name); harvestBlocks(f.body); });
         });
       });
       return { parts };
