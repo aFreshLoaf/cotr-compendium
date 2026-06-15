@@ -3063,15 +3063,30 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
               <div>
                 {(entries).map((entry, ei) => {
                   const showLevel = (lvl) => lvl != null && lvl !== '' && Number(lvl) > 0;
+                  // Per-entry HIDDEN gating (Stage 2): a subcategory entry flagged
+                  // `hidden` is fully invisible to viewers without access — same
+                  // model as top-level hidden sections. Authors in edit mode still
+                  // see it to manage it.
+                  const entryCanSee = canViewHiddenBlock(entry, viewer, pageOwnerCharId);
+                  const entryCanAuthor = canAuthorHidden(viewer, pageOwnerCharId);
+                  if (entry.hidden && !entryCanSee && !(editMode && entryCanAuthor)) {
+                    return null; // fully invisible
+                  }
                   return (
                     <div key={entry.id || ei} style={{
                       marginBottom: '28px',
                       paddingBottom: '20px',
                       borderBottom: ei < entries.length - 1 ? '1px solid rgba(201,165,92,0.3)' : 'none',
+                      ...(entry.hidden ? {
+                        borderLeft: '4px solid #8b6914',
+                        paddingLeft: '12px',
+                        background: 'rgba(139,105,20,0.05)',
+                      } : {}),
                     }}>
                       {/* Entry header row with name + controls */}
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
-                        <div style={{ flex: 1 }}>
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {entry.hidden && <EyeOff size={14} style={{ color: '#8b6914', flexShrink: 0 }} />}
                           {editMode ? (
                             <input value={entry.name || ''}
                               onChange={(e) => updateEntry(i, ei, { name: e.target.value })}
@@ -3085,6 +3100,17 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                         </div>
                         {editMode && (
                           <div style={{ display: 'flex', gap: '4px', flexShrink: 0, marginTop: '4px' }}>
+                            {entryCanAuthor && (
+                              <button onClick={() => updateEntry(i, ei, { hidden: !entry.hidden, audience: entry.audience || [] })}
+                                title={entry.hidden ? 'Hidden — click to make visible to all' : 'Hide this entry from players'}
+                                style={{ background: entry.hidden ? '#8b6914' : 'transparent',
+                                  color: entry.hidden ? '#f5ecd9' : '#8b6914',
+                                  border: '1px solid #8b6914', padding: '4px 8px',
+                                  cursor: 'pointer', borderRadius: '2px', fontSize: '11px',
+                                  display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                <EyeOff size={11} />{entry.hidden ? 'Hidden' : 'Hide'}
+                              </button>
+                            )}
                             <button onClick={() => moveEntry(i, ei, -1)} title="Move up"
                               style={{ background: '#8b6914', color: '#f5ecd9', border: 'none', padding: '4px 8px',
                                 cursor: 'pointer', borderRadius: '2px', fontSize: '11px' }}>▲</button>
@@ -3097,6 +3123,44 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                           </div>
                         )}
                       </div>
+
+                      {/* Audience picker for a hidden entry */}
+                      {editMode && entryCanAuthor && entry.hidden && (() => {
+                        const pcs = (content?.characters || [])
+                          .filter((c) => c.role === 'player')
+                          .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                        const audience = entry.audience || [];
+                        const toggleAud = (id) => {
+                          const next = audience.includes(id) ? audience.filter((x) => x !== id) : [...audience, id];
+                          updateEntry(i, ei, { audience: next });
+                        };
+                        return (
+                          <div style={{ marginBottom: '12px', padding: '8px 10px',
+                            background: 'rgba(139,105,20,0.06)', border: '1px solid rgba(139,105,20,0.3)', borderRadius: '3px' }}>
+                            <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em',
+                              color: '#5c4020', marginBottom: '6px', fontFamily: '"Cinzel", serif' }}>
+                              Hidden — visible to {pageOwnerCharId ? "this page's owner, " : ''}staff, and the players of any characters selected below
+                            </div>
+                            {pcs.length === 0 ? (
+                              <div style={{ fontSize: '12px', color: '#8b6914', fontStyle: 'italic' }}>No Player Characters defined yet.</div>
+                            ) : (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                {pcs.map((c) => {
+                                  const on = audience.includes(c.id);
+                                  return (
+                                    <button key={c.id} onClick={() => toggleAud(c.id)}
+                                      style={{ padding: '3px 10px', fontSize: '12px', cursor: 'pointer', borderRadius: '12px',
+                                        border: on ? '1px solid #7a1f1f' : '1px solid #c9b896',
+                                        background: on ? '#7a1f1f' : 'transparent', color: on ? '#f5ecd9' : '#5c4020' }}>
+                                      {on ? '✓ ' : ''}{c.name}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {/* Optional pills */}
                       <PillRow
@@ -4251,6 +4315,7 @@ export default function Compendium() {
         (sec.columns || []).forEach(pushStr);
         (sec.rows || []).forEach((row) => (row || []).forEach(pushStr));
         (sec.entries || []).forEach((e) => {
+          if (e.hidden && !canViewHiddenBlock(e, viewer, ownerCharId)) return; // skip hidden entries the viewer can't see
           pushStr(e.name);
           pushStr(e.flavor);
           harvestBlocks(e.description);
