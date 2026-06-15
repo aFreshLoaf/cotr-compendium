@@ -4,7 +4,42 @@ import {
   getSession, getProfile, signInWithDiscord, signInWithEmail, signOut, onAuthChange,
   uploadImage, deleteImage,
 } from './storage2.js';
-import { Search, Book, Users, Sword, Shield, Sparkles, ScrollText, Edit3, Plus, X, Save, ChevronRight, Home, Skull, Eye, Trash2, Image as ImageIcon, Upload, Menu, Lock, LogOut, LogIn, Copy } from 'lucide-react';
+import { Search, Book, Users, Sword, Shield, Sparkles, ScrollText, Edit3, Plus, X, Save, ChevronRight, Home, Skull, Eye, Trash2, Image as ImageIcon, Upload, Menu, Lock, LogOut, LogIn, Copy, EyeOff } from 'lucide-react';
+
+// ============================================================
+// VIEWER CONTEXT — who is looking, for per-block hidden-content gating.
+// Set once at the app root; consumed by Sections / block renderers so we don't
+// prop-drill the viewer's identity through every page.
+//   isStaff      — admin/dm (can author hidden blocks anywhere; see them via Reveal)
+//   showingDM    — staff AND the Reveal toggle is on
+//   ownedChars   — array of character ids this account owns (player access)
+// ============================================================
+const ViewerContext = React.createContext({ isStaff: false, showingDM: false, ownedChars: [] });
+
+// Can the current viewer SEE a hidden block?
+//   block.hidden   — boolean
+//   block.audience — array of character ids granted access (PC ids)
+//   pageOwnerCharId — the character id whose page this block lives on (or null)
+// Visible if: not hidden; OR staff with Reveal on; OR viewer owns the page's
+// character; OR one of the viewer's owned characters is in the audience list.
+function canViewHiddenBlock(block, viewer, pageOwnerCharId) {
+  if (!block || !block.hidden) return true;            // not hidden → everyone
+  if (viewer.showingDM) return true;                   // staff, Reveal on
+  const owned = viewer.ownedChars || [];
+  if (pageOwnerCharId && owned.includes(pageOwnerCharId)) return true; // owns this page
+  const audience = block.audience || [];
+  if (owned.some((id) => audience.includes(id))) return true;          // granted access
+  return false;
+}
+
+// Can the current viewer AUTHOR/EDIT a hidden block here?
+//   staff anywhere; a player only on a page for a character they own.
+function canAuthorHidden(viewer, pageOwnerCharId) {
+  if (viewer.isStaff) return true;
+  const owned = viewer.ownedChars || [];
+  return !!(pageOwnerCharId && owned.includes(pageOwnerCharId));
+}
+
 
 // ============================================================
 // DEFAULT CONTENT — seeded from Mikey's homebrew documents
@@ -2419,8 +2454,9 @@ function BlockBody({ value, editMode, onChange, placeholder, content, goTo, isDM
   );
 }
 
-function Sections({ sections, editMode, onChange, headingStyle, category, entryId, identityFields, content, goTo, isDM }) {
+function Sections({ sections, editMode, onChange, headingStyle, category, entryId, identityFields, content, goTo, isDM, pageOwnerCharId = null }) {
   const isMobile = useIsMobile();
+  const viewer = React.useContext(ViewerContext);
   const list = sections || [];
   const updateSection = (i, fields) => onChange(list.map((s, idx) => idx === i ? { ...s, ...fields } : s));
   const removeSection = (i) => onChange(list.filter((_, idx) => idx !== i));
@@ -2439,6 +2475,7 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
   const addImageSection   = () => onChange([...list, { id: newId(), heading: 'New Illustration', type: 'image', images: [] }]);
   const addSubcategorySection = () => onChange([...list, { id: newId(), heading: 'New Subcategory', type: 'subcategory', lore: '', entries: [] }]);
   const addDMSection = () => onChange([...list, { id: newId(), heading: 'DM Notes', type: 'text', body: '', dmOnly: true }]);
+  const addHiddenSection = () => onChange([...list, { id: newId(), heading: 'Hidden', type: 'text', body: '', hidden: true, audience: [] }]);
 
   // ── Subcategory entry helpers ────────────────────────────────────
   const updateEntry = (sectionIdx, entryIdx, fields) => {
@@ -2538,6 +2575,19 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
       {list.map((sec, i) => {
         const isIdentity = sec.type === 'identity';
 
+        // ── Per-block HIDDEN gating ────────────────────────────────────
+        // A section flagged `hidden` (with an optional `audience` of character
+        // ids) is fully invisible to players who lack access — no placeholder,
+        // no trace. Staff see it (behind the Reveal toggle) marked as hidden;
+        // authorized players (page owner, or a granted character's owner) see it
+        // plainly. In edit mode, anyone who can author here still sees it so they
+        // can manage it.
+        const canSeeHidden = canViewHiddenBlock(sec, viewer, pageOwnerCharId);
+        const canAuthorHere = canAuthorHidden(viewer, pageOwnerCharId);
+        if (sec.hidden && !canSeeHidden && !(editMode && canAuthorHere)) {
+          return null; // fully invisible
+        }
+
         // DM-only section that the current viewer can't decrypt: show a locked card.
         // Detect "locked" by the heading still being ciphertext (enc:: prefix).
         if (sec.dmOnly && !isDM) {
@@ -2572,11 +2622,21 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
             padding: '12px 16px',
             background: 'rgba(92, 20, 20, 0.04)',
           } : {}),
+          ...(sec.hidden && !sec.dmOnly ? {
+            border: '1px dashed rgba(110, 80, 20, 0.5)',
+            borderLeft: '4px solid #8b6914',
+            borderRadius: '3px',
+            padding: '12px 16px',
+            background: 'rgba(139, 105, 20, 0.05)',
+          } : {}),
         }}>
           {!isIdentity ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {sec.dmOnly && <Lock size={15} style={{ color: '#7a1f1f', flexShrink: 0 }} />}
+                {sec.hidden && !sec.dmOnly && (
+                  <EyeOff size={15} style={{ color: '#8b6914', flexShrink: 0 }} />
+                )}
                 <div style={{ flex: 1 }}>
                   <EditableHeading as="h2"
                     value={sec.heading}
@@ -2589,6 +2649,17 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
               </div>
               {editMode && (
                 <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                  {canAuthorHere && !sec.dmOnly && (
+                    <button onClick={() => updateSection(i, { hidden: !sec.hidden, audience: sec.audience || [] })}
+                      title={sec.hidden ? 'This block is hidden — click to make it visible to all' : 'Hide this block from players'}
+                      style={{ background: sec.hidden ? '#8b6914' : 'transparent',
+                        color: sec.hidden ? '#f5ecd9' : '#8b6914',
+                        border: '1px solid #8b6914', padding: '4px 8px',
+                        cursor: 'pointer', borderRadius: '2px', fontSize: '11px',
+                        display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <EyeOff size={11} />{sec.hidden ? 'Hidden' : 'Hide'}
+                    </button>
+                  )}
                   <button onClick={() => moveSection(i, -1)} title="Move up"
                     style={{ background: '#8b6914', color: '#f5ecd9', border: 'none', padding: '4px 8px',
                       cursor: 'pointer', borderRadius: '2px', fontSize: '11px' }}>▲</button>
@@ -2615,7 +2686,53 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
             </div>
           ) : null}
 
-          {/* IDENTITY — character-only locked section: Race / Class / Patron pills */}
+          {/* Audience picker for a hidden block (edit mode, authorized author).
+              Lists Player-Character-tagged characters; the author ticks which
+              PCs may see this block. The page owner and staff always can. */}
+          {editMode && canAuthorHere && sec.hidden && !sec.dmOnly && (() => {
+            const pcs = (content?.characters || [])
+              .filter((c) => c.role === 'player')
+              .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            const audience = sec.audience || [];
+            const toggle = (id) => {
+              const next = audience.includes(id)
+                ? audience.filter((x) => x !== id)
+                : [...audience, id];
+              updateSection(i, { audience: next });
+            };
+            return (
+              <div style={{ marginBottom: '12px', padding: '8px 10px',
+                background: 'rgba(139,105,20,0.06)', border: '1px solid rgba(139,105,20,0.3)',
+                borderRadius: '3px' }}>
+                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em',
+                  color: '#5c4020', marginBottom: '6px', fontFamily: '"Cinzel", serif' }}>
+                  Hidden — visible to {pageOwnerCharId ? "this page's owner, " : ''}staff, and the players of any characters selected below
+                </div>
+                {pcs.length === 0 ? (
+                  <div style={{ fontSize: '12px', color: '#8b6914', fontStyle: 'italic' }}>
+                    No Player Characters defined yet.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {pcs.map((c) => {
+                      const on = audience.includes(c.id);
+                      return (
+                        <button key={c.id} onClick={() => toggle(c.id)}
+                          style={{ padding: '3px 10px', fontSize: '12px', cursor: 'pointer',
+                            borderRadius: '12px',
+                            border: on ? '1px solid #7a1f1f' : '1px solid #c9b896',
+                            background: on ? '#7a1f1f' : 'transparent',
+                            color: on ? '#f5ecd9' : '#5c4020' }}>
+                          {on ? '✓ ' : ''}{c.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {sec.type === 'identity' && identityFields && (
             editMode ? (
               <div style={{ ...styles.card }}>
@@ -3101,6 +3218,13 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
             style={{ ...styles.button, fontSize: '12px', padding: '6px 14px' }}>+ Illustration</button>
           <button onClick={addSubcategorySection}
             style={{ ...styles.button, fontSize: '12px', padding: '6px 14px' }}>+ Subcategory</button>
+          {canAuthorHidden(viewer, pageOwnerCharId) && (
+            <button onClick={addHiddenSection}
+              style={{ ...styles.button, fontSize: '12px', padding: '6px 14px',
+                background: '#8b6914', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <EyeOff size={12} /> + Hidden Text
+            </button>
+          )}
           {isDM && (
             <button onClick={addDMSection}
               style={{ ...styles.button, fontSize: '12px', padding: '6px 14px',
@@ -4097,9 +4221,10 @@ export default function Compendium() {
     // Collect searchable text from an entry's sections[]. Skips dmOnly sections
     // for non-DM viewers (their content is ciphertext anyway). Returns
     // { text: combined lowercased string, snippet: best matching excerpt }.
-    const harvestSections = (sections) => {
+    const harvestSections = (sections, ownerCharId = null) => {
       if (!Array.isArray(sections)) return { parts: [] };
       const parts = [];
+      const viewer = { isStaff, showingDM, ownedChars };
       const pushStr = (s) => { if (typeof s === 'string' && s) parts.push(s); };
       const harvestBlocks = (blocks) => {
         if (!Array.isArray(blocks)) { pushStr(blocks); return; }
@@ -4114,6 +4239,7 @@ export default function Compendium() {
       };
       sections.forEach((sec) => {
         if (sec.dmOnly && !showingDM) return; // skip locked sections entirely
+        if (sec.hidden && !canViewHiddenBlock(sec, viewer, ownerCharId)) return; // skip hidden the viewer can't see
         pushStr(sec.heading);
         pushStr(sec.lore);
         pushStr(sec.caption);
@@ -4153,7 +4279,10 @@ export default function Compendium() {
     const hits = [];
     const scan = (entry, type, section, parent) => {
       const nameMatch = (entry.name || '').toLowerCase().includes(q);
-      const { parts } = harvestSections(entry.sections);
+      // For character entries, the entry's own id is the page-owner char id, so
+      // a hidden block's owner-access check works during search too.
+      const ownerCharId = type === 'Character' ? entry.id : null;
+      const { parts } = harvestSections(entry.sections, ownerCharId);
       const sectionMatch = parts.some((p) => p.toLowerCase().includes(q));
       // Legacy field fallback (older entries not yet migrated)
       const legacyMatch = entry.summary?.toLowerCase().includes(q)
@@ -4186,7 +4315,7 @@ export default function Compendium() {
     });
 
     return hits;
-  }, [search, content, showingDM]);
+  }, [search, content, showingDM, isStaff, ownedChars]);
 
   if (loading) {
     return (
@@ -4269,6 +4398,7 @@ export default function Compendium() {
   };
 
   return (
+    <ViewerContext.Provider value={{ isStaff, showingDM, ownedChars }}>
     <div style={styles.page} className="app-page">
       <div className="no-print">
       <Header
@@ -5024,6 +5154,7 @@ export default function Compendium() {
         </div>
       )}
     </div>
+    </ViewerContext.Provider>
   );
 }
 
@@ -5651,6 +5782,7 @@ function CharactersPage({ content, activeId, viewContent, editMode, canEditEntry
         content={content}
         goTo={goTo}
         isDM={isDM}
+        pageOwnerCharId={ch.id}
         identityFields={{ entry: ch, update: updateCh, fieldRow }}
       />
     </div>
