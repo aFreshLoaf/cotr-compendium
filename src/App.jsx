@@ -2042,7 +2042,8 @@ function EditableHeading({ as = 'h2', value, defaultValue, onChange, editMode, s
 // Field starts as a plain string. Clicking "+ Insert Table" in edit mode upgrades
 // it to a blocks array. Once an array, it stays an array even if all tables are
 // removed — but that has no visible effect on the rendered output.
-function BlockBody({ value, editMode, onChange, placeholder, content, goTo, isDM }) {
+function BlockBody({ value, editMode, onChange, placeholder, content, goTo, isDM, pageOwnerCharId = null }) {
+  const viewer = React.useContext(ViewerContext);
   const isBlocks = Array.isArray(value);
 
   // ── String mode (back-compat) ──────────────────────────────────────────
@@ -2180,10 +2181,38 @@ function BlockBody({ value, editMode, onChange, placeholder, content, goTo, isDM
 
   return (
     <div>
-      {blocks.map((b, i) => (
-        <div key={i} style={{ marginBottom: '10px', position: 'relative' }}>
+      {blocks.map((b, i) => {
+        // Per-block HIDDEN gating: a text/table/links block flagged `hidden`
+        // (with its own independent `audience`) is fully invisible to viewers
+        // without access. Authors in edit mode still see it to manage it.
+        const bCanSee = canViewHiddenBlock(b, viewer, pageOwnerCharId);
+        const bCanAuthor = canAuthorHidden(viewer, pageOwnerCharId);
+        if (b.hidden && !bCanSee && !(editMode && bCanAuthor)) return null;
+        const bPcs = (content?.characters || [])
+          .filter((c) => c.role === 'player' && c.status !== 'deceased')
+          .sort((a, b2) => (a.name || '').localeCompare(b2.name || ''));
+        const bAudience = b.audience || [];
+        const toggleBAud = (id) => {
+          const next = bAudience.includes(id) ? bAudience.filter((x) => x !== id) : [...bAudience, id];
+          updateBlock(i, { audience: next });
+        };
+        return (
+        <div key={i} style={{ marginBottom: '10px', position: 'relative',
+          ...(b.hidden && b.type !== 'dm' ? { borderLeft: '4px solid #8b6914', paddingLeft: '10px',
+            background: 'rgba(139,105,20,0.05)', borderRadius: '2px' } : {}) }}>
           {editMode && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '3px', marginBottom: '4px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '3px', marginBottom: '4px', alignItems: 'center' }}>
+              {b.hidden && b.type !== 'dm' && <EyeOff size={12} style={{ color: '#8b6914', marginRight: 'auto' }} />}
+              {bCanAuthor && b.type !== 'dm' && (
+                <button onClick={() => updateBlock(i, { hidden: !b.hidden, audience: b.audience || [] })}
+                  title={b.hidden ? 'Hidden — click to make visible to all' : 'Hide this block from players'}
+                  style={{ background: b.hidden ? '#8b6914' : 'transparent',
+                    color: b.hidden ? '#f5ecd9' : '#8b6914', border: '1px solid #8b6914',
+                    padding: '2px 7px', cursor: 'pointer', borderRadius: '2px', fontSize: '10px',
+                    display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                  <EyeOff size={10} />{b.hidden ? 'Hidden' : 'Hide'}
+                </button>
+              )}
               <button onClick={() => moveBlock(i, -1)} title="Move up"
                 style={{ background: '#8b6914', color: '#f5ecd9', border: 'none', padding: '2px 6px',
                   cursor: 'pointer', borderRadius: '2px', fontSize: '10px' }}>▲</button>
@@ -2194,6 +2223,32 @@ function BlockBody({ value, editMode, onChange, placeholder, content, goTo, isDM
                 title="Remove block"
                 style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', padding: '2px 8px',
                   cursor: 'pointer', borderRadius: '2px', fontSize: '10px' }}>✕</button>
+            </div>
+          )}
+          {editMode && bCanAuthor && b.hidden && b.type !== 'dm' && (
+            <div style={{ marginBottom: '6px', padding: '6px 8px',
+              background: 'rgba(139,105,20,0.06)', border: '1px solid rgba(139,105,20,0.3)', borderRadius: '3px' }}>
+              <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.07em',
+                color: '#5c4020', marginBottom: '5px', fontFamily: '"Cinzel", serif' }}>
+                Visible to {pageOwnerCharId ? "owner, " : ''}staff, + selected players
+              </div>
+              {bPcs.length === 0 ? (
+                <div style={{ fontSize: '11px', color: '#8b6914', fontStyle: 'italic' }}>No living Player Characters.</div>
+              ) : (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                  {bPcs.map((c) => {
+                    const on = bAudience.includes(c.id);
+                    return (
+                      <button key={c.id} onClick={() => toggleBAud(c.id)}
+                        style={{ padding: '2px 9px', fontSize: '11px', cursor: 'pointer', borderRadius: '11px',
+                          border: on ? '1px solid #7a1f1f' : '1px solid #c9b896',
+                          background: on ? '#7a1f1f' : 'transparent', color: on ? '#f5ecd9' : '#5c4020' }}>
+                        {on ? '✓ ' : ''}{c.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -2425,7 +2480,8 @@ function BlockBody({ value, editMode, onChange, placeholder, content, goTo, isDM
             );
           })()}
         </div>
-      ))}
+        );
+      })}
 
       {editMode && (
         <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
@@ -2855,6 +2911,7 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
               content={content}
                         goTo={goTo}
                         isDM={isDM}
+                        pageOwnerCharId={pageOwnerCharId}
                       />
             </div>
           )}
@@ -2902,6 +2959,7 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                       content={content}
                         goTo={goTo}
                         isDM={isDM}
+                        pageOwnerCharId={pageOwnerCharId}
                       />
                     </div>
                   );
@@ -3193,6 +3251,7 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                           content={content}
                         goTo={goTo}
                         isDM={isDM}
+                        pageOwnerCharId={pageOwnerCharId}
                       />
 
                           {/* Feature cards — sit in the same column as description so they wrap beside image */}
@@ -3281,6 +3340,7 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                               content={content}
                         goTo={goTo}
                         isDM={isDM}
+                        pageOwnerCharId={pageOwnerCharId}
                       />
                             </div>
                             );
@@ -4350,6 +4410,7 @@ export default function Compendium() {
         if (!Array.isArray(blocks)) { pushStr(blocks); return; }
         blocks.forEach((b) => {
           if (b.type === 'dm' && !showingDM) return; // skip locked dm blocks
+          if (b.hidden && !canViewHiddenBlock(b, viewer, ownerCharId)) return; // skip hidden blocks the viewer can't see
           pushStr(b.body);
           (b.columns || []).forEach(pushStr);
           (b.rows || []).forEach((row) => (row || []).forEach(pushStr));
