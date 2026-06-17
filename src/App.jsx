@@ -1476,7 +1476,6 @@ const styles = {
   },
   mainInner: {
     maxWidth: '900px',
-    margin: '0 auto',
   },
   pageHeading: {
     fontFamily: '"Cinzel", "Trajan Pro", serif',
@@ -3112,21 +3111,33 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                     return (
                       <div key={ri} style={{ display: 'flex', flexWrap: 'wrap',
                         justifyContent: 'center', gap: '18px', marginBottom: '18px' }}>
-                        {row.items.map((im, k) => (
+                        {row.items.map((im, k) => {
+                          const sh = im.media?.shape === 'landscape' ? 'landscape' : 'portrait';
+                          const fr = IMAGE_FRAMES[sh];
+                          const px = im.media?.posX ?? 50;
+                          const py = im.media?.posY ?? 50;
+                          const zm = im.media?.zoom ?? 1;
+                          return (
                           <div key={k} style={{ flex: `0 1 ${basis}`, maxWidth: maxW,
                             display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <img src={im.media.url}
-                              alt={im.caption || ''}
-                              onClick={() => setLightbox({ url: im.media.url, caption: im.caption || '' })}
-                              style={{ width: '100%', borderRadius: '3px', cursor: 'zoom-in',
+                            <div onClick={() => setLightbox({ url: im.media.url, caption: im.caption || '' })}
+                              style={{ width: '100%', aspectRatio: `${fr.width} / ${fr.height}`,
+                                overflow: 'hidden', borderRadius: '3px', position: 'relative',
+                                background: '#3b2615', cursor: 'zoom-in',
                                 border: '1px solid rgba(139,105,20,0.3)',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.18)', display: 'block' }} />
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.18)' }}>
+                              <img src={im.media.url} alt={im.caption || ''}
+                                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                                  objectFit: 'cover', objectPosition: `${px}% ${py}%`,
+                                  transform: `scale(${zm})`, transformOrigin: `${px}% ${py}%` }} />
+                            </div>
                             {im.caption ? (
                               <p style={{ ...styles.bodyText, fontStyle: 'italic', color: '#5c4020',
                                 fontSize: '13px', marginTop: '6px', textAlign: 'center' }}>{im.caption}</p>
                             ) : null}
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     );
                   })}
