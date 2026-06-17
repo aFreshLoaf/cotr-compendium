@@ -1476,6 +1476,7 @@ const styles = {
   },
   mainInner: {
     maxWidth: '900px',
+    margin: '0 auto',
   },
   pageHeading: {
     fontFamily: '"Cinzel", "Trajan Pro", serif',
@@ -2513,6 +2514,13 @@ function BlockBody({ value, editMode, onChange, placeholder, content, goTo, isDM
 function Sections({ sections, editMode, onChange, headingStyle, category, entryId, identityFields, content, goTo, isDM, pageOwnerCharId = null }) {
   const isMobile = useIsMobile();
   const viewer = React.useContext(ViewerContext);
+  const [lightbox, setLightbox] = useState(null); // { url, caption } | null
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e) => { if (e.key === 'Escape') setLightbox(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightbox]);
   const list = sections || [];
   const updateSection = (i, fields) => onChange(list.map((s, idx) => idx === i ? { ...s, ...fields } : s));
   const removeSection = (i) => onChange(list.filter((_, idx) => idx !== i));
@@ -3063,7 +3071,93 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
               setImages(images.map((im, k) => k === idx ? { ...im, ...fields } : im));
             const addImage = () => setImages([...images, { media: null, caption: '' }]);
             const removeImage = (idx) => setImages(images.filter((_, k) => k !== idx));
+            const moveImage = (idx, dir) => {
+              const ni = idx + dir;
+              if (ni < 0 || ni >= images.length) return;
+              const arr = [...images];
+              [arr[idx], arr[ni]] = [arr[ni], arr[idx]];
+              setImages(arr);
+            };
 
+            const orientOf = (im) => (im.media?.shape === 'landscape' ? 'landscape' : 'portrait');
+
+            // VIEW MODE: pack images into orientation-grouped rows in authored
+            // order. A row holds up to 3 portraits OR 2 landscapes; it breaks when
+            // the orientation changes or capacity is reached. Rows are centered, so
+            // a partial row (e.g. one landscape, or two portraits) sits centered
+            // rather than left-aligned with a gap.
+            if (!editMode) {
+              const rows = [];
+              let cur = null;
+              images.forEach((im) => {
+                if (!im.media?.url && !im.media?.path) return; // skip empty
+                const o = orientOf(im);
+                const cap = o === 'landscape' ? 2 : 3;
+                if (!cur || cur.o !== o || cur.items.length >= cap) {
+                  cur = { o, cap, items: [] };
+                  rows.push(cur);
+                }
+                cur.items.push(im);
+              });
+              if (rows.length === 0) return null;
+              return (
+                <div style={{ clear: 'both' }}>
+                  {rows.map((row, ri) => {
+                    // Each row's per-image width: landscape rows use up to ~46% so
+                    // two sit side by side; portrait rows ~30% so three fit. Cells
+                    // are sized to the row's capacity, not the actual count, so a
+                    // partial row keeps the same per-image scale (centered).
+                    const basis = row.o === 'landscape' ? '46%' : '30%';
+                    const maxW = row.o === 'landscape' ? '420px' : '260px';
+                    return (
+                      <div key={ri} style={{ display: 'flex', flexWrap: 'wrap',
+                        justifyContent: 'center', gap: '18px', marginBottom: '18px' }}>
+                        {row.items.map((im, k) => (
+                          <div key={k} style={{ flex: `0 1 ${basis}`, maxWidth: maxW,
+                            display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <img src={im.media.url}
+                              alt={im.caption || ''}
+                              onClick={() => setLightbox({ url: im.media.url, caption: im.caption || '' })}
+                              style={{ width: '100%', borderRadius: '3px', cursor: 'zoom-in',
+                                border: '1px solid rgba(139,105,20,0.3)',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.18)', display: 'block' }} />
+                            {im.caption ? (
+                              <p style={{ ...styles.bodyText, fontStyle: 'italic', color: '#5c4020',
+                                fontSize: '13px', marginTop: '6px', textAlign: 'center' }}>{im.caption}</p>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                  {lightbox && (
+                    <div onClick={() => setLightbox(null)}
+                      style={{ position: 'fixed', inset: 0, zIndex: 9999,
+                        background: 'rgba(20,12,4,0.88)', display: 'flex', flexDirection: 'column',
+                        alignItems: 'center', justifyContent: 'center', padding: '32px', cursor: 'zoom-out' }}>
+                      <img src={lightbox.url} alt={lightbox.caption}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ maxWidth: '92vw', maxHeight: '85vh', objectFit: 'contain',
+                          borderRadius: '3px', boxShadow: '0 8px 40px rgba(0,0,0,0.6)', cursor: 'default' }} />
+                      {lightbox.caption ? (
+                        <p style={{ color: '#e8dcc0', fontStyle: 'italic', marginTop: '14px',
+                          fontSize: '15px', textAlign: 'center', fontFamily: '"Palatino Linotype", serif' }}>
+                          {lightbox.caption}</p>
+                      ) : null}
+                      <button onClick={() => setLightbox(null)}
+                        style={{ position: 'fixed', top: '20px', right: '24px', background: 'transparent',
+                          border: '1px solid rgba(232,220,192,0.5)', color: '#e8dcc0', borderRadius: '3px',
+                          padding: '6px 10px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+                        <X size={18} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            // EDIT MODE: keep a simple uniform grid so controls stay accessible;
+            // ▲▼ arrows let you reorder so same-orientation images sit adjacent.
             return (
               <div style={{ clear: 'both' }}>
                 <div style={{
@@ -3074,6 +3168,19 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                 }}>
                   {images.map((im, idx) => (
                     <div key={idx} style={{ display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '10px', color: '#8b6914', fontStyle: 'italic' }}>
+                          {orientOf(im) === 'landscape' ? 'Landscape (2/row)' : 'Portrait (3/row)'}
+                        </span>
+                        <span style={{ display: 'flex', gap: '3px' }}>
+                          <button onClick={() => moveImage(idx, -1)} title="Move earlier"
+                            style={{ background: '#8b6914', color: '#f5ecd9', border: 'none', padding: '2px 6px',
+                              cursor: 'pointer', borderRadius: '2px', fontSize: '10px' }}>◀</button>
+                          <button onClick={() => moveImage(idx, 1)} title="Move later"
+                            style={{ background: '#8b6914', color: '#f5ecd9', border: 'none', padding: '2px 6px',
+                              cursor: 'pointer', borderRadius: '2px', fontSize: '10px' }}>▶</button>
+                        </span>
+                      </div>
                       <FloatingImage
                         media={im.media}
                         editMode={editMode}
@@ -3082,25 +3189,18 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
                         entryId={`${entryId}-${sec.id || i}-img-${idx}`}
                         mode="fill"
                       />
-                      {editMode ? (
-                        <>
-                          <input value={im.caption || ''} placeholder="Caption (optional)…"
-                            onChange={(e) => updateImage(idx, { caption: e.target.value })}
-                            style={{ ...styles.textarea, minHeight: 'unset', padding: '5px 8px',
-                              width: '100%', marginTop: '6px', fontStyle: 'italic',
-                              textAlign: 'center', fontSize: '12px' }} />
-                          <button onClick={() => removeImage(idx)}
-                            style={{ background: '#8b1414', color: '#f5ecd9', border: 'none',
-                              borderRadius: '2px', padding: '3px 8px', cursor: 'pointer',
-                              fontSize: '10px', fontFamily: '"Cinzel", serif', marginTop: '4px',
-                              letterSpacing: '0.05em', textTransform: 'uppercase', alignSelf: 'center' }}>
-                            Remove Image
-                          </button>
-                        </>
-                      ) : im.caption ? (
-                        <p style={{ ...styles.bodyText, fontStyle: 'italic', color: '#5c4020',
-                          fontSize: '13px', marginTop: '6px', textAlign: 'center' }}>{im.caption}</p>
-                      ) : null}
+                      <input value={im.caption || ''} placeholder="Caption (optional)…"
+                        onChange={(e) => updateImage(idx, { caption: e.target.value })}
+                        style={{ ...styles.textarea, minHeight: 'unset', padding: '5px 8px',
+                          width: '100%', marginTop: '6px', fontStyle: 'italic',
+                          textAlign: 'center', fontSize: '12px' }} />
+                      <button onClick={() => removeImage(idx)}
+                        style={{ background: '#8b1414', color: '#f5ecd9', border: 'none',
+                          borderRadius: '2px', padding: '3px 8px', cursor: 'pointer',
+                          fontSize: '10px', fontFamily: '"Cinzel", serif', marginTop: '4px',
+                          letterSpacing: '0.05em', textTransform: 'uppercase', alignSelf: 'center' }}>
+                        Remove Image
+                      </button>
                     </div>
                   ))}
                 </div>
