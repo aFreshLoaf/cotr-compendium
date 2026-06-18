@@ -385,8 +385,13 @@ function buildRowMap(content) {
 //  • Only deletes rows that existed at load time and were removed THIS session —
 //    never rows that merely weren't in a (possibly stale) snapshot.
 // Returns { saved, conflicts } so the app can warn about skipped rows.
-export async function saveContent2(content) {
+export async function saveContent2(content, opts = {}) {
   if (!supabaseConfigured || !supabase) return { saved: 0, conflicts: [] };
+  // opts.force: if true, override ALL conflicts; if a Set/array of ids, override
+  // only those (a deliberate "I've checked — save mine" for chosen entries).
+  const forceAll = opts.force === true;
+  const forceIds = opts.force instanceof Set ? opts.force
+    : Array.isArray(opts.force) ? new Set(opts.force) : new Set();
   const rows = buildRowMap(content).map((r, idx) => ({
     ...r,
     dm_data: r.dm_data ?? {},
@@ -417,10 +422,10 @@ export async function saveContent2(content) {
   for (const r of rows) {
     const loadedV = _loadedVersions[r.id];
     const dbV = dbVersions[r.id];
-    // Conflict only if: the row exists in DB, we have a loaded baseline for it,
-    // and the DB version differs from what we loaded (someone else wrote it).
-    // New rows (not in dbIds) and rows we have no baseline for are safe to write.
-    if (dbIds.has(r.id) && loadedV != null && dbV != null && !sameTime(dbV, loadedV)) {
+    const isConflict = dbIds.has(r.id) && loadedV != null && dbV != null && !sameTime(dbV, loadedV);
+    // A conflicting row is skipped UNLESS the caller explicitly forces it (the
+    // "I've checked — overwrite with mine" escape hatch), scoped to chosen ids.
+    if (isConflict && !forceAll && !forceIds.has(r.id)) {
       conflicts.push(r.id);
       continue;
     }

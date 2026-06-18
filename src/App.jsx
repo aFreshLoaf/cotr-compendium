@@ -4462,15 +4462,33 @@ export default function Compendium() {
       if (isStaff) {
         const result = await saveContent2(content);
         if (result && result.conflicts && result.conflicts.length) {
-          setDirty(false);
-          setSaveStatus('Saved (with conflicts)');
-          window.alert(
-            `Saved, but ${result.conflicts.length} entr${result.conflicts.length === 1 ? 'y was' : 'ies were'} changed by someone else since you loaded the page, so your changes to those were NOT saved (to avoid overwriting newer edits):\n\n` +
-            result.conflicts.join(', ') +
-            `\n\nReload the page to get the latest version, then re-apply your changes to those entries.`
+          const list = result.conflicts;
+          const preview = list.slice(0, 12).join(', ') + (list.length > 12 ? `, …(+${list.length - 12} more)` : '');
+          // The non-conflicting changes already saved. Offer a deliberate choice
+          // for the conflicting ones: overwrite with mine, or keep theirs.
+          const forceMine = window.confirm(
+            `${list.length} entr${list.length === 1 ? 'y was' : 'ies were'} changed by someone else since you loaded this page, so your changes to those were NOT saved yet (everything else saved fine).\n\n` +
+            `Affected: ${preview}\n\n` +
+            `Click OK to OVERWRITE those with YOUR version (their newer changes will be lost).\n` +
+            `Click Cancel to keep THEIR version (your changes to those entries are discarded; the page will reload).\n\n` +
+            `Only choose OK if you've confirmed your version should win for these entries.`
           );
-          setTimeout(() => setSaveStatus(''), 2000);
-          return;
+          if (forceMine) {
+            setSaveStatus('Overwriting…');
+            const forced = await saveContent2(content, { force: list });
+            setDirty(false);
+            setSaveStatus(forced.conflicts.length ? 'Saved (some still skipped)' : 'Saved');
+            setTimeout(() => setSaveStatus(''), 2000);
+            return;
+          } else {
+            // Keep theirs: reload current DB state, dropping our conflicting edits.
+            setSaveStatus('Reloading…');
+            const c = await loadContent(isStaff);
+            if (c) setContent(c);
+            setDirty(false);
+            setSaveStatus('');
+            return;
+          }
         }
       } else {
         // Player: save only the character(s) they own that changed.
