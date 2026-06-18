@@ -406,25 +406,41 @@ export async function saveContent2(content) {
   const conflicts = [];
   const toWrite = [];
   const nowIso = new Date().toISOString();
+  // Compare timestamps by parsed epoch millis (tolerant of format/precision
+  // drift) rather than raw string equality.
+  const sameTime = (a, b) => {
+    if (a == null || b == null) return a === b;
+    const ta = Date.parse(a), tb = Date.parse(b);
+    if (Number.isNaN(ta) || Number.isNaN(tb)) return a === b;
+    return ta === tb;
+  };
   for (const r of rows) {
     const loadedV = _loadedVersions[r.id];
     const dbV = dbVersions[r.id];
     // Conflict only if: the row exists in DB, we have a loaded baseline for it,
-    // and the DB version is different from what we loaded (someone else wrote it).
+    // and the DB version differs from what we loaded (someone else wrote it).
     // New rows (not in dbIds) and rows we have no baseline for are safe to write.
-    if (dbIds.has(r.id) && loadedV != null && dbV != null && dbV !== loadedV) {
+    if (dbIds.has(r.id) && loadedV != null && dbV != null && !sameTime(dbV, loadedV)) {
       conflicts.push(r.id);
       continue;
     }
     toWrite.push({ ...r, updated_at: nowIso });
   }
 
-  // Upsert the safe rows.
+  // Upsert the safe rows. We .select() so we get back the values the DATABASE
+  // actually stored (a trigger or default may set updated_at to its own clock,
+  // which differs from the string we sent) — we use those real values to refresh
+  // our baseline, otherwise the next save would false-conflict on every row.
   const BATCH = 100;
+  const writtenVersions = {}; // id -> actual stored updated_at
   for (let i = 0; i < toWrite.length; i += BATCH) {
     const chunk = toWrite.slice(i, i + BATCH);
-    const { error } = await supabase.from('content_entries').upsert(chunk, { onConflict: 'id' });
+    const { data: written, error } = await supabase
+      .from('content_entries')
+      .upsert(chunk, { onConflict: 'id' })
+      .select('id, updated_at');
     if (error) { console.error('[CotR] save error:', error.message); throw new Error(error.message); }
+    (written || []).forEach((w) => { writtenVersions[w.id] = w.updated_at || null; });
   }
 
   // Scoped, safe deletes: only ids that existed when WE loaded and are gone from
@@ -448,9 +464,13 @@ export async function saveContent2(content) {
     throw err;
   }
 
-  // Refresh our baseline for everything we just wrote, so further saves in this
-  // same session don't false-conflict against our own writes.
-  for (const r of toWrite) { _loadedVersions[r.id] = r.updated_at; _loadedIds.add(r.id); }
+  // Refresh our baseline to the values the DATABASE actually stored for the rows
+  // we just wrote, so further saves this session don't false-conflict against our
+  // own writes. Falls back to the sent value if the select didn't return one.
+  for (const r of toWrite) {
+    _loadedVersions[r.id] = writtenVersions[r.id] ?? r.updated_at;
+    _loadedIds.add(r.id);
+  }
   for (const id of [..._loadedIds]) { if (!rows.find((r) => r.id === id)) _loadedIds.delete(id); }
 
   if (conflicts.length) {
