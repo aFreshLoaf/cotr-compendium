@@ -15,6 +15,18 @@ import { supabase, supabaseConfigured } from './supabase.js';
 
 // Singleton row ids (non-entry content)
 const SINGLETON_META = '__meta';
+
+// ── Concurrency / baseline tracking ──────────────────────────────────────────
+// When a session loads content, we record each row's id → updated_at ("the
+// version I loaded") and the set of ids that existed at load time. saveContent2
+// uses this to (a) refuse to overwrite a row that someone else has saved a NEWER
+// version of since we loaded (optimistic concurrency), and (b) only delete rows
+// that existed at load AND are gone now (a deletion THIS session made) — never
+// rows that simply weren't in our possibly-stale snapshot. This prevents a stale
+// tab from clobbering newer edits or deleting entries it never knew about.
+let _loadedVersions = {};   // { id: updated_at_string }
+let _loadedIds = new Set(); // ids present at load time
+
 const SINGLETON_HOME = '__home';
 const SINGLETON_CAMPAIGN = '__campaign';
 const SINGLETON_CAMPAIGNS = '__campaigns';
@@ -249,7 +261,7 @@ export async function loadContent2(isStaff) {
     return null;
   }
   try {
-    const columns = isStaff ? 'id, kind, data, dm_data, owner_id, sort_order' : 'id, kind, data, owner_id, sort_order';
+    const columns = isStaff ? 'id, kind, data, dm_data, owner_id, sort_order, updated_at' : 'id, kind, data, owner_id, sort_order, updated_at';
     const { data: rows, error } = await supabase
       .from('content_entries')
       .select(columns)
@@ -259,6 +271,14 @@ export async function loadContent2(isStaff) {
       return null;
     }
     if (!rows || rows.length === 0) return null;
+
+    // Record the version baseline for this session (for concurrency-safe saves).
+    _loadedVersions = {};
+    _loadedIds = new Set();
+    for (const row of rows) {
+      _loadedVersions[row.id] = row.updated_at || null;
+      _loadedIds.add(row.id);
+    }
 
     const content = {
       subclasses: [], races: [], classes: [], characters: [], items: [], locations: [], magic: [],
@@ -359,49 +379,84 @@ function buildRowMap(content) {
   return rows;
 }
 
-// Save everything (staff). Upserts all current rows AND deletes rows that no
-// longer exist in the content, so deletions actually persist across reloads.
+// Save (staff). Concurrency-safe:
+//  • Refuses to overwrite a row that someone else saved a NEWER version of since
+//    this session loaded (prevents a stale tab from clobbering newer edits).
+//  • Only deletes rows that existed at load time and were removed THIS session —
+//    never rows that merely weren't in a (possibly stale) snapshot.
+// Returns { saved, conflicts } so the app can warn about skipped rows.
 export async function saveContent2(content) {
-  if (!supabaseConfigured || !supabase) return;
+  if (!supabaseConfigured || !supabase) return { saved: 0, conflicts: [] };
   const rows = buildRowMap(content).map((r, idx) => ({
     ...r,
     dm_data: r.dm_data ?? {},
     sort_order: (r.sort_order ?? idx),
-    updated_at: new Date().toISOString(),
   }));
 
-  // Upsert all current rows.
+  // Read current DB versions so we can detect rows that changed under us.
+  const { data: dbRows, error: verErr } = await supabase
+    .from('content_entries')
+    .select('id, updated_at');
+  if (verErr) { console.error('[CotR] version read failed:', verErr.message); throw new Error(verErr.message); }
+  const dbVersions = {};
+  const dbIds = new Set();
+  (dbRows || []).forEach((r) => { dbVersions[r.id] = r.updated_at || null; dbIds.add(r.id); });
+
+  // Partition rows into safe-to-write vs conflicts.
+  const conflicts = [];
+  const toWrite = [];
+  const nowIso = new Date().toISOString();
+  for (const r of rows) {
+    const loadedV = _loadedVersions[r.id];
+    const dbV = dbVersions[r.id];
+    // Conflict only if: the row exists in DB, we have a loaded baseline for it,
+    // and the DB version is different from what we loaded (someone else wrote it).
+    // New rows (not in dbIds) and rows we have no baseline for are safe to write.
+    if (dbIds.has(r.id) && loadedV != null && dbV != null && dbV !== loadedV) {
+      conflicts.push(r.id);
+      continue;
+    }
+    toWrite.push({ ...r, updated_at: nowIso });
+  }
+
+  // Upsert the safe rows.
   const BATCH = 100;
-  for (let i = 0; i < rows.length; i += BATCH) {
-    const chunk = rows.slice(i, i + BATCH);
+  for (let i = 0; i < toWrite.length; i += BATCH) {
+    const chunk = toWrite.slice(i, i + BATCH);
     const { error } = await supabase.from('content_entries').upsert(chunk, { onConflict: 'id' });
     if (error) { console.error('[CotR] save error:', error.message); throw new Error(error.message); }
   }
 
-  // Delete orphans: any DB row whose id is no longer present in the content.
-  // Without this, removing an entry from the array leaves its row in the DB and
-  // it reappears on reload. Singleton/meta rows (ids prefixed with '__') are
-  // never orphan-deleted; they're managed purely by upsert.
+  // Scoped, safe deletes: only ids that existed when WE loaded and are gone from
+  // our content now (a deletion this session made). Never delete ids that appeared
+  // after we loaded, and never delete singletons.
   try {
     const keepIds = new Set(rows.map((r) => r.id));
-    const { data: existing, error: fetchErr } = await supabase
-      .from('content_entries')
-      .select('id');
-    if (fetchErr) { console.warn('[CotR] orphan-scan skipped:', fetchErr.message); return; }
-    const orphanIds = (existing || [])
-      .map((r) => r.id)
-      .filter((id) => !keepIds.has(id) && !id.startsWith('__'));
-    if (orphanIds.length === 0) return;
-    for (let i = 0; i < orphanIds.length; i += BATCH) {
-      const chunk = orphanIds.slice(i, i + BATCH);
+    const deletedThisSession = [...keepIds].length
+      ? [..._loadedIds].filter((id) => !keepIds.has(id) && !id.startsWith('__') && dbIds.has(id))
+      : [];
+    for (let i = 0; i < deletedThisSession.length; i += BATCH) {
+      const chunk = deletedThisSession.slice(i, i + BATCH);
       const { error: delErr } = await supabase.from('content_entries').delete().in('id', chunk);
-      if (delErr) { console.error('[CotR] orphan delete error:', delErr.message); throw new Error(delErr.message); }
+      if (delErr) { console.error('[CotR] delete error:', delErr.message); throw new Error(delErr.message); }
     }
-    console.info(`[CotR] removed ${orphanIds.length} deleted entr${orphanIds.length === 1 ? 'y' : 'ies'}.`);
+    if (deletedThisSession.length) {
+      console.info(`[CotR] removed ${deletedThisSession.length} deleted entr${deletedThisSession.length === 1 ? 'y' : 'ies'}.`);
+    }
   } catch (err) {
-    console.error('[CotR] orphan cleanup failed:', err);
+    console.error('[CotR] delete step failed:', err);
     throw err;
   }
+
+  // Refresh our baseline for everything we just wrote, so further saves in this
+  // same session don't false-conflict against our own writes.
+  for (const r of toWrite) { _loadedVersions[r.id] = r.updated_at; _loadedIds.add(r.id); }
+  for (const id of [..._loadedIds]) { if (!rows.find((r) => r.id === id)) _loadedIds.delete(id); }
+
+  if (conflicts.length) {
+    console.warn(`[CotR] ${conflicts.length} entr${conflicts.length === 1 ? 'y was' : 'ies were'} changed by someone else and were NOT overwritten:`, conflicts);
+  }
+  return { saved: toWrite.length, conflicts };
 }
 
 // Save a single character entry (player editing their own). RLS verifies ownership.

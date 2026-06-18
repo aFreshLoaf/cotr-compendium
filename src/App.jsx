@@ -4460,7 +4460,18 @@ export default function Compendium() {
     setSaveStatus('Saving…');
     try {
       if (isStaff) {
-        await saveContent2(content);
+        const result = await saveContent2(content);
+        if (result && result.conflicts && result.conflicts.length) {
+          setDirty(false);
+          setSaveStatus('Saved (with conflicts)');
+          window.alert(
+            `Saved, but ${result.conflicts.length} entr${result.conflicts.length === 1 ? 'y was' : 'ies were'} changed by someone else since you loaded the page, so your changes to those were NOT saved (to avoid overwriting newer edits):\n\n` +
+            result.conflicts.join(', ') +
+            `\n\nReload the page to get the latest version, then re-apply your changes to those entries.`
+          );
+          setTimeout(() => setSaveStatus(''), 2000);
+          return;
+        }
       } else {
         // Player: save only the character(s) they own that changed.
         // Simplest correct behavior: save every owned character present.
