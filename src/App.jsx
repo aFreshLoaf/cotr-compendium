@@ -2521,6 +2521,21 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
     return () => window.removeEventListener('keydown', onKey);
   }, [lightbox]);
   const list = sections || [];
+  // Collapse view-state: tracks which sections the reader has manually toggled.
+  // A section's effective collapsed state = manual toggle if set, else its saved
+  // `collapsedDefault`. Keyed by section id (falling back to index) and reset when
+  // the section list identity changes (e.g. navigating to another page).
+  const [collapseOverrides, setCollapseOverrides] = useState({});
+  const keyOf = (s, i) => s.id || `idx-${i}`;
+  const isCollapsed = (s, i) => {
+    const k = keyOf(s, i);
+    if (k in collapseOverrides) return collapseOverrides[k];
+    return !!s.collapsedDefault;
+  };
+  const toggleCollapse = (s, i) => {
+    const k = keyOf(s, i);
+    setCollapseOverrides((prev) => ({ ...prev, [k]: !isCollapsed(s, i) }));
+  };
   const updateSection = (i, fields) => onChange(list.map((s, idx) => idx === i ? { ...s, ...fields } : s));
   const removeSection = (i) => onChange(list.filter((_, idx) => idx !== i));
   const moveSection = (i, dir) => {
@@ -2647,6 +2662,7 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
         // can manage it.
         const canSeeHidden = canViewHiddenBlock(sec, viewer, pageOwnerCharId);
         const canAuthorHere = canAuthorHidden(viewer, pageOwnerCharId);
+        const collapsed = !isIdentity && isCollapsed(sec, i); // identity never collapses
         if (sec.hidden && !canSeeHidden && !(editMode && canAuthorHere)) {
           return null; // fully invisible
         }
@@ -2694,13 +2710,21 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
           } : {}),
         }}>
           {!isIdentity ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: collapsed && !editMode ? '0' : '12px' }}>
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {!editMode && (
+                  <ChevronRight size={18}
+                    onClick={() => toggleCollapse(sec, i)}
+                    style={{ color: '#8b6914', flexShrink: 0, cursor: 'pointer',
+                      transform: collapsed ? 'rotate(0deg)' : 'rotate(90deg)',
+                      transition: 'transform 0.15s ease' }} />
+                )}
                 {sec.dmOnly && <Lock size={15} style={{ color: '#7a1f1f', flexShrink: 0 }} />}
                 {sec.hidden && !sec.dmOnly && (
                   <EyeOff size={15} style={{ color: '#8b6914', flexShrink: 0 }} />
                 )}
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, cursor: !editMode ? 'pointer' : 'default' }}
+                  onClick={!editMode ? () => toggleCollapse(sec, i) : undefined}>
                   <EditableHeading as="h2"
                     value={sec.heading}
                     defaultValue="Section"
@@ -2712,6 +2736,16 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
               </div>
               {editMode && (
                 <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                  <button onClick={() => updateSection(i, { collapsedDefault: !sec.collapsedDefault })}
+                    title={sec.collapsedDefault ? 'Starts collapsed for readers — click to start expanded' : 'Starts expanded — click to start collapsed by default'}
+                    style={{ background: sec.collapsedDefault ? '#8b6914' : 'transparent',
+                      color: sec.collapsedDefault ? '#f5ecd9' : '#8b6914',
+                      border: '1px solid #8b6914', padding: '4px 8px',
+                      cursor: 'pointer', borderRadius: '2px', fontSize: '11px',
+                      display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                    <ChevronRight size={11} style={{ transform: sec.collapsedDefault ? 'none' : 'rotate(90deg)' }} />
+                    {sec.collapsedDefault ? 'Collapsed' : 'Expanded'}
+                  </button>
                   {canAuthorHere && !sec.dmOnly && (
                     <button onClick={() => updateSection(i, { hidden: !sec.hidden, audience: sec.audience || [] })}
                       title={sec.hidden ? 'This block is hidden — click to make it visible to all' : 'Hide this block from players'}
@@ -2749,6 +2783,7 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
             </div>
           ) : null}
 
+          {(editMode || !collapsed) && (<>
           {/* Audience picker for a hidden block (edit mode, authorized author).
               Lists Player-Character-tagged characters; the author ticks which
               PCs may see this block. The page owner and staff always can. */}
@@ -3490,6 +3525,7 @@ function Sections({ sections, editMode, onChange, headingStyle, category, entryI
               </div>
             );
           })()}
+          </>)}
         </div>
         );
       })}
