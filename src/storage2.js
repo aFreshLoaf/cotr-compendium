@@ -26,6 +26,17 @@ const SINGLETON_META = '__meta';
 // tab from clobbering newer edits or deleting entries it never knew about.
 let _loadedVersions = {};   // { id: updated_at_string }
 let _loadedIds = new Set(); // ids present at load time
+let _loadedSnapshot = {};   // { id: stableStringify({data, dm_data}) } — for dirty-tracking
+
+// Deterministic JSON stringify (sorted keys) so logically-equal objects compare
+// equal regardless of key insertion order. Used to detect whether a row actually
+// changed since load.
+function stableStringify(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return '[' + value.map(stableStringify).join(',') + ']';
+  const keys = Object.keys(value).sort();
+  return '{' + keys.map((k) => JSON.stringify(k) + ':' + stableStringify(value[k])).join(',') + '}';
+}
 
 const SINGLETON_HOME = '__home';
 const SINGLETON_CAMPAIGN = '__campaign';
@@ -320,6 +331,23 @@ export async function loadContent2(isStaff) {
         default: break;
       }
     }
+
+    // Build the dirty-tracking snapshot by running the freshly-loaded content
+    // through the SAME pipeline that save uses (buildRowMap → split). Comparing
+    // save output against this guarantees an untouched entry compares equal even
+    // if the load→merge→split round-trip isn't byte-identical to the raw DB row.
+    _loadedSnapshot = {};
+    try {
+      for (const r of buildRowMap(content)) {
+        _loadedSnapshot[r.id] = stableStringify({ data: r.data ?? {}, dm_data: r.dm_data ?? {} });
+      }
+    } catch (e) {
+      // If snapshotting fails for any reason, leave it empty — save then writes
+      // all rows (old behavior), which is safe, just not optimized.
+      console.warn('[CotR] dirty-track snapshot skipped:', e?.message);
+      _loadedSnapshot = {};
+    }
+
     return content;
   } catch (err) {
     console.error('[CotR] content_entries load exception:', err);
@@ -420,6 +448,17 @@ export async function saveContent2(content, opts = {}) {
     return ta === tb;
   };
   for (const r of rows) {
+    // ── Dirty-tracking ──────────────────────────────────────────────────
+    // Skip rows that are byte-for-byte unchanged from what THIS session loaded.
+    // Only changed or brand-new rows are written. This means a save touches just
+    // the entries you actually edited — so two staff editing different entries
+    // never collide, and unchanged rows don't bump their timestamps. Forced ids
+    // and rows with no snapshot (new) always proceed.
+    const snap = _loadedSnapshot[r.id];
+    if (snap !== undefined && !forceAll && !forceIds.has(r.id)) {
+      const current = stableStringify({ data: r.data ?? {}, dm_data: r.dm_data ?? {} });
+      if (current === snap) continue; // unchanged — don't write, don't conflict-check
+    }
     const loadedV = _loadedVersions[r.id];
     const dbV = dbVersions[r.id];
     const isConflict = dbIds.has(r.id) && loadedV != null && dbV != null && !sameTime(dbV, loadedV);
@@ -475,8 +514,11 @@ export async function saveContent2(content, opts = {}) {
   for (const r of toWrite) {
     _loadedVersions[r.id] = writtenVersions[r.id] ?? r.updated_at;
     _loadedIds.add(r.id);
+    // Refresh the content snapshot to what we just wrote, so a subsequent save
+    // this session sees this row as unchanged (and skips it).
+    _loadedSnapshot[r.id] = stableStringify({ data: r.data ?? {}, dm_data: r.dm_data ?? {} });
   }
-  for (const id of [..._loadedIds]) { if (!rows.find((r) => r.id === id)) _loadedIds.delete(id); }
+  for (const id of [..._loadedIds]) { if (!rows.find((r) => r.id === id)) { _loadedIds.delete(id); delete _loadedSnapshot[id]; } }
 
   if (conflicts.length) {
     console.warn(`[CotR] ${conflicts.length} entr${conflicts.length === 1 ? 'y was' : 'ies were'} changed by someone else and were NOT overwritten:`, conflicts);
