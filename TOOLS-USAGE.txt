@@ -1,0 +1,168 @@
+================================================================================
+CHRONICLES OF THE REALMS — TOOLING USAGE REFERENCE
+export-canon.mjs  (read DB → Markdown)
+================================================================================
+
+This tool is a Node script you run locally, from inside the project folder, with
+Supabase credentials set as environment variables. This file covers running it
+in CMD, PowerShell, and Bash (Git Bash), and lists every flag.
+
+
+--------------------------------------------------------------------------------
+0. BEFORE YOU START
+--------------------------------------------------------------------------------
+
+• Be IN the project folder when you run them — the folder that contains
+  export-canon.mjs and the node_modules folder.
+
+• Dependencies must be installed once (provides @supabase/supabase-js):
+      npm install
+  If you ever see "ERR_MODULE_NOT_FOUND ... @supabase/supabase-js", you're either
+  in the wrong folder or haven't run npm install there.
+
+• KEYS — two different ones, do not mix them up:
+    - PUBLISHABLE key (sb_publishable_...) — public-by-design, safe. Used for the
+      normal public export.
+    - SECRET / service-role key (sb_secret_...) — full DB access, treat like a
+      password. Required for: the exporter's--include-dm 
+          (DM content is gated server-side).
+  NEVER paste the secret key into a file you commit. Set it in the terminal each
+  session instead (the commands below do exactly that).
+
+• Project URL (same for every command):
+      https://dtqmaubptslkoyvqryma.supabase.co
+
+
+--------------------------------------------------------------------------------
+1. SETTING ENVIRONMENT VARIABLES — the syntax differs per shell
+--------------------------------------------------------------------------------
+
+The tool reads these variables from the environment:
+    SUPABASE_URL                 (always)
+    SUPABASE_ANON_KEY            (publishable key — for public export)
+    SUPABASE_SERVICE_ROLE_KEY    (secret key — for --include-dm export)
+
+Set them ONCE per terminal session; they persist for that window.
+
+  CMD (Command Prompt) — use `set`, NO quotes around the value:
+      set SUPABASE_URL=https://dtqmaubptslkoyvqryma.supabase.co
+      set SUPABASE_ANON_KEY=sb_publishable_xxxxxxxx
+      set SUPABASE_SERVICE_ROLE_KEY=sb_secret_xxxxxxxx
+
+  PowerShell — use `$env:` and quotes:
+      $env:SUPABASE_URL="https://dtqmaubptslkoyvqryma.supabase.co"
+      $env:SUPABASE_ANON_KEY="sb_publishable_xxxxxxxx"
+      $env:SUPABASE_SERVICE_ROLE_KEY="sb_secret_xxxxxxxx"
+
+  Bash / Git Bash — use `export` and quotes:
+      export SUPABASE_URL="https://dtqmaubptslkoyvqryma.supabase.co"
+      export SUPABASE_ANON_KEY="sb_publishable_xxxxxxxx"
+      export SUPABASE_SERVICE_ROLE_KEY="sb_secret_xxxxxxxx"
+
+PowerShell note: if you get "running scripts is disabled on this system", that's
+the npm .ps1 shim, not node. Either run once:
+      Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+or just use `npm.cmd install` / `node.exe ...`, or do these tasks in CMD or Bash.
+
+
+================================================================================
+2. EXPORTER — export-canon.mjs
+================================================================================
+Reads content_entries and writes a readable Markdown snapshot of the canon.
+Public export needs the PUBLISHABLE key. --include-dm needs the SECRET key.
+
+FLAGS
+-----
+  --include-dm            Include DM-only content. REQUIRES the secret key
+                          (SUPABASE_SERVICE_ROLE_KEY). Without it you get the
+                          public export only.
+  --kinds <list>          Comma-separated kinds to include. Space before value.
+                          Valid: race, class, subclass, character, item, location
+                          e.g.  --kinds race,character
+  --characters <list>     Comma-separated character IDs only. Space before value.
+                          e.g.  --characters nexus,glass-of-dusk-newdawn
+  --locations <list>      Comma-separated location IDs + all their descendants.
+                          Space before value.  e.g.  --locations silva-vekken
+  --parent <Name>         Limit subclasses (and a matching class) to one parent
+                          class. Accepts EITHER form: --parent Druid  OR
+                          --parent=Druid . Case-insensitive.
+  --out <filename>        Output filename. Space before value.
+                          Default: cotr-canon-YYYY-MM-DD.md
+                          e.g.  --out scene-prep.md
+
+  Flag-value syntax: --kinds, --characters, --locations, --out take the value as
+  the NEXT argument (a space, not an = sign). --parent accepts a space or =.
+  --include-dm takes no value.
+
+You can combine flags (e.g. --kinds subclass --parent Druid --out druid.md).
+
+
+----- 2A. PUBLIC EXPORT (publishable key) -----
+
+  CMD:
+      cd C:\Users\Mikey\Downloads\cotr-compendium\cotr-compendium
+      set SUPABASE_URL=https://dtqmaubptslkoyvqryma.supabase.co
+      set SUPABASE_ANON_KEY=sb_publishable_xxxxxxxx
+      node export-canon.mjs
+
+  PowerShell:
+      cd C:\Users\Mikey\Downloads\cotr-compendium\cotr-compendium
+      $env:SUPABASE_URL="https://dtqmaubptslkoyvqryma.supabase.co"
+      $env:SUPABASE_ANON_KEY="sb_publishable_xxxxxxxx"
+      node export-canon.mjs
+
+  Bash:
+      cd /c/Users/Mikey/Downloads/cotr-compendium/cotr-compendium
+      export SUPABASE_URL="https://dtqmaubptslkoyvqryma.supabase.co"
+      export SUPABASE_ANON_KEY="sb_publishable_xxxxxxxx"
+      node export-canon.mjs
+
+
+----- 2B. FULL EXPORT WITH DM CONTENT (secret key) -----
+
+  CMD:
+      set SUPABASE_URL=https://dtqmaubptslkoyvqryma.supabase.co
+      set SUPABASE_SERVICE_ROLE_KEY=sb_secret_xxxxxxxx
+      node export-canon.mjs --include-dm
+
+  PowerShell:
+      $env:SUPABASE_URL="https://dtqmaubptslkoyvqryma.supabase.co"
+      $env:SUPABASE_SERVICE_ROLE_KEY="sb_secret_xxxxxxxx"
+      node export-canon.mjs --include-dm
+
+  Bash:
+      export SUPABASE_URL="https://dtqmaubptslkoyvqryma.supabase.co"
+      export SUPABASE_SERVICE_ROLE_KEY="sb_secret_xxxxxxxx"
+      node export-canon.mjs --include-dm
+
+
+----- 2C. COMMON EXAMPLES (same in every shell once env vars are set) -----
+
+  Only classes & subclasses:
+      node export-canon.mjs --kinds class,subclass
+
+  Only the Druid subclasses, to a named file:
+      node export-canon.mjs --kinds subclass --parent Druid --out druid-subs.md
+
+  A couple of characters for session prep:
+      node export-canon.mjs --characters nexus,glass-of-dusk-newdawn --out prep.md
+
+  A location and everything under it:
+      node export-canon.mjs --locations silva-vekken
+
+  Full DM export to a custom file:
+      node export-canon.mjs --include-dm --out full-canon.md
+
+================================================================================
+4. QUICK TROUBLESHOOTING
+================================================================================
+  • "ERR_MODULE_NOT_FOUND @supabase/supabase-js"
+        → wrong folder, or run `npm install` in the project folder.
+  • Export ran but DM content is missing
+        → you used the publishable key; --include-dm needs the SECRET key.
+  • PowerShell "running scripts is disabled"
+        → Set-ExecutionPolicy -Scope CurrentUser RemoteSigned  (once), or use CMD/Bash.
+  • --parent seems ignored
+        → either form works: --parent Druid  or  --parent=Druid
+
+================================================================================
