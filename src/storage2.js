@@ -129,6 +129,64 @@ export async function getProfile() {
   }
 }
 
+// ── Admin: user/ownership management ─────────────────────────────────────────
+// These require an admin account; RLS enforces it server-side (is_admin() on the
+// profiles UPDATE/SELECT policies). The UI also gates these behind isAdmin.
+
+// Read all profiles (admin only — relies on the "admins read all profiles" RLS).
+export async function loadAllProfiles() {
+  if (!supabaseConfigured || !supabase) return [];
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, role, owned_chars, display_name')
+    .order('display_name', { ascending: true });
+  if (error) { console.error('[CotR] loadAllProfiles error:', error.message); throw new Error(error.message); }
+  return data || [];
+}
+
+// Assign a character to a user (single-owner model). Keeps BOTH sources of truth
+// consistent: the character's owner_id AND the owned_chars arrays on profiles.
+//  • Sets content_entries.owner_id = newUserId for the character.
+//  • Removes the charId from any OTHER profile's owned_chars (previous owner).
+//  • Adds the charId to the new owner's owned_chars (if not already there).
+// Pass newUserId = null to unassign (clear owner, remove from all owned_chars).
+export async function assignCharacterToUser(charId, newUserId, allProfiles) {
+  if (!supabaseConfigured || !supabase) throw new Error('Supabase not configured');
+  if (!charId) throw new Error('charId required');
+
+  // 1. Update the character's owner_id.
+  {
+    const { error } = await supabase
+      .from('content_entries')
+      .update({ owner_id: newUserId, updated_at: new Date().toISOString() })
+      .eq('id', charId);
+    if (error) { console.error('[CotR] set owner_id error:', error.message); throw new Error(error.message); }
+  }
+
+  // 2. Reconcile owned_chars across profiles. We compute the desired array for
+  // each affected profile and write only those that change.
+  const profiles = allProfiles || (await loadAllProfiles());
+  const writes = [];
+  for (const p of profiles) {
+    const owned = Array.isArray(p.owned_chars) ? p.owned_chars : [];
+    const has = owned.includes(charId);
+    const shouldHave = newUserId != null && p.id === newUserId;
+    if (has && !shouldHave) {
+      writes.push({ id: p.id, owned_chars: owned.filter((c) => c !== charId) });
+    } else if (!has && shouldHave) {
+      writes.push({ id: p.id, owned_chars: [...owned, charId] });
+    }
+  }
+  for (const w of writes) {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ owned_chars: w.owned_chars })
+      .eq('id', w.id);
+    if (error) { console.error('[CotR] owned_chars update error:', error.message); throw new Error(error.message); }
+  }
+  return true;
+}
+
 export async function signInWithDiscord() {
   if (!supabaseConfigured) throw new Error('Supabase not configured.');
   const redirectTo = window.location.origin + window.location.pathname;

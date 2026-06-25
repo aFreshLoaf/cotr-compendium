@@ -3,8 +3,9 @@ import {
   loadContent2, saveContent2, saveCharacter2, subscribeToUpdates2,
   getSession, getProfile, signInWithDiscord, signInWithEmail, signOut, onAuthChange,
   uploadImage, deleteImage,
+  loadAllProfiles, assignCharacterToUser,
 } from './storage2.js';
-import { Search, Book, Users, Sword, Shield, Sparkles, ScrollText, Edit3, Plus, X, Save, ChevronRight, Home, Skull, Eye, Trash2, Image as ImageIcon, Upload, Menu, Lock, LogOut, LogIn, Copy, EyeOff } from 'lucide-react';
+import { Search, Book, Users, Sword, Shield, Sparkles, ScrollText, Edit3, Plus, X, Save, ChevronRight, Home, Skull, Eye, Trash2, Image as ImageIcon, Upload, Menu, Lock, LogOut, LogIn, Copy, EyeOff, Settings } from 'lucide-react';
 
 // ============================================================
 // VIEWER CONTEXT — who is looking, for per-block hidden-content gating.
@@ -4840,6 +4841,9 @@ export default function Compendium() {
 
           <NavItem icon={<Home size={16} />} label="Home" active={section === 'home'} onClick={() => goTo('home')} />
           <NavItem icon={<ScrollText size={16} />} label="Campaign" active={section === 'campaign'} onClick={() => goTo('campaign')} />
+          {isAdmin && (
+            <NavItem icon={<Settings size={16} />} label="Manage Users" active={section === 'admin'} onClick={() => goTo('admin')} />
+          )}
 
           <SectionToggle
             label="Races"
@@ -5406,6 +5410,8 @@ export default function Compendium() {
               return (
             searchResults ? (
               <SearchResults results={searchResults} onClick={goTo} query={search} />
+            ) : section === 'admin' ? (
+              isAdmin ? <AdminPanel content={content} goTo={goTo} /> : null
             ) : section === 'home' ? (
               <HomePage content={content} goTo={goTo} editMode={editMode && isStaff} persistChange={persistChange} />
             ) : section === 'campaign' ? (
@@ -5686,6 +5692,176 @@ function SectionToggle({ label, count, expanded, onClick }) {
         }}
       />
       {label}
+    </div>
+  );
+}
+
+function AdminPanel({ content, goTo }) {
+  const [profiles, setProfiles] = useState(null); // null = loading
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [assigning, setAssigning] = useState(null); // userId currently picking a char
+  const [filter, setFilter] = useState('');
+
+  const characters = content.characters || [];
+  const charName = (id) => characters.find((c) => c.id === id)?.name || id;
+
+  const refresh = async () => {
+    try {
+      setError(null);
+      const ps = await loadAllProfiles();
+      setProfiles(ps);
+    } catch (e) {
+      setError(e.message || 'Failed to load users.');
+      setProfiles([]);
+    }
+  };
+  useEffect(() => { refresh(); }, []);
+
+  // Map of charId -> owning userId (from owned_chars, the source we display).
+  const ownerOf = {};
+  (profiles || []).forEach((p) => (p.owned_chars || []).forEach((cid) => { ownerOf[cid] = p.id; }));
+
+  const doAssign = async (charId, userId) => {
+    setBusy(true);
+    try {
+      await assignCharacterToUser(charId, userId, profiles);
+      await refresh();
+      setAssigning(null);
+    } catch (e) {
+      setError(e.message || 'Assignment failed.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const unassignedChars = characters
+    .filter((c) => !ownerOf[c.id])
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+  return (
+    <div>
+      <h1 style={styles.pageHeading}>Manage Users</h1>
+      <p style={{ ...styles.bodyText, color: '#5c4020', marginBottom: '20px' }}>
+        Assign characters to player accounts. Each character has a single owner; assigning a
+        character to someone removes it from its previous owner. The owner can edit that
+        character's page and see owner-only hidden content.
+      </p>
+
+      {error && (
+        <div style={{ background: 'rgba(139,20,20,0.1)', border: '1px solid #8b1414',
+          borderRadius: '4px', padding: '10px 14px', marginBottom: '16px', color: '#8b1414' }}>
+          {error}
+        </div>
+      )}
+
+      {profiles === null ? (
+        <p style={{ ...styles.bodyText, fontStyle: 'italic', color: '#8b6914' }}>Loading users…</p>
+      ) : (
+        <>
+          {profiles.map((p) => {
+            const owned = (p.owned_chars || []).slice().sort((a, b) => charName(a).localeCompare(charName(b)));
+            const roleColor = p.role === 'admin' ? '#7a1f1f' : p.role === 'dm' ? '#5c4020' : '#8b6914';
+            return (
+              <div key={p.id} style={{ border: '1px solid rgba(201,165,92,0.4)', borderRadius: '4px',
+                padding: '14px 16px', marginBottom: '14px', background: 'rgba(201,165,92,0.05)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                  <span style={{ fontFamily: '"Cinzel", serif', fontSize: '17px', color: '#5c1414', fontWeight: 700 }}>
+                    {p.display_name || '(no name)'}
+                  </span>
+                  <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em',
+                    color: '#f5ecd9', background: roleColor, padding: '2px 8px', borderRadius: '10px' }}>
+                    {p.role}
+                  </span>
+                </div>
+
+                {owned.length === 0 ? (
+                  <p style={{ fontSize: '13px', color: '#8b6914', fontStyle: 'italic', margin: '0 0 10px' }}>
+                    No characters assigned.
+                  </p>
+                ) : (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
+                    {owned.map((cid) => (
+                      <span key={cid} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px',
+                        background: '#f5ecd9', border: '1px solid #c9a55c', borderRadius: '12px',
+                        padding: '3px 6px 3px 12px', fontSize: '13px', color: '#5c1414' }}>
+                        <span style={{ cursor: characters.find((c) => c.id === cid) ? 'pointer' : 'default' }}
+                          onClick={() => characters.find((c) => c.id === cid) && goTo('characters', cid)}>
+                          {charName(cid)}
+                        </span>
+                        <button disabled={busy} onClick={() => doAssign(cid, null)}
+                          title="Unassign"
+                          style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '50%',
+                            width: '18px', height: '18px', cursor: busy ? 'default' : 'pointer', fontSize: '11px',
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {assigning === p.id ? (
+                  <div style={{ marginTop: '8px', padding: '10px', background: 'rgba(139,105,20,0.06)',
+                    border: '1px solid rgba(139,105,20,0.3)', borderRadius: '4px' }}>
+                    <input autoFocus value={filter} onChange={(e) => setFilter(e.target.value)}
+                      placeholder="Filter characters…"
+                      style={{ ...styles.textarea, minHeight: 'unset', padding: '5px 8px', width: '100%',
+                        marginBottom: '8px', fontSize: '13px' }} />
+                    <div style={{ maxHeight: '220px', overflowY: 'auto', display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                      {characters
+                        .filter((c) => (c.name || '').toLowerCase().includes(filter.toLowerCase()))
+                        .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                        .map((c) => {
+                          const current = ownerOf[c.id];
+                          const mine = current === p.id;
+                          return (
+                            <button key={c.id} disabled={busy || mine}
+                              onClick={() => doAssign(c.id, p.id)}
+                              title={current && !mine ? `Currently: ${(profiles.find((x) => x.id === current) || {}).display_name || 'someone'} — reassign` : ''}
+                              style={{ padding: '3px 10px', fontSize: '12px', borderRadius: '11px',
+                                cursor: (busy || mine) ? 'default' : 'pointer',
+                                border: mine ? '1px solid #c9a55c' : current ? '1px solid #b07a1f' : '1px solid #c9b896',
+                                background: mine ? '#c9a55c' : 'transparent',
+                                color: mine ? '#3b2615' : current ? '#b07a1f' : '#5c4020' }}>
+                              {mine ? '✓ ' : ''}{c.name}{current && !mine ? ' •' : ''}
+                            </button>
+                          );
+                        })}
+                    </div>
+                    <div style={{ marginTop: '8px' }}>
+                      <button onClick={() => { setAssigning(null); setFilter(''); }}
+                        style={{ ...styles.button, fontSize: '12px', padding: '4px 12px' }}>Done</button>
+                      <span style={{ fontSize: '11px', color: '#8b6914', marginLeft: '10px', fontStyle: 'italic' }}>
+                        • = owned by someone else (clicking reassigns)
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <button disabled={busy} onClick={() => { setAssigning(p.id); setFilter(''); }}
+                    style={{ ...styles.button, fontSize: '12px', padding: '5px 14px',
+                      display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                    <Plus size={12} /> Assign character
+                  </button>
+                )}
+              </div>
+            );
+          })}
+
+          {unassignedChars.length > 0 && (
+            <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #c9a55c' }}>
+              <h2 style={{ ...styles.sectionHeading, marginTop: 0 }}>Unassigned characters ({unassignedChars.length})</h2>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {unassignedChars.map((c) => (
+                  <span key={c.id} onClick={() => goTo('characters', c.id)}
+                    style={{ background: '#f5ecd9', border: '1px solid #c9b896', borderRadius: '12px',
+                      padding: '3px 12px', fontSize: '13px', color: '#5c4020', cursor: 'pointer' }}>
+                    {c.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
