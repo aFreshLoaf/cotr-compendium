@@ -3773,15 +3773,19 @@ function FloatingImage({ media, editMode, onChange, category, entryId, mode = 'f
   } else if (isMobile) {
     containerStyle = { width: '100%', marginBottom: '16px', position: 'relative' };
   } else {
-    // Desktop
+    // Desktop. z-index lifts the floated box (image + its Adjust/Replace/Remove
+    // controls) above body blocks that wrap around it — otherwise a table or other
+    // block in the flow renders on top of the control bar (which sits below the
+    // image inside the floated container) and eats the clicks, even though the
+    // buttons remain visible.
     if (deskPlacement === 'full') {
       containerStyle = { width: '100%', marginBottom: '16px', position: 'relative' };
     } else if (deskPlacement === 'center') {
       containerStyle = { width: widthPct, margin: '0 auto 16px', position: 'relative' };
     } else if (deskPlacement === 'right') {
-      containerStyle = { float: 'right', width: widthPct, marginLeft: '16px', marginBottom: '12px', position: 'relative' };
+      containerStyle = { float: 'right', width: widthPct, marginLeft: '16px', marginBottom: '12px', position: 'relative', zIndex: 2 };
     } else { // left (default)
-      containerStyle = { float: 'left', width: widthPct, marginRight: '16px', marginBottom: '12px', position: 'relative' };
+      containerStyle = { float: 'left', width: widthPct, marginRight: '16px', marginBottom: '12px', position: 'relative', zIndex: 2 };
     }
   }
 
