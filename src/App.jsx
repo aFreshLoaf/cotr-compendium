@@ -5189,74 +5189,38 @@ export default function Compendium() {
             onClick={() => toggleSectionExpanded('magic')}
           />
           {expandedSections.has('magic') && (() => {
-            const magic = viewContent.magic || [];
-            const byName = (a, b) => (a.name || '').localeCompare(b.name || '');
-            const groupMap = {};
-            const ungrouped = [];
-            magic.forEach((m) => {
-              const g = (m.group || '').trim();
-              if (!g) { ungrouped.push(m); return; }
-              if (!groupMap[g]) groupMap[g] = [];
-              groupMap[g].push(m);
-            });
-            // Order groups by stored magicGroupOrder; any groups not yet in the
-            // order list are appended alphabetically. Leaves sort alphabetically.
-            const presentGroups = Object.keys(groupMap);
-            const ordered = (content.magicGroupOrder || []).filter((g) => groupMap[g]);
-            const groups = [...ordered, ...presentGroups.filter((g) => !ordered.includes(g)).sort((a, b) => a.localeCompare(b))];
-            Object.keys(groupMap).forEach((g) => groupMap[g].sort(byName));
-            ungrouped.sort(byName);
-            const renderMagic = (m) => {
-              const isActive = section === 'magic' && activeId === m.id;
+            // Spell library: the Magic section is a level-grouped spell browser.
+            // Sidebar lists All Spells + Cantrips + 1st..maxLevel; clicking sets
+            // the active level filter (encoded in activeId as 'all' or 'level-N').
+            const lib = (content.magic || []).find((m) => m.kind === 'spell-library');
+            const maxLevel = lib?.maxLevel ?? 9;
+            const spells = lib?.spells || [];
+            const countAt = (lvl) => spells.filter((sp) => sp.level === lvl).length;
+            const levelLabel = (lvl) => lvl === 0 ? 'Cantrips'
+              : lvl === 1 ? '1st Level' : lvl === 2 ? '2nd Level' : lvl === 3 ? '3rd Level'
+              : `${lvl}th Level`;
+            const rowFor = (key, label, count) => {
+              const isActive = section === 'magic' && (activeId === key || (!activeId && key === 'all'));
               return (
-                <div key={m.id}
-                  style={{ ...styles.subclassChild, ...(isActive ? styles.subclassChildActive : {}) }}
-                  onClick={() => goTo('magic', m.id)}>
-                  <span>{m.name}</span>
-                  {m.dmOnly && <Lock size={10} style={{ color: '#7a1f1f', marginLeft: '4px', flexShrink: 0 }} />}
+                <div key={key}
+                  style={{ ...styles.subclassChild, ...(isActive ? styles.subclassChildActive : {}),
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                  onClick={() => goTo('magic', key)}>
+                  <span>{label}</span>
+                  <span style={{ fontSize: '10px', color: '#8b6914', opacity: 0.8 }}>{count || ''}</span>
                 </div>
               );
             };
-            const groupHeader = (label, gi) => (
-              <div style={{ padding: '4px 20px 2px 44px', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-                <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em',
-                  color: '#8b6914', fontWeight: 700, fontFamily: '"Cinzel", serif', flex: 1 }}>{label}</span>
-                {editMode && isAdmin && gi != null && (
-                  <span style={{ display: 'flex', gap: '2px' }}>
-                    <button onClick={(e) => { e.stopPropagation(); moveInOrder('magicGroupOrder', label, -1); }}
-                      disabled={gi === 0} title="Move group up"
-                      style={{ background: 'none', border: 'none', cursor: gi === 0 ? 'default' : 'pointer',
-                        color: '#8b6914', opacity: gi === 0 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▲</button>
-                    <button onClick={(e) => { e.stopPropagation(); moveInOrder('magicGroupOrder', label, 1); }}
-                      disabled={gi === groups.length - 1} title="Move group down"
-                      style={{ background: 'none', border: 'none', cursor: gi === groups.length - 1 ? 'default' : 'pointer',
-                        color: '#8b6914', opacity: gi === groups.length - 1 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▼</button>
-                  </span>
-                )}
-              </div>
-            );
+            const levels = [];
+            for (let l = 0; l <= maxLevel; l++) levels.push(l);
             return (
               <>
-                {groups.map((g, gi) => (
-                  <div key={g}>
-                    {groupHeader(g, gi)}
-                    {groupMap[g].map(renderMagic)}
-                  </div>
-                ))}
-                {ungrouped.length > 0 && (
-                  <>
-                    {groups.length > 0 && groupHeader('Ungrouped', null)}
-                    {ungrouped.map(renderMagic)}
-                  </>
-                )}
-                {editMode && isStaff && (
-                  <div style={{ ...styles.subclassChild, color: '#7a1f1f', fontStyle: 'italic', cursor: 'pointer' }}
-                    onClick={(e) => { e.stopPropagation(); createMagic(); }}>
-                    <Plus size={11} style={{ marginRight: '4px' }} /> New Magic
-                  </div>
-                )}
+                {rowFor('all', 'All Spells', spells.length)}
+                {levels.map((l) => rowFor(`level-${l}`, levelLabel(l), countAt(l)))}
               </>
             );
+          })()}
+
           })()}
 
           {/* ITEMS — flat list with optional freeform groups */}
@@ -5431,7 +5395,14 @@ export default function Compendium() {
             ) : section === 'items' ? (
               <ItemsPage content={content} activeId={aid} viewContent={viewContent} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} onDelete={deleteItem} />
             ) : section === 'magic' ? (
-              <MagicPage content={content} activeId={aid} viewContent={viewContent} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} onDelete={deleteMagic} />
+              (() => {
+                const lib = (content.magic || []).find((m) => m.kind === 'spell-library');
+                if (lib) {
+                  return <SpellLibrary content={content} lib={lib} activeId={aid} editMode={editMode && isStaff}
+                    persistChange={persistChange} isStaff={isStaff} />;
+                }
+                return <MagicPage content={content} activeId={aid} viewContent={viewContent} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} onDelete={deleteMagic} />;
+              })()
             ) : section === 'locations' ? (
               <LocationsPage content={content} activeId={aid} viewContent={viewContent} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} onDelete={deleteLocation} />
             ) : null
@@ -6408,6 +6379,289 @@ function ItemsPage({ content, activeId, viewContent, editMode, persistChange, go
         goTo={goTo}
         isDM={isDM}
       />
+    </div>
+  );
+}
+
+// Spell library browser. Renders the single spell-library `magic` entry as a
+// level-grouped, filterable list. Level comes from the sidebar (activeId: 'all'
+// or 'level-N'); class/school/text filters live in-page and PERSIST as you switch
+// levels. In edit mode, spells can be added/edited/removed (for homebrew).
+const SPELL_CLASSES = ['bard', 'cleric', 'druid', 'paladin', 'ranger', 'sorcerer', 'warlock', 'wizard'];
+const SPELL_SCHOOLS = ['abjuration', 'conjuration', 'divination', 'enchantment', 'evocation', 'illusion', 'necromancy', 'transmutation'];
+const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+const levelName = (l) => l === 0 ? 'Cantrip' : l === 1 ? '1st' : l === 2 ? '2nd' : l === 3 ? '3rd' : `${l}th`;
+
+function SpellLibrary({ content, lib, activeId, editMode, persistChange, isStaff }) {
+  const [classFilter, setClassFilter] = useState('all');
+  const [schoolFilter, setSchoolFilter] = useState('all');
+  const [q, setQ] = useState('');
+  const [expanded, setExpanded] = useState({}); // spell id -> bool
+  const [editing, setEditing] = useState(null); // spell id being edited, or '__new__'
+
+  const spells = lib.spells || [];
+  const maxLevel = lib.maxLevel ?? 9;
+
+  // Active level from the sidebar. 'all' or 'level-N'.
+  const activeLevel = (activeId && activeId.startsWith('level-')) ? parseInt(activeId.slice(6), 10) : null;
+
+  // Persist the whole library entry back through the normal save path.
+  const saveSpells = (nextSpells) => {
+    const magic = (content.magic || []).map((m) => m.id === lib.id ? { ...m, spells: nextSpells } : m);
+    persistChange({ ...content, magic });
+  };
+  const upsertSpell = (spell) => {
+    const exists = spells.some((s) => s.id === spell.id);
+    const next = exists ? spells.map((s) => s.id === spell.id ? spell : s) : [...spells, spell];
+    saveSpells(next);
+    setEditing(null);
+  };
+  const removeSpell = (id) => {
+    if (!window.confirm('Delete this spell?')) return;
+    saveSpells(spells.filter((s) => s.id !== id));
+  };
+
+  // Filter pipeline.
+  const ql = q.trim().toLowerCase();
+  let filtered = spells.filter((s) => {
+    if (activeLevel != null && s.level !== activeLevel) return false;
+    if (classFilter !== 'all' && !(s.classes || []).includes(classFilter)) return false;
+    if (schoolFilter !== 'all' && s.school !== schoolFilter) return false;
+    if (ql && !(s.name || '').toLowerCase().includes(ql) && !(s.description || '').toLowerCase().includes(ql)) return false;
+    return true;
+  });
+
+  // Group by level (cantrips first), unless a single level is selected.
+  const groups = [];
+  const levelsToShow = activeLevel != null ? [activeLevel] : Array.from({ length: maxLevel + 1 }, (_, i) => i);
+  for (const l of levelsToShow) {
+    const inLevel = filtered.filter((s) => s.level === l).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    groups.push({ level: l, spells: inLevel });
+  }
+
+  const selStyle = { padding: '5px 8px', fontSize: '13px', borderRadius: '3px',
+    border: '1px solid #c9a55c', background: '#f5ecd9', color: '#5c1414', fontFamily: '"Palatino Linotype", serif' };
+
+  const compLabel = (c) => (c || []).map((x) => x.toUpperCase()).join(', ');
+
+  return (
+    <div>
+      <h1 style={styles.pageHeading}>
+        {activeLevel != null ? (activeLevel === 0 ? 'Cantrips' : `${levelName(activeLevel)}-Level Spells`) : 'Spells'}
+      </h1>
+
+      {/* Filters — persist across sidebar level changes */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', marginBottom: '18px' }}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or text…"
+          style={{ ...selStyle, minWidth: '200px', flex: '1 1 220px' }} />
+        <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} style={selStyle}>
+          <option value="all">All classes</option>
+          {SPELL_CLASSES.map((c) => <option key={c} value={c}>{cap(c)}</option>)}
+        </select>
+        <select value={schoolFilter} onChange={(e) => setSchoolFilter(e.target.value)} style={selStyle}>
+          <option value="all">All schools</option>
+          {SPELL_SCHOOLS.map((c) => <option key={c} value={c}>{cap(c)}</option>)}
+        </select>
+        {(classFilter !== 'all' || schoolFilter !== 'all' || q) && (
+          <button onClick={() => { setClassFilter('all'); setSchoolFilter('all'); setQ(''); }}
+            style={{ ...styles.button, fontSize: '12px', padding: '5px 12px' }}>Clear</button>
+        )}
+        {editMode && (
+          <button onClick={() => setEditing('__new__')}
+            style={{ ...styles.button, fontSize: '12px', padding: '5px 12px', marginLeft: 'auto',
+              display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <Plus size={12} /> Add Spell
+          </button>
+        )}
+      </div>
+
+      {editing === '__new__' && (
+        <SpellEditor spell={null} maxLevel={maxLevel} onSave={upsertSpell} onCancel={() => setEditing(null)} />
+      )}
+
+      {groups.every((g) => g.spells.length === 0) ? (
+        <p style={{ ...styles.bodyText, fontStyle: 'italic', color: '#8b6914' }}>
+          {spells.length === 0 ? 'No spells imported yet.' : 'No spells match these filters.'}
+        </p>
+      ) : (
+        groups.map((g) => (
+          g.spells.length === 0 && activeLevel != null ? (
+            <p key={g.level} style={{ ...styles.bodyText, fontStyle: 'italic', color: '#8b6914' }}>
+              No {g.level === 0 ? 'cantrips' : `${levelName(g.level)}-level spells`} match these filters.
+            </p>
+          ) : g.spells.length === 0 ? null : (
+          <div key={g.level} style={{ marginBottom: '22px' }}>
+            {activeLevel == null && (
+              <h2 style={{ ...styles.sectionHeading, marginTop: 0 }}>
+                {g.level === 0 ? 'Cantrips' : `${levelName(g.level)} Level`}
+              </h2>
+            )}
+            {g.spells.map((s) => {
+              const isOpen = !!expanded[s.id];
+              return (
+                <div key={s.id} style={{ border: '1px solid rgba(201,165,92,0.4)', borderRadius: '4px',
+                  marginBottom: '8px', background: 'rgba(201,165,92,0.05)', overflow: 'hidden' }}>
+                  <div onClick={() => setExpanded((p) => ({ ...p, [s.id]: !p[s.id] }))}
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', cursor: 'pointer' }}>
+                    <ChevronRight size={16} style={{ color: '#8b6914', flexShrink: 0,
+                      transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }} />
+                    <span style={{ fontFamily: '"Cinzel", serif', fontSize: '16px', color: '#5c1414', fontWeight: 700 }}>{s.name}</span>
+                    <span style={{ fontSize: '12px', color: '#8b6914', fontStyle: 'italic' }}>
+                      {cap(s.school)}{s.concentration ? ' · Concentration' : ''}{s.ritual ? ' · Ritual' : ''}
+                    </span>
+                    {s.homebrew && <span style={{ fontSize: '10px', background: '#7a1f1f', color: '#f5ecd9',
+                      padding: '1px 6px', borderRadius: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Homebrew</span>}
+                    <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#8b6914' }}>
+                      {s.level === 0 ? 'Cantrip' : `Lvl ${s.level}`}
+                    </span>
+                  </div>
+                  {isOpen && (
+                    <div style={{ padding: '0 14px 14px 40px' }}>
+                      <div style={{ fontSize: '13px', color: '#5c4020', marginBottom: '8px', lineHeight: 1.5 }}>
+                        <strong>Casting Time:</strong> {s.castingTime || cap(s.actionType || 'Action')}{s.castingTrigger ? ` (${s.castingTrigger})` : ''}<br />
+                        <strong>Range:</strong> {s.range}<br />
+                        <strong>Components:</strong> {compLabel(s.components)}{s.material ? ` (${s.material})` : ''}<br />
+                        <strong>Duration:</strong> {s.duration}<br />
+                        <strong>Classes:</strong> {(s.classes || []).map(cap).join(', ') || '—'}
+                      </div>
+                      <p style={{ ...styles.bodyText, whiteSpace: 'pre-wrap', margin: '0 0 8px' }}>{s.description}</p>
+                      {s.higherLevelSlot && (
+                        <p style={{ ...styles.bodyText, margin: '0 0 8px' }}><strong>At Higher Levels.</strong> {s.higherLevelSlot}</p>
+                      )}
+                      {s.cantripUpgrade && (
+                        <p style={{ ...styles.bodyText, margin: '0 0 8px' }}><strong>Cantrip Upgrade.</strong> {s.cantripUpgrade}</p>
+                      )}
+                      {editMode && (
+                        <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                          <button onClick={() => setEditing(s.id)}
+                            style={{ ...styles.button, fontSize: '11px', padding: '3px 10px' }}>Edit</button>
+                          <button onClick={() => removeSpell(s.id)}
+                            style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px',
+                              padding: '3px 10px', cursor: 'pointer', fontSize: '11px' }}>Delete</button>
+                        </div>
+                      )}
+                      {editing === s.id && (
+                        <SpellEditor spell={s} maxLevel={maxLevel} onSave={upsertSpell} onCancel={() => setEditing(null)} />
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          )
+        ))
+      )}
+
+      {lib.attribution && (
+        <p style={{ fontSize: '11px', color: '#8b6914', fontStyle: 'italic', marginTop: '28px',
+          paddingTop: '12px', borderTop: '1px solid rgba(201,165,92,0.4)' }}>
+          {lib.attribution}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// Compact add/edit form for a single spell (homebrew or editing an existing one).
+function SpellEditor({ spell, maxLevel, onSave, onCancel }) {
+  const [f, setF] = useState(() => spell || {
+    id: '', name: '', level: 0, school: 'evocation', classes: [], actionType: 'action',
+    castingTime: '', castingTrigger: '', concentration: false, ritual: false, range: '',
+    components: [], material: '', duration: '', description: '', higherLevelSlot: '',
+    cantripUpgrade: '', homebrew: true,
+  });
+  const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+  const toggleArr = (k, v) => setF((p) => ({ ...p, [k]: (p[k] || []).includes(v) ? p[k].filter((x) => x !== v) : [...(p[k] || []), v] }));
+  const save = () => {
+    const name = (f.name || '').trim();
+    if (!name) { window.alert('Spell needs a name.'); return; }
+    const id = f.id || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    onSave({ ...f, id, name, homebrew: f.homebrew !== false ? (spell ? f.homebrew : true) : f.homebrew });
+  };
+  const inp = { ...{ padding: '5px 8px', fontSize: '13px', borderRadius: '3px', border: '1px solid #c9a55c',
+    background: '#fffdf7', color: '#3b2615', fontFamily: '"Palatino Linotype", serif', width: '100%', boxSizing: 'border-box' } };
+  const lvls = Array.from({ length: maxLevel + 1 }, (_, i) => i);
+
+  return (
+    <div style={{ border: '1px solid #8b6914', borderRadius: '4px', padding: '14px', marginBottom: '14px',
+      background: 'rgba(139,105,20,0.06)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+        <label style={{ fontSize: '12px', color: '#5c4020' }}>Name
+          <input value={f.name} onChange={(e) => set('name', e.target.value)} style={inp} /></label>
+        <label style={{ fontSize: '12px', color: '#5c4020' }}>Level
+          <select value={f.level} onChange={(e) => set('level', parseInt(e.target.value, 10))} style={inp}>
+            {lvls.map((l) => <option key={l} value={l}>{l === 0 ? 'Cantrip' : levelName(l)}</option>)}
+          </select></label>
+        <label style={{ fontSize: '12px', color: '#5c4020' }}>School
+          <select value={f.school} onChange={(e) => set('school', e.target.value)} style={inp}>
+            {SPELL_SCHOOLS.map((c) => <option key={c} value={c}>{cap(c)}</option>)}
+          </select></label>
+        <label style={{ fontSize: '12px', color: '#5c4020' }}>Action Type
+          <select value={f.actionType} onChange={(e) => set('actionType', e.target.value)} style={inp}>
+            <option value="action">Action</option>
+            <option value="bonusAction">Bonus Action</option>
+            <option value="reaction">Reaction</option>
+          </select></label>
+        <label style={{ fontSize: '12px', color: '#5c4020' }}>Range
+          <input value={f.range} onChange={(e) => set('range', e.target.value)} style={inp} /></label>
+        <label style={{ fontSize: '12px', color: '#5c4020' }}>Duration
+          <input value={f.duration} onChange={(e) => set('duration', e.target.value)} style={inp} /></label>
+        <label style={{ fontSize: '12px', color: '#5c4020' }}>Material (optional)
+          <input value={f.material} onChange={(e) => set('material', e.target.value)} style={inp} /></label>
+        <label style={{ fontSize: '12px', color: '#5c4020' }}>Casting trigger (reaction)
+          <input value={f.castingTrigger} onChange={(e) => set('castingTrigger', e.target.value)} style={inp} /></label>
+      </div>
+
+      <div style={{ display: 'flex', gap: '16px', marginBottom: '8px', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '12px', color: '#5c4020' }}>Components:{' '}
+          {['v', 's', 'm'].map((c) => (
+            <label key={c} style={{ marginRight: '8px', fontSize: '12px' }}>
+              <input type="checkbox" checked={(f.components || []).includes(c)} onChange={() => toggleArr('components', c)} /> {c.toUpperCase()}
+            </label>
+          ))}
+        </span>
+        <label style={{ fontSize: '12px' }}><input type="checkbox" checked={!!f.concentration} onChange={(e) => set('concentration', e.target.checked)} /> Concentration</label>
+        <label style={{ fontSize: '12px' }}><input type="checkbox" checked={!!f.ritual} onChange={(e) => set('ritual', e.target.checked)} /> Ritual</label>
+      </div>
+
+      <div style={{ marginBottom: '8px' }}>
+        <span style={{ fontSize: '12px', color: '#5c4020', display: 'block', marginBottom: '4px' }}>Class lists:</span>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+          {SPELL_CLASSES.map((c) => {
+            const on = (f.classes || []).includes(c);
+            return (
+              <button key={c} onClick={() => toggleArr('classes', c)}
+                style={{ padding: '2px 10px', fontSize: '12px', borderRadius: '11px', cursor: 'pointer',
+                  border: on ? '1px solid #7a1f1f' : '1px solid #c9b896',
+                  background: on ? '#7a1f1f' : 'transparent', color: on ? '#f5ecd9' : '#5c4020' }}>
+                {on ? '✓ ' : ''}{cap(c)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <label style={{ fontSize: '12px', color: '#5c4020', display: 'block', marginBottom: '8px' }}>Description
+        <textarea value={f.description} onChange={(e) => set('description', e.target.value)}
+          style={{ ...inp, minHeight: '90px', resize: 'vertical' }} /></label>
+      <label style={{ fontSize: '12px', color: '#5c4020', display: 'block', marginBottom: '8px' }}>At Higher Levels (optional)
+        <textarea value={f.higherLevelSlot} onChange={(e) => set('higherLevelSlot', e.target.value)}
+          style={{ ...inp, minHeight: '50px', resize: 'vertical' }} /></label>
+      {f.level === 0 && (
+        <label style={{ fontSize: '12px', color: '#5c4020', display: 'block', marginBottom: '8px' }}>Cantrip Upgrade (optional)
+          <textarea value={f.cantripUpgrade} onChange={(e) => set('cantripUpgrade', e.target.value)}
+            style={{ ...inp, minHeight: '50px', resize: 'vertical' }} /></label>
+      )}
+      <label style={{ fontSize: '12px', color: '#5c4020', display: 'block', marginBottom: '10px' }}>
+        <input type="checkbox" checked={f.homebrew !== false} onChange={(e) => set('homebrew', e.target.checked)} /> Mark as homebrew
+      </label>
+
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <button onClick={save} style={{ ...styles.button, fontSize: '13px', padding: '6px 16px' }}>Save Spell</button>
+        <button onClick={onCancel} style={{ background: 'transparent', border: '1px solid #8b6914', color: '#8b6914',
+          borderRadius: '3px', padding: '6px 16px', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
+      </div>
     </div>
   );
 }
