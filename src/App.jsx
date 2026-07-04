@@ -5221,8 +5221,6 @@ export default function Compendium() {
             );
           })()}
 
-          })()}
-
           {/* ITEMS — flat list with optional freeform groups */}
           <SectionToggle
             label="Items"
