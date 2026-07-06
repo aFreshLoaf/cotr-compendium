@@ -26,6 +26,15 @@ const SINGLETON_META = '__meta';
 // tab from clobbering newer edits or deleting entries it never knew about.
 let _loadedVersions = {};   // { id: updated_at_string }
 let _loadedIds = new Set(); // ids present at load time
+let _explicitDeletes = new Set(); // ids the user EXPLICITLY deleted via the UI
+
+// Record an intentional deletion. Only ids passed here will ever be deleted from
+// the DB on save — deletions are never inferred from array differences, so an
+// entry the session doesn't know about (e.g. imported out-of-band) can't be
+// auto-removed by a save.
+export function markDeleted(id) {
+  if (id) _explicitDeletes.add(id);
+}
 let _loadedSnapshot = {};   // { id: stableStringify({data, dm_data}) } — for dirty-tracking
 
 // Deterministic JSON stringify (sorted keys) so logically-equal objects compare
@@ -545,21 +554,27 @@ export async function saveContent2(content, opts = {}) {
     (written || []).forEach((w) => { writtenVersions[w.id] = w.updated_at || null; });
   }
 
-  // Scoped, safe deletes: only ids that existed when WE loaded and are gone from
-  // our content now (a deletion this session made). Never delete ids that appeared
-  // after we loaded, and never delete singletons.
+  // Deletes are EXPLICIT ONLY. We never infer a deletion from "it was loaded and
+  // is now missing from content" — that inference is fragile and has deleted
+  // entries the session simply didn't know about (e.g. imported out-of-band).
+  // We only delete ids the app explicitly marked via markDeleted(), and only if
+  // they're actually gone from the content being saved (guard against a mark that
+  // was later undone), never singletons.
   try {
     const keepIds = new Set(rows.map((r) => r.id));
-    const deletedThisSession = [...keepIds].length
-      ? [..._loadedIds].filter((id) => !keepIds.has(id) && !id.startsWith('__') && dbIds.has(id))
-      : [];
-    for (let i = 0; i < deletedThisSession.length; i += BATCH) {
-      const chunk = deletedThisSession.slice(i, i + BATCH);
+    const toDelete = [..._explicitDeletes].filter(
+      (id) => !keepIds.has(id) && !id.startsWith('__') && dbIds.has(id)
+    );
+    for (let i = 0; i < toDelete.length; i += BATCH) {
+      const chunk = toDelete.slice(i, i + BATCH);
       const { error: delErr } = await supabase.from('content_entries').delete().in('id', chunk);
       if (delErr) { console.error('[CotR] delete error:', delErr.message); throw new Error(delErr.message); }
     }
-    if (deletedThisSession.length) {
-      console.info(`[CotR] removed ${deletedThisSession.length} deleted entr${deletedThisSession.length === 1 ? 'y' : 'ies'}.`);
+    // Clear the marks we acted on (whether deleted or found still-present).
+    toDelete.forEach((id) => _explicitDeletes.delete(id));
+    [..._explicitDeletes].forEach((id) => { if (keepIds.has(id)) _explicitDeletes.delete(id); });
+    if (toDelete.length) {
+      console.info(`[CotR] removed ${toDelete.length} deleted entr${toDelete.length === 1 ? 'y' : 'ies'}.`);
     }
   } catch (err) {
     console.error('[CotR] delete step failed:', err);

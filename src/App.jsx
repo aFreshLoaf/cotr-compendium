@@ -4,6 +4,7 @@ import {
   getSession, getProfile, signInWithDiscord, signInWithEmail, signOut, onAuthChange,
   uploadImage, deleteImage,
   loadAllProfiles, assignCharacterToUser,
+  markDeleted,
 } from './storage2.js';
 import { Search, Book, Users, Sword, Shield, Sparkles, ScrollText, Edit3, Plus, X, Save, ChevronRight, Home, Skull, Eye, Trash2, Image as ImageIcon, Upload, Menu, Lock, LogOut, LogIn, Copy, EyeOff, Settings } from 'lucide-react';
 
@@ -4416,6 +4417,7 @@ export default function Compendium() {
     const m = (content.magic || []).find((x) => x.id === magicId);
     if (!m) return;
     if (!window.confirm(`Delete "${m.name}"? This cannot be undone (until you discard without saving).`)) return;
+    markDeleted(magicId);
     const magic = (content.magic || []).filter((x) => x.id !== magicId);
     persistChange({ ...content, magic });
     goTo('magic', magic[0]?.id || null);
@@ -4437,6 +4439,7 @@ export default function Compendium() {
     const c = (content.characters || []).find((x) => x.id === charId);
     if (!c) return;
     if (!window.confirm(`Delete character "${c.name}"? This cannot be undone (until you discard without saving).`)) return;
+    markDeleted(charId);
     const characters = (content.characters || []).filter((x) => x.id !== charId);
     persistChange({ ...content, characters });
     // Navigate to another character in the same campaign if possible, else first.
@@ -4465,6 +4468,7 @@ export default function Compendium() {
     const it = (content.items || []).find((x) => x.id === itemId);
     if (!it) return;
     if (!window.confirm(`Delete item "${it.name}"? This cannot be undone (until you discard without saving).`)) return;
+    markDeleted(itemId);
     const items = (content.items || []).filter((x) => x.id !== itemId);
     persistChange({ ...content, items });
     goTo('items', items[0]?.id || null);
@@ -4490,6 +4494,7 @@ export default function Compendium() {
       ? `Delete "${loc.name}" and its ${descCount} sub-location${descCount === 1 ? '' : 's'}? This cannot be undone (until you discard without saving).`
       : `Delete location "${loc.name}"? This cannot be undone (until you discard without saving).`;
     if (!window.confirm(msg)) return;
+    toDelete.forEach((id) => markDeleted(id));
     const locations = all.filter((l) => !toDelete.has(l.id));
     persistChange({ ...content, locations });
     goTo('locations', locations.find((l) => !l.parentId)?.id || locations[0]?.id || null);
