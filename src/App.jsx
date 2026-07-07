@@ -5541,14 +5541,14 @@ function Header({ content, editMode, dirty, onEditToggle, onSave, onDiscard, onM
               filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.4))',
             }}
           />
-          <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
             <h1 style={{
               ...styles.title,
-              fontSize: isMobile ? '20px' : styles.title.fontSize,
+              fontSize: isMobile ? '15px' : styles.title.fontSize,
               lineHeight: 1.1,
-              ...(isMobile
-                ? { whiteSpace: 'normal', wordBreak: 'break-word' }
-                : { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }),
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
             }}>
               {content.meta.title}
             </h1>
@@ -6519,33 +6519,65 @@ function SpellLibrary({ content, lib, activeId, editMode, persistChange, isStaff
                     </span>
                   </div>
                   {isOpen && (
-                    <div style={{ padding: '0 14px 14px 40px' }}>
-                      <div style={{ fontSize: '13px', color: '#5c4020', marginBottom: '8px', lineHeight: 1.5 }}>
-                        <strong>Casting Time:</strong> {s.castingTime || cap(s.actionType || 'Action')}{s.castingTrigger ? ` (${s.castingTrigger})` : ''}<br />
-                        <strong>Range:</strong> {s.range}<br />
-                        <strong>Components:</strong> {compLabel(s.components)}{s.material ? ` (${s.material})` : ''}<br />
-                        <strong>Duration:</strong> {s.duration}<br />
-                        <strong>Classes:</strong> {(s.classes || []).map(cap).join(', ') || '—'}
+                    <div style={{ borderTop: '1px solid rgba(201,165,92,0.35)' }}>
+                      {/* Meta bar — casting stats in a 2×2 grid */}
+                      <div style={{
+                        display: 'grid', gridTemplateColumns: '1fr 1fr',
+                        gap: '0', background: 'rgba(201,165,92,0.1)',
+                        borderBottom: '1px solid rgba(201,165,92,0.3)',
+                      }}>
+                        {[
+                          ['Casting Time', `${s.castingTime || cap(s.actionType || 'Action')}${s.castingTrigger ? ` (${s.castingTrigger})` : ''}`],
+                          ['Range', s.range || '—'],
+                          ['Components', `${compLabel(s.components)}${s.material ? ` (${s.material})` : ''}`],
+                          ['Duration', s.duration || '—'],
+                        ].map(([label, value], i) => (
+                          <div key={label} style={{
+                            padding: '8px 14px',
+                            borderRight: i % 2 === 0 ? '1px solid rgba(201,165,92,0.25)' : 'none',
+                            borderBottom: i < 2 ? '1px solid rgba(201,165,92,0.25)' : 'none',
+                          }}>
+                            <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8b6914', fontFamily: '"Cinzel", serif', marginBottom: '2px' }}>{label}</div>
+                            <div style={{ fontSize: '13px', color: '#3b2615', fontWeight: 500 }}>{value}</div>
+                          </div>
+                        ))}
                       </div>
-                      <p style={{ ...styles.bodyText, whiteSpace: 'pre-wrap', margin: '0 0 8px' }}>{s.description}</p>
-                      {s.higherLevelSlot && (
-                        <p style={{ ...styles.bodyText, margin: '0 0 8px' }}><strong>At Higher Levels.</strong> {s.higherLevelSlot}</p>
-                      )}
-                      {s.cantripUpgrade && (
-                        <p style={{ ...styles.bodyText, margin: '0 0 8px' }}><strong>Cantrip Upgrade.</strong> {s.cantripUpgrade}</p>
-                      )}
-                      {editMode && (
-                        <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
-                          <button onClick={() => setEditing(s.id)}
-                            style={{ ...styles.button, fontSize: '11px', padding: '3px 10px' }}>Edit</button>
-                          <button onClick={() => removeSpell(s.id)}
-                            style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px',
-                              padding: '3px 10px', cursor: 'pointer', fontSize: '11px' }}>Delete</button>
-                        </div>
-                      )}
-                      {editing === s.id && (
-                        <SpellEditor spell={s} maxLevel={maxLevel} onSave={upsertSpell} onCancel={() => setEditing(null)} />
-                      )}
+                      {/* Classes pill row */}
+                      <div style={{ padding: '6px 14px', borderBottom: '1px solid rgba(201,165,92,0.2)', display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }}>
+                        <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8b6914', fontFamily: '"Cinzel", serif', marginRight: '4px' }}>Classes</span>
+                        {(s.classes || []).length > 0
+                          ? (s.classes).map(cap).map((c) => (
+                              <span key={c} style={{ fontSize: '11px', background: 'rgba(91,20,20,0.12)', color: '#5c1414', padding: '1px 8px', borderRadius: '8px', border: '1px solid rgba(91,20,20,0.2)' }}>{c}</span>
+                            ))
+                          : <span style={{ fontSize: '12px', color: '#8b6914' }}>—</span>
+                        }
+                      </div>
+                      {/* Description body */}
+                      <div style={{ padding: '12px 14px 14px' }}>
+                        <p style={{ ...styles.bodyText, whiteSpace: 'pre-wrap', margin: '0 0 8px' }}>{s.description}</p>
+                        {s.higherLevelSlot && (
+                          <div style={{ marginTop: '10px', padding: '8px 12px', background: 'rgba(201,165,92,0.1)', borderLeft: '3px solid #c9a55c', borderRadius: '0 3px 3px 0' }}>
+                            <p style={{ ...styles.bodyText, margin: 0 }}><strong>At Higher Levels.</strong> {s.higherLevelSlot}</p>
+                          </div>
+                        )}
+                        {s.cantripUpgrade && (
+                          <div style={{ marginTop: '10px', padding: '8px 12px', background: 'rgba(201,165,92,0.1)', borderLeft: '3px solid #c9a55c', borderRadius: '0 3px 3px 0' }}>
+                            <p style={{ ...styles.bodyText, margin: 0 }}><strong>Cantrip Upgrade.</strong> {s.cantripUpgrade}</p>
+                          </div>
+                        )}
+                        {editMode && (
+                          <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
+                            <button onClick={() => setEditing(s.id)}
+                              style={{ ...styles.button, fontSize: '11px', padding: '3px 10px' }}>Edit</button>
+                            <button onClick={() => removeSpell(s.id)}
+                              style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px',
+                                padding: '3px 10px', cursor: 'pointer', fontSize: '11px' }}>Delete</button>
+                          </div>
+                        )}
+                        {editing === s.id && (
+                          <SpellEditor spell={s} maxLevel={maxLevel} onSave={upsertSpell} onCancel={() => setEditing(null)} />
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
