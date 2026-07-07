@@ -4447,6 +4447,53 @@ export default function Compendium() {
     goTo('characters', sameCamp?.id || characters[0]?.id || null);
   };
 
+  const createCampaign = () => {
+    const name = (window.prompt('Campaign name:') || '').trim();
+    if (!name) return;
+    if ((content.campaignOrder || []).includes(name)) {
+      window.alert(`A campaign named "${name}" already exists.`);
+      return;
+    }
+    const newOrder = [...(content.campaignOrder || []), name];
+    const newCampaigns = { ...(content.campaigns || {}), [name]: { description: '' } };
+    persistChange({ ...content, campaignOrder: newOrder, campaigns: newCampaigns });
+    goTo('characters', `campaign:${name}`);
+  };
+
+  const deleteCampaign = (name) => {
+    const charCount = (content.characters || []).filter((c) => c.campaign === name).length;
+    const warning = charCount > 0
+      ? `Delete campaign "${name}"? Its ${charCount} character(s) will become unassigned. This cannot be undone (until you discard without saving).`
+      : `Delete campaign "${name}"? This cannot be undone (until you discard without saving).`;
+    if (!window.confirm(warning)) return;
+    const newOrder = (content.campaignOrder || []).filter((c) => c !== name);
+    const newCampaigns = { ...(content.campaigns || {}) };
+    delete newCampaigns[name];
+    const newChars = (content.characters || []).map((c) =>
+      c.campaign === name ? { ...c, campaign: '' } : c
+    );
+    persistChange({ ...content, campaignOrder: newOrder, campaigns: newCampaigns, characters: newChars });
+    goTo('characters', newChars.find((c) => c.campaign === newOrder[0])?.id || newChars[0]?.id || null);
+  };
+
+  const renameCampaign = (oldName, newName) => {
+    newName = (newName || '').trim();
+    if (!newName || newName === oldName) return;
+    if ((content.campaignOrder || []).includes(newName)) {
+      window.alert(`A campaign named "${newName}" already exists.`);
+      return;
+    }
+    const newOrder = (content.campaignOrder || []).map((c) => c === oldName ? newName : c);
+    const newCampaigns = { ...(content.campaigns || {}) };
+    newCampaigns[newName] = newCampaigns[oldName];
+    delete newCampaigns[oldName];
+    const newChars = (content.characters || []).map((c) =>
+      c.campaign === oldName ? { ...c, campaign: newName } : c
+    );
+    persistChange({ ...content, campaignOrder: newOrder, campaigns: newCampaigns, characters: newChars });
+    goTo('characters', `campaign:${newName}`);
+  };
+
   const createLocation = (parentId) => {
     const name = promptName('Location');
     if (!name) return;
@@ -5053,7 +5100,10 @@ export default function Compendium() {
             const charsInCampaign = viewContent.characters.filter((c) => c.campaign === campaign);
             if (charsInCampaign.length === 0) return null;
             const isExpanded = expandedCampaigns.has(campaign);
-            const hasActive = section === 'characters' && charsInCampaign.some((c) => c.id === activeId);
+            const hasActive = section === 'characters' && (
+              activeId === `campaign:${campaign}` ||
+              charsInCampaign.some((c) => c.id === activeId)
+            );
             const campaignMeta = content.campaigns?.[campaign] || {};
             const campaignDeceased = campaignMeta.status === 'deceased';
 
@@ -5101,7 +5151,15 @@ export default function Compendium() {
               <div key={campaign}>
                 <div
                   style={{ ...styles.parentGroup, ...(hasActive ? styles.parentGroupActive : {}) }}
-                  onClick={() => toggleCampaignExpanded(campaign)}
+                  onClick={() => {
+                    const isCampActive = section === 'characters' && activeId === `campaign:${campaign}`;
+                    if (isCampActive) {
+                      toggleCampaignExpanded(campaign);
+                    } else {
+                      goTo('characters', `campaign:${campaign}`);
+                      if (!expandedCampaigns.has(campaign)) toggleCampaignExpanded(campaign);
+                    }
+                  }}
                 >
                   <ChevronRight
                     size={12}
@@ -5181,6 +5239,13 @@ export default function Compendium() {
                   <div style={{ ...styles.subclassChild, color: '#7a1f1f', fontStyle: 'italic', cursor: 'pointer' }}
                     onClick={(e) => { e.stopPropagation(); createCharacter(''); }}>
                     <Plus size={11} style={{ marginRight: '4px' }} /> New Character (unassigned)
+                  </div>
+                )}
+                {editMode && isStaff && (
+                  <div style={{ ...styles.subclassChild, color: '#5c1414', fontStyle: 'italic', cursor: 'pointer',
+                    borderTop: '1px solid rgba(201,165,92,0.25)', marginTop: '4px', paddingTop: '6px' }}
+                    onClick={(e) => { e.stopPropagation(); createCampaign(); }}>
+                    <Plus size={11} style={{ marginRight: '4px' }} /> New Campaign
                   </div>
                 )}
               </>
@@ -5394,7 +5459,19 @@ export default function Compendium() {
             ) : section === 'subclasses' ? (
               <SubclassesPage content={content} activeId={aid} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} />
             ) : section === 'characters' ? (
-              <CharactersPage content={content} activeId={aid} viewContent={viewContent} editMode={editMode} canEditEntry={canEditEntry} persistChange={persistChange} goTo={goTo} isDM={showingDM} isStaff={isStaff} onCopyToCampaign={copyCharacterToCampaign} onDelete={deleteCharacter} />
+              aid && aid.startsWith('campaign:') ? (
+                <CampaignDetailPage
+                  content={content}
+                  campaignName={aid.slice('campaign:'.length)}
+                  editMode={editMode && isStaff}
+                  persistChange={persistChange}
+                  goTo={goTo}
+                  onDelete={deleteCampaign}
+                  onRename={renameCampaign}
+                />
+              ) : (
+                <CharactersPage content={content} activeId={aid} viewContent={viewContent} editMode={editMode} canEditEntry={canEditEntry} persistChange={persistChange} goTo={goTo} isDM={showingDM} isStaff={isStaff} onCopyToCampaign={copyCharacterToCampaign} onDelete={deleteCharacter} />
+              )
             ) : section === 'items' ? (
               <ItemsPage content={content} activeId={aid} viewContent={viewContent} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} onDelete={deleteItem} />
             ) : section === 'magic' ? (
@@ -6139,6 +6216,153 @@ function SubclassesPage({ content, activeId, editMode, persistChange, goTo, isDM
         goTo={goTo}
         isDM={isDM}
       />
+    </div>
+  );
+}
+
+function CampaignDetailPage({ content, campaignName, editMode, persistChange, goTo, onDelete, onRename }) {
+  const meta = (content.campaigns || {})[campaignName] || {};
+  const chars = (content.characters || []).filter((c) => c.campaign === campaignName);
+  const players = chars.filter((c) => c.role === 'player');
+  const connected = chars.filter((c) => c.role === 'connected');
+  const enemies = chars.filter((c) => c.role === 'enemy');
+
+  const updateMeta = (fields) => {
+    const newCampaigns = { ...(content.campaigns || {}), [campaignName]: { ...meta, ...fields } };
+    persistChange({ ...content, campaigns: newCampaigns });
+  };
+
+  const [renaming, setRenaming] = React.useState(false);
+  const [renameVal, setRenameVal] = React.useState(campaignName);
+
+  const STATUS_OPTIONS = ['', 'active', 'completed', 'deceased', 'hiatus'];
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+        <div style={{ flex: 1 }}>
+          {renaming ? (
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+              <input
+                value={renameVal}
+                onChange={(e) => setRenameVal(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { onRename(campaignName, renameVal); setRenaming(false); }
+                  if (e.key === 'Escape') { setRenameVal(campaignName); setRenaming(false); }
+                }}
+                autoFocus
+                style={{ ...{ fontFamily: '"Cinzel", serif', fontSize: '22px', color: '#3b2615',
+                  background: 'transparent', border: 'none', borderBottom: '2px solid #c9a55c',
+                  outline: 'none', flex: 1, padding: '2px 4px' } }}
+              />
+              <button onClick={() => { onRename(campaignName, renameVal); setRenaming(false); }}
+                style={{ ...{ background: '#5c1414', color: '#f5ecd9', border: 'none', borderRadius: '3px',
+                  padding: '5px 12px', cursor: 'pointer', fontFamily: '"Cinzel", serif', fontSize: '12px' } }}>Save</button>
+              <button onClick={() => { setRenameVal(campaignName); setRenaming(false); }}
+                style={{ background: 'none', border: '1px solid #c9a55c', borderRadius: '3px',
+                  padding: '5px 10px', cursor: 'pointer', fontFamily: '"Cinzel", serif', fontSize: '12px', color: '#5c4020' }}>Cancel</button>
+            </div>
+          ) : (
+            <h1 style={{ fontFamily: '"Cinzel Decorative", serif', fontSize: '26px', color: '#3b2615',
+              fontWeight: 700, margin: '0 0 4px', lineHeight: 1.2 }}>
+              {campaignName}
+              {editMode && (
+                <button onClick={() => setRenaming(true)} title="Rename campaign"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', marginLeft: '10px',
+                    color: '#8b6914', verticalAlign: 'middle', padding: '2px 4px' }}>
+                  <Edit3 size={14} />
+                </button>
+              )}
+            </h1>
+          )}
+        </div>
+        {editMode && (
+          <button onClick={() => onDelete(campaignName)}
+            style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '3px',
+              padding: '7px 12px', cursor: 'pointer', fontFamily: '"Cinzel", serif', fontSize: '12px',
+              whiteSpace: 'nowrap', flexShrink: 0, marginTop: '4px' }}>
+            <Trash2 size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />Delete Campaign
+          </button>
+        )}
+      </div>
+
+      {/* Status pill */}
+      {editMode ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+          <span style={{ fontSize: '11px', color: '#8b6914', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Status</span>
+          <select value={meta.status || ''} onChange={(e) => updateMeta({ status: e.target.value })}
+            style={{ fontFamily: '"Cinzel", serif', fontSize: '12px', padding: '4px 8px',
+              border: '1px solid #c9a55c', borderRadius: '3px', background: '#faf6ed', color: '#3b2615' }}>
+            {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s || '— no status —'}</option>)}
+          </select>
+        </div>
+      ) : meta.status ? (
+        <div style={{ marginBottom: '10px' }}>
+          <span style={{ fontSize: '11px', background: meta.status === 'deceased' ? '#3b2615' : 'rgba(92,20,20,0.12)',
+            color: meta.status === 'deceased' ? '#e8d5a0' : '#5c1414',
+            padding: '2px 10px', borderRadius: '8px', fontFamily: '"Cinzel", serif',
+            textTransform: 'capitalize', border: '1px solid rgba(92,20,20,0.2)' }}>{meta.status}</span>
+        </div>
+      ) : null}
+
+      {/* Description */}
+      <div style={{ marginBottom: '18px' }}>
+        {editMode ? (
+          <textarea
+            value={meta.description || ''}
+            placeholder="Campaign description…"
+            onChange={(e) => updateMeta({ description: e.target.value })}
+            style={{ fontFamily: 'Georgia, serif', fontSize: '14px', color: '#3b2615',
+              background: '#faf6ed', border: '1px solid #c9a55c', borderRadius: '3px',
+              padding: '8px 12px', width: '100%', minHeight: '80px', resize: 'vertical', boxSizing: 'border-box' }}
+          />
+        ) : meta.description ? (
+          <p style={{ fontFamily: 'Georgia, serif', fontSize: '15px', color: '#3b2615', lineHeight: 1.65, margin: 0 }}>
+            {meta.description}
+          </p>
+        ) : (
+          <p style={{ fontFamily: 'Georgia, serif', fontSize: '14px', color: '#8b6914', fontStyle: 'italic', margin: 0 }}>
+            No description yet.
+          </p>
+        )}
+      </div>
+
+      {/* Character summary by role */}
+      {chars.length > 0 && (
+        <div style={{ marginTop: '8px' }}>
+          <h2 style={{ fontFamily: '"Cinzel", serif', fontSize: '14px', color: '#5c1414',
+            textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1px solid rgba(201,165,92,0.4)',
+            paddingBottom: '6px', marginBottom: '10px' }}>
+            Characters ({chars.length})
+          </h2>
+          {[['Player Characters', players], ['Connected Characters', connected], ['Enemies', enemies]].map(([label, group]) =>
+            group.length === 0 ? null : (
+              <div key={label} style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em',
+                  color: '#8b6914', fontFamily: '"Cinzel", serif', marginBottom: '4px' }}>{label}</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {group.map((c) => (
+                    <span key={c.id}
+                      onClick={() => goTo('characters', c.id)}
+                      style={{ fontSize: '13px', background: 'rgba(201,165,92,0.12)', color: '#5c1414',
+                        padding: '3px 12px', borderRadius: '8px', border: '1px solid rgba(201,165,92,0.35)',
+                        cursor: 'pointer', fontFamily: '"Cinzel", serif',
+                        textDecoration: c.status === 'deceased' ? 'line-through' : 'none',
+                        opacity: c.status === 'deceased' ? 0.65 : 1 }}>
+                      {c.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )
+          )}
+        </div>
+      )}
+      {chars.length === 0 && (
+        <p style={{ fontFamily: 'Georgia, serif', fontSize: '14px', color: '#8b6914', fontStyle: 'italic' }}>
+          No characters in this campaign yet.
+        </p>
+      )}
     </div>
   );
 }
