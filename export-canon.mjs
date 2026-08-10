@@ -75,15 +75,21 @@ function reinsertBlock(section, at, block) {
 }
 function mergeDm(dataObj, dmData) {
   const entry = { ...dataObj };
-  const dm = dmData || {};
-  if (!Array.isArray(dm.sections)) return entry;
-  const sections = [...(entry.sections || [])];
-  const whole = dm.sections.filter((s) => !s.__inlineFor);
-  const inline = dm.sections.filter((s) => s.__inlineFor);
+  const dm = (dmData && typeof dmData === 'object') ? dmData : {};
+  // Handle entry-level dm_data.entry (whole-entry DM-only, same as storage2.js)
+  if (dm.entry) return { ...dm.entry, dmOnly: true };
+  const dmSections = Array.isArray(dm.sections) ? dm.sections : [];
+  if (!dmSections.length) return entry;
+  const sections = (entry.sections || []).map((s) => ({ ...s }));
+  const whole  = dmSections.filter((s) => !s.__inlineFor);
+  const inline = dmSections.filter((s) =>  s.__inlineFor);
   for (const frag of inline) {
     const t = sections.find((s) => s.id === frag.__inlineFor);
-    if (!t) continue;
-    for (const f of frag.fragments) reinsertBlock(t, f.at, f.block);
+    if (!t) {
+      whole.push({ ...frag, heading: (frag.heading || 'DM Notes') + ' [orphaned inline]', dmOnly: true });
+      continue;
+    }
+    for (const f of (frag.fragments || [])) reinsertBlock(t, f.at, f.block);
   }
   for (const s of whole) sections.push(s);
   entry.sections = sections;
@@ -178,7 +184,8 @@ function renderSection(sec, depth) {
 
 function renderEntry(entry, titleLevel) {
   const h = '#'.repeat(titleLevel);
-  const out = [`${h} ${entry.name || entry.id}`];
+  const out = [`${h} ${entry.name || entry.id}${entry.dmOnly ? ' \u2014 **[DM ONLY]**' : ''}`];
+  if (entry.dmOnly) out.push('> *This entry is DM-only and hidden from players.*');
   for (const sec of (entry.sections || [])) {
     const md = renderSection(sec, titleLevel + 1);
     if (md) out.push(md);
@@ -196,13 +203,23 @@ async function main() {
   if (error) { console.error('Fetch failed:', error.message); process.exit(1); }
 
   // Reassemble entries (merge dm if requested)
+  const SINGLETON_CAMPAIGNS      = '__campaigns';
+  const SINGLETON_CAMPAIGN       = '__campaign';
+  const SINGLETON_CAMPAIGN_ORDER = '__campaignOrder';
   const byKind = { subclass: [], race: [], class: [], character: [], item: [], location: [] };
-  const meta = {};
+  const meta = { campaigns: {}, campaignOrder: [], campaign: {}, home: {} };
   for (const row of rows) {
     const entry = (INCLUDE_DM && row.dm_data) ? mergeDm(row.data, row.dm_data) : row.data;
-    if (byKind[row.kind]) byKind[row.kind].push(entry);
-    else if (row.kind === 'campaign') meta.campaign = row.data;
-    else if (row.kind === 'home') meta.home = row.data;
+    if (byKind[row.kind]) {
+      byKind[row.kind].push(entry);
+    } else if (row.kind === 'campaign' || row.id === SINGLETON_CAMPAIGN) {
+      meta.campaign = row.data;
+    } else if (row.kind === 'home') {
+      meta.home = row.data;
+    } else if (row.kind === 'meta') {
+      if (row.id === SINGLETON_CAMPAIGNS)      meta.campaigns     = row.data.campaigns     || {};
+      if (row.id === SINGLETON_CAMPAIGN_ORDER) meta.campaignOrder = row.data.campaignOrder || [];
+    }
   }
 
   // Apply filters
@@ -259,12 +276,33 @@ async function main() {
     }
   }
 
+  // ── Campaign pages (sections stored in __campaigns singleton) ────────────────
+  const campaignOrder = meta.campaignOrder.length
+    ? meta.campaignOrder
+    : Object.keys(meta.campaigns);
+  if (campaignOrder.length && (!KINDS_FILTER) && (!CHARS_FILTER) && (!LOCS_FILTER)) {
+    doc.push(`\n---\n\n# Campaign Pages`);
+    for (const name of campaignOrder) {
+      const camp = meta.campaigns[name];
+      if (!camp) continue;
+      doc.push(`\n## ${name}`);
+      if (camp.status) doc.push(`*Status: ${camp.status}*`);
+      if (camp.description && camp.description.trim()) doc.push(camp.description.trim());
+      for (const sec of (camp.sections || [])) {
+        if (sec.dmOnly && !INCLUDE_DM) continue;
+        const md = renderSection(sec, 3);
+        if (md) doc.push(md);
+      }
+    }
+  }
+
   const md = doc.join('\n\n');
   writeFileSync(OUT, md, 'utf8');
   const counts = kinds.map((k) => `${(byKind[k] || []).length} ${k}`).join(', ');
   console.log(`✓ Wrote ${OUT}`);
   console.log(`  ${counts}`);
   console.log(`  DM content: ${INCLUDE_DM ? 'INCLUDED (spoilers)' : 'excluded'}`);
+  console.log(`  Campaign pages: ${campaignOrder.length} (${campaignOrder.join(', ') || 'none'})`);
   console.log(`  ${md.length.toLocaleString()} characters`);
 }
 
