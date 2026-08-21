@@ -5281,8 +5281,8 @@ export default function Compendium() {
                       background: hasActive ? 'rgba(201,165,92,0.08)' : 'none' }}
                     onClick={() => toggleItemGroupExpanded(label)}
                   >
-                    <ChevronDown size={10} style={{ color: '#8b6914', flexShrink: 0,
-                      transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.15s' }} />
+                    <ChevronRight size={10} style={{ color: '#8b6914', flexShrink: 0,
+                      transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }} />
                     <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em',
                       color: '#8b6914', fontWeight: 700, fontFamily: '"Cinzel", serif', flex: 1 }}>{label}</span>
                     {editMode && isAdmin && gi != null && (
