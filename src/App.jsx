@@ -1897,11 +1897,6 @@ function seedSectionsForType(type, opts = {}) {
         { id: id(), type: 'text',     heading: 'Overview',         body: '' },
         { id: id(), type: 'features', heading: 'Notable Features', features: [] },
       ];
-    case 'campaign':
-      return [
-        { id: id(), type: 'text',     heading: 'Overview',      body: '' },
-        { id: id(), type: 'features', heading: 'Key Events',    features: [] },
-      ];
     default:
       return [];
   }
@@ -4054,6 +4049,7 @@ export default function Compendium() {
   const [expandedRaces, setExpandedRaces] = useState(new Set());
   const [expandedCampaigns, setExpandedCampaigns] = useState(new Set());
   const [expandedLocations, setExpandedLocations] = useState(new Set());
+  const [expandedItemGroups, setExpandedItemGroups] = useState(new Set()); // collapsed by default
   const [expandedSections, setExpandedSections] = useState(new Set()); // collapsed by default
 
   // Force exit of edit mode on mobile resize
@@ -4066,6 +4062,15 @@ export default function Compendium() {
       const next = new Set(prev);
       if (next.has(campaign)) next.delete(campaign);
       else next.add(campaign);
+      return next;
+    });
+  };
+
+  const toggleItemGroupExpanded = (group) => {
+    setExpandedItemGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(group)) next.delete(group);
+      else next.add(group);
       return next;
     });
   };
@@ -4450,53 +4455,6 @@ export default function Compendium() {
     // Navigate to another character in the same campaign if possible, else first.
     const sameCamp = characters.find((x) => x.campaign === c.campaign);
     goTo('characters', sameCamp?.id || characters[0]?.id || null);
-  };
-
-  const createCampaign = () => {
-    const name = (window.prompt('Campaign name:') || '').trim();
-    if (!name) return;
-    if ((content.campaignOrder || []).includes(name)) {
-      window.alert(`A campaign named "${name}" already exists.`);
-      return;
-    }
-    const newOrder = [...(content.campaignOrder || []), name];
-    const newCampaigns = { ...(content.campaigns || {}), [name]: { description: '', sections: seedSectionsForType('campaign') } };
-    persistChange({ ...content, campaignOrder: newOrder, campaigns: newCampaigns });
-    goTo('characters', `campaign:${name}`);
-  };
-
-  const deleteCampaign = (name) => {
-    const charCount = (content.characters || []).filter((c) => c.campaign === name).length;
-    const warning = charCount > 0
-      ? `Delete campaign "${name}"? Its ${charCount} character(s) will become unassigned. This cannot be undone (until you discard without saving).`
-      : `Delete campaign "${name}"? This cannot be undone (until you discard without saving).`;
-    if (!window.confirm(warning)) return;
-    const newOrder = (content.campaignOrder || []).filter((c) => c !== name);
-    const newCampaigns = { ...(content.campaigns || {}) };
-    delete newCampaigns[name];
-    const newChars = (content.characters || []).map((c) =>
-      c.campaign === name ? { ...c, campaign: '' } : c
-    );
-    persistChange({ ...content, campaignOrder: newOrder, campaigns: newCampaigns, characters: newChars });
-    goTo('characters', newChars.find((c) => c.campaign === newOrder[0])?.id || newChars[0]?.id || null);
-  };
-
-  const renameCampaign = (oldName, newName) => {
-    newName = (newName || '').trim();
-    if (!newName || newName === oldName) return;
-    if ((content.campaignOrder || []).includes(newName)) {
-      window.alert(`A campaign named "${newName}" already exists.`);
-      return;
-    }
-    const newOrder = (content.campaignOrder || []).map((c) => c === oldName ? newName : c);
-    const newCampaigns = { ...(content.campaigns || {}) };
-    newCampaigns[newName] = newCampaigns[oldName];
-    delete newCampaigns[oldName];
-    const newChars = (content.characters || []).map((c) =>
-      c.campaign === oldName ? { ...c, campaign: newName } : c
-    );
-    persistChange({ ...content, campaignOrder: newOrder, campaigns: newCampaigns, characters: newChars });
-    goTo('characters', `campaign:${newName}`);
   };
 
   const createLocation = (parentId) => {
@@ -5105,10 +5063,7 @@ export default function Compendium() {
             const charsInCampaign = viewContent.characters.filter((c) => c.campaign === campaign);
             if (charsInCampaign.length === 0) return null;
             const isExpanded = expandedCampaigns.has(campaign);
-            const hasActive = section === 'characters' && (
-              activeId === `campaign:${campaign}` ||
-              charsInCampaign.some((c) => c.id === activeId)
-            );
+            const hasActive = section === 'characters' && charsInCampaign.some((c) => c.id === activeId);
             const campaignMeta = content.campaigns?.[campaign] || {};
             const campaignDeceased = campaignMeta.status === 'deceased';
 
@@ -5156,15 +5111,7 @@ export default function Compendium() {
               <div key={campaign}>
                 <div
                   style={{ ...styles.parentGroup, ...(hasActive ? styles.parentGroupActive : {}) }}
-                  onClick={() => {
-                    const isCampActive = section === 'characters' && activeId === `campaign:${campaign}`;
-                    if (isCampActive) {
-                      toggleCampaignExpanded(campaign);
-                    } else {
-                      goTo('characters', `campaign:${campaign}`);
-                      if (!expandedCampaigns.has(campaign)) toggleCampaignExpanded(campaign);
-                    }
-                  }}
+                  onClick={() => toggleCampaignExpanded(campaign)}
                 >
                   <ChevronRight
                     size={12}
@@ -5246,13 +5193,6 @@ export default function Compendium() {
                     <Plus size={11} style={{ marginRight: '4px' }} /> New Character (unassigned)
                   </div>
                 )}
-                {editMode && isStaff && (
-                  <div style={{ ...styles.subclassChild, color: '#5c1414', fontStyle: 'italic', cursor: 'pointer',
-                    borderTop: '1px solid rgba(201,165,92,0.25)', marginTop: '4px', paddingTop: '6px' }}
-                    onClick={(e) => { e.stopPropagation(); createCampaign(); }}>
-                    <Plus size={11} style={{ marginRight: '4px' }} /> New Campaign
-                  </div>
-                )}
               </>
             );
           })()}
@@ -5330,35 +5270,44 @@ export default function Compendium() {
                 </div>
               );
             };
-            const groupHeader = (label, gi) => (
-              <div style={{ padding: '4px 20px 2px 44px', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-                <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em',
-                  color: '#8b6914', fontWeight: 700, fontFamily: '"Cinzel", serif', flex: 1 }}>{label}</span>
-                {editMode && isAdmin && gi != null && (
-                  <span style={{ display: 'flex', gap: '2px' }}>
-                    <button onClick={(e) => { e.stopPropagation(); moveInOrder('itemGroupOrder', label, -1); }}
-                      disabled={gi === 0} title="Move group up"
-                      style={{ background: 'none', border: 'none', cursor: gi === 0 ? 'default' : 'pointer',
-                        color: '#8b6914', opacity: gi === 0 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▲</button>
-                    <button onClick={(e) => { e.stopPropagation(); moveInOrder('itemGroupOrder', label, 1); }}
-                      disabled={gi === groups.length - 1} title="Move group down"
-                      style={{ background: 'none', border: 'none', cursor: gi === groups.length - 1 ? 'default' : 'pointer',
-                        color: '#8b6914', opacity: gi === groups.length - 1 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▼</button>
-                  </span>
-                )}
-              </div>
-            );
+            const groupHeader = (label, gi) => {
+              const isOpen = expandedItemGroups.has(label);
+              const hasActive = section === 'items' && groupMap[label] && groupMap[label].some((it) => it.id === activeId);
+              return (
+                <div key={label}>
+                  <div
+                    style={{ padding: '4px 20px 2px 44px', display: 'flex', alignItems: 'center', gap: '4px',
+                      marginTop: '4px', cursor: 'pointer',
+                      background: hasActive ? 'rgba(201,165,92,0.08)' : 'none' }}
+                    onClick={() => toggleItemGroupExpanded(label)}
+                  >
+                    <ChevronDown size={10} style={{ color: '#8b6914', flexShrink: 0,
+                      transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.15s' }} />
+                    <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em',
+                      color: '#8b6914', fontWeight: 700, fontFamily: '"Cinzel", serif', flex: 1 }}>{label}</span>
+                    {editMode && isAdmin && gi != null && (
+                      <span style={{ display: 'flex', gap: '2px' }}>
+                        <button onClick={(e) => { e.stopPropagation(); moveInOrder('itemGroupOrder', label, -1); }}
+                          disabled={gi === 0} title="Move group up"
+                          style={{ background: 'none', border: 'none', cursor: gi === 0 ? 'default' : 'pointer',
+                            color: '#8b6914', opacity: gi === 0 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▲</button>
+                        <button onClick={(e) => { e.stopPropagation(); moveInOrder('itemGroupOrder', label, 1); }}
+                          disabled={gi === groups.length - 1} title="Move group down"
+                          style={{ background: 'none', border: 'none', cursor: gi === groups.length - 1 ? 'default' : 'pointer',
+                            color: '#8b6914', opacity: gi === groups.length - 1 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▼</button>
+                      </span>
+                    )}
+                  </div>
+                  {isOpen && groupMap[label] && groupMap[label].map(renderItem)}
+                </div>
+              );
+            };
             return (
               <>
-                {groups.map((g, gi) => (
-                  <div key={g}>
-                    {groupHeader(g, gi)}
-                    {groupMap[g].map(renderItem)}
-                  </div>
-                ))}
+                {groups.map((g, gi) => groupHeader(g, gi))}
                 {ungrouped.length > 0 && (
                   <>
-                    {groups.length > 0 && groupHeader('Ungrouped', null)}
+                    {groups.length > 0 && <div style={{ padding: '4px 20px 2px 44px', marginTop: '4px' }}><span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8b6914', fontWeight: 700, fontFamily: '"Cinzel", serif' }}>Ungrouped</span></div>}
                     {ungrouped.map(renderItem)}
                   </>
                 )}
@@ -5464,20 +5413,7 @@ export default function Compendium() {
             ) : section === 'subclasses' ? (
               <SubclassesPage content={content} activeId={aid} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} />
             ) : section === 'characters' ? (
-              aid && aid.startsWith('campaign:') ? (
-                <CampaignDetailPage
-                  content={content}
-                  campaignName={aid.slice('campaign:'.length)}
-                  editMode={editMode && isStaff}
-                  persistChange={persistChange}
-                  goTo={goTo}
-                  isDM={showingDM}
-                  onDelete={deleteCampaign}
-                  onRename={renameCampaign}
-                />
-              ) : (
-                <CharactersPage content={content} activeId={aid} viewContent={viewContent} editMode={editMode} canEditEntry={canEditEntry} persistChange={persistChange} goTo={goTo} isDM={showingDM} isStaff={isStaff} onCopyToCampaign={copyCharacterToCampaign} onDelete={deleteCharacter} />
-              )
+              <CharactersPage content={content} activeId={aid} viewContent={viewContent} editMode={editMode} canEditEntry={canEditEntry} persistChange={persistChange} goTo={goTo} isDM={showingDM} isStaff={isStaff} onCopyToCampaign={copyCharacterToCampaign} onDelete={deleteCharacter} />
             ) : section === 'items' ? (
               <ItemsPage content={content} activeId={aid} viewContent={viewContent} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} onDelete={deleteItem} />
             ) : section === 'magic' ? (
@@ -5624,14 +5560,14 @@ function Header({ content, editMode, dirty, onEditToggle, onSave, onDiscard, onM
               filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.4))',
             }}
           />
-          <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
             <h1 style={{
               ...styles.title,
-              fontSize: isMobile ? '15px' : styles.title.fontSize,
+              fontSize: isMobile ? '20px' : styles.title.fontSize,
               lineHeight: 1.1,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
+              ...(isMobile
+                ? { whiteSpace: 'normal', wordBreak: 'break-word' }
+                : { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }),
             }}>
               {content.meta.title}
             </h1>
@@ -6226,149 +6162,6 @@ function SubclassesPage({ content, activeId, editMode, persistChange, goTo, isDM
   );
 }
 
-function CampaignDetailPage({ content, campaignName, editMode, persistChange, goTo, isDM, onDelete, onRename }) {
-  const meta = (content.campaigns || {})[campaignName] || {};
-  const allChars = (content.characters || []).filter((c) => c.campaign === campaignName);
-  // Respect DM visibility — only show dmOnly chars to staff with Reveal on
-  const chars = allChars.filter((c) => isDM || !c.dmOnly);
-  const players = chars.filter((c) => c.role === 'player');
-  const connected = chars.filter((c) => c.role === 'connected');
-  const enemies = chars.filter((c) => c.role === 'enemy');
-
-  const updateMeta = (fields) => {
-    const newCampaigns = { ...(content.campaigns || {}), [campaignName]: { ...meta, ...fields } };
-    persistChange({ ...content, campaigns: newCampaigns });
-  };
-
-  const [renaming, setRenaming] = React.useState(false);
-  const [renameVal, setRenameVal] = React.useState(campaignName);
-
-  const STATUS_OPTIONS = ['', 'active', 'completed', 'deceased', 'hiatus'];
-
-  return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-        <div style={{ flex: 1 }}>
-          {renaming ? (
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
-              <input
-                value={renameVal}
-                onChange={(e) => setRenameVal(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') { onRename(campaignName, renameVal); setRenaming(false); }
-                  if (e.key === 'Escape') { setRenameVal(campaignName); setRenaming(false); }
-                }}
-                autoFocus
-                style={{ fontFamily: '"Cinzel", serif', fontSize: '22px', color: '#3b2615',
-                  background: 'transparent', border: 'none', borderBottom: '2px solid #c9a55c',
-                  outline: 'none', flex: 1, padding: '2px 4px' }}
-              />
-              <button onClick={() => { onRename(campaignName, renameVal); setRenaming(false); }}
-                style={{ background: '#5c1414', color: '#f5ecd9', border: 'none', borderRadius: '3px',
-                  padding: '5px 12px', cursor: 'pointer', fontFamily: '"Cinzel", serif', fontSize: '12px' }}>Save</button>
-              <button onClick={() => { setRenameVal(campaignName); setRenaming(false); }}
-                style={{ background: 'none', border: '1px solid #c9a55c', borderRadius: '3px',
-                  padding: '5px 10px', cursor: 'pointer', fontFamily: '"Cinzel", serif', fontSize: '12px', color: '#5c4020' }}>Cancel</button>
-            </div>
-          ) : (
-            <h1 style={{ fontFamily: '"Cinzel Decorative", serif', fontSize: '26px', color: '#3b2615',
-              fontWeight: 700, margin: '0 0 4px', lineHeight: 1.2 }}>
-              {campaignName}
-              {editMode && (
-                <button onClick={() => setRenaming(true)} title="Rename campaign"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', marginLeft: '10px',
-                    color: '#8b6914', verticalAlign: 'middle', padding: '2px 4px' }}>
-                  <Edit3 size={14} />
-                </button>
-              )}
-            </h1>
-          )}
-        </div>
-        {editMode && (
-          <button onClick={() => onDelete(campaignName)}
-            style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '3px',
-              padding: '7px 12px', cursor: 'pointer', fontFamily: '"Cinzel", serif', fontSize: '12px',
-              whiteSpace: 'nowrap', flexShrink: 0, marginTop: '4px' }}>
-            <Trash2 size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />Delete Campaign
-          </button>
-        )}
-      </div>
-
-      {/* Status */}
-      {editMode ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-          <span style={{ fontSize: '11px', color: '#8b6914', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Status</span>
-          <select value={meta.status || ''} onChange={(e) => updateMeta({ status: e.target.value })}
-            style={{ fontFamily: '"Cinzel", serif', fontSize: '12px', padding: '4px 8px',
-              border: '1px solid #c9a55c', borderRadius: '3px', background: '#faf6ed', color: '#3b2615' }}>
-            {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s || '\u2014 no status \u2014'}</option>)}
-          </select>
-        </div>
-      ) : meta.status ? (
-        <div style={{ marginBottom: '10px' }}>
-          <span style={{ fontSize: '11px',
-            background: meta.status === 'deceased' ? '#3b2615' : 'rgba(92,20,20,0.12)',
-            color: meta.status === 'deceased' ? '#e8d5a0' : '#5c1414',
-            padding: '2px 10px', borderRadius: '8px', fontFamily: '"Cinzel", serif',
-            textTransform: 'capitalize', border: '1px solid rgba(92,20,20,0.2)' }}>{meta.status}</span>
-        </div>
-      ) : null}
-
-      {/* Character roster — respects DM visibility */}
-      {chars.length > 0 && (
-        <div style={{ marginBottom: '18px' }}>
-          <h2 style={{ fontFamily: '"Cinzel", serif', fontSize: '13px', color: '#5c1414',
-            textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1px solid rgba(201,165,92,0.4)',
-            paddingBottom: '6px', marginBottom: '10px' }}>
-            Characters ({chars.length})
-          </h2>
-          {[['Player Characters', players], ['Connected Characters', connected], ['Enemies', enemies]].map(([label, group]) =>
-            group.length === 0 ? null : (
-              <div key={label} style={{ marginBottom: '10px' }}>
-                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em',
-                  color: '#8b6914', fontFamily: '"Cinzel", serif', marginBottom: '4px' }}>{label}</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {group.map((c) => (
-                    <span key={c.id} onClick={() => goTo('characters', c.id)}
-                      style={{ fontSize: '13px', background: 'rgba(201,165,92,0.12)', color: '#5c1414',
-                        padding: '3px 12px', borderRadius: '8px', border: '1px solid rgba(201,165,92,0.35)',
-                        cursor: 'pointer', fontFamily: '"Cinzel", serif',
-                        textDecoration: c.status === 'deceased' ? 'line-through' : 'none',
-                        opacity: c.status === 'deceased' ? 0.65 : 1 }}>
-                      {c.name}
-                      {c.dmOnly && <Lock size={10} style={{ marginLeft: '4px', verticalAlign: 'middle', color: '#7a1f1f' }} />}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )
-          )}
-        </div>
-      )}
-      {chars.length === 0 && !editMode && (
-        <p style={{ fontFamily: 'Georgia, serif', fontSize: '14px', color: '#8b6914', fontStyle: 'italic', marginBottom: '16px' }}>
-          No characters in this campaign yet.
-        </p>
-      )}
-
-      {/* Full Sections editor */}
-      <Sections
-        sections={meta.sections || []}
-        editMode={editMode}
-        onChange={(s) => updateMeta({ sections: s })}
-        headingStyle={{ fontFamily: '"Cinzel", serif', fontSize: '14px', color: '#5c1414',
-          textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1px solid rgba(201,165,92,0.4)',
-          paddingBottom: '6px', margin: '18px 0 10px' }}
-        category="characters"
-        entryId={`campaign:${campaignName}`}
-        content={content}
-        goTo={goTo}
-        isDM={isDM}
-      />
-    </div>
-  );
-}
-
 function CharactersPage({ content, activeId, viewContent, editMode, canEditEntry, persistChange, goTo, isDM, isStaff, onCopyToCampaign, onDelete }) {
   const list = (viewContent || content).characters;
   const ch = list.find((c) => c.id === activeId) || content.characters.find((c) => c.id === activeId) || list[0];
@@ -6745,65 +6538,33 @@ function SpellLibrary({ content, lib, activeId, editMode, persistChange, isStaff
                     </span>
                   </div>
                   {isOpen && (
-                    <div style={{ borderTop: '1px solid rgba(201,165,92,0.35)' }}>
-                      {/* Meta bar — casting stats in a 2×2 grid */}
-                      <div style={{
-                        display: 'grid', gridTemplateColumns: '1fr 1fr',
-                        gap: '0', background: 'rgba(201,165,92,0.1)',
-                        borderBottom: '1px solid rgba(201,165,92,0.3)',
-                      }}>
-                        {[
-                          ['Casting Time', `${s.castingTime || cap(s.actionType || 'Action')}${s.castingTrigger ? ` (${s.castingTrigger})` : ''}`],
-                          ['Range', s.range || '—'],
-                          ['Components', `${compLabel(s.components)}${s.material ? ` (${s.material})` : ''}`],
-                          ['Duration', s.duration || '—'],
-                        ].map(([label, value], i) => (
-                          <div key={label} style={{
-                            padding: '8px 14px',
-                            borderRight: i % 2 === 0 ? '1px solid rgba(201,165,92,0.25)' : 'none',
-                            borderBottom: i < 2 ? '1px solid rgba(201,165,92,0.25)' : 'none',
-                          }}>
-                            <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8b6914', fontFamily: '"Cinzel", serif', marginBottom: '2px' }}>{label}</div>
-                            <div style={{ fontSize: '13px', color: '#3b2615', fontWeight: 500 }}>{value}</div>
-                          </div>
-                        ))}
+                    <div style={{ padding: '0 14px 14px 40px' }}>
+                      <div style={{ fontSize: '13px', color: '#5c4020', marginBottom: '8px', lineHeight: 1.5 }}>
+                        <strong>Casting Time:</strong> {s.castingTime || cap(s.actionType || 'Action')}{s.castingTrigger ? ` (${s.castingTrigger})` : ''}<br />
+                        <strong>Range:</strong> {s.range}<br />
+                        <strong>Components:</strong> {compLabel(s.components)}{s.material ? ` (${s.material})` : ''}<br />
+                        <strong>Duration:</strong> {s.duration}<br />
+                        <strong>Classes:</strong> {(s.classes || []).map(cap).join(', ') || '—'}
                       </div>
-                      {/* Classes pill row */}
-                      <div style={{ padding: '6px 14px', borderBottom: '1px solid rgba(201,165,92,0.2)', display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }}>
-                        <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8b6914', fontFamily: '"Cinzel", serif', marginRight: '4px' }}>Classes</span>
-                        {(s.classes || []).length > 0
-                          ? (s.classes).map(cap).map((c) => (
-                              <span key={c} style={{ fontSize: '11px', background: 'rgba(91,20,20,0.12)', color: '#5c1414', padding: '1px 8px', borderRadius: '8px', border: '1px solid rgba(91,20,20,0.2)' }}>{c}</span>
-                            ))
-                          : <span style={{ fontSize: '12px', color: '#8b6914' }}>—</span>
-                        }
-                      </div>
-                      {/* Description body */}
-                      <div style={{ padding: '12px 14px 14px' }}>
-                        <p style={{ ...styles.bodyText, whiteSpace: 'pre-wrap', margin: '0 0 8px' }}>{s.description}</p>
-                        {s.higherLevelSlot && (
-                          <div style={{ marginTop: '10px', padding: '8px 12px', background: 'rgba(201,165,92,0.1)', borderLeft: '3px solid #c9a55c', borderRadius: '0 3px 3px 0' }}>
-                            <p style={{ ...styles.bodyText, margin: 0 }}><strong>At Higher Levels.</strong> {s.higherLevelSlot}</p>
-                          </div>
-                        )}
-                        {s.cantripUpgrade && (
-                          <div style={{ marginTop: '10px', padding: '8px 12px', background: 'rgba(201,165,92,0.1)', borderLeft: '3px solid #c9a55c', borderRadius: '0 3px 3px 0' }}>
-                            <p style={{ ...styles.bodyText, margin: 0 }}><strong>Cantrip Upgrade.</strong> {s.cantripUpgrade}</p>
-                          </div>
-                        )}
-                        {editMode && (
-                          <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
-                            <button onClick={() => setEditing(s.id)}
-                              style={{ ...styles.button, fontSize: '11px', padding: '3px 10px' }}>Edit</button>
-                            <button onClick={() => removeSpell(s.id)}
-                              style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px',
-                                padding: '3px 10px', cursor: 'pointer', fontSize: '11px' }}>Delete</button>
-                          </div>
-                        )}
-                        {editing === s.id && (
-                          <SpellEditor spell={s} maxLevel={maxLevel} onSave={upsertSpell} onCancel={() => setEditing(null)} />
-                        )}
-                      </div>
+                      <p style={{ ...styles.bodyText, whiteSpace: 'pre-wrap', margin: '0 0 8px' }}>{s.description}</p>
+                      {s.higherLevelSlot && (
+                        <p style={{ ...styles.bodyText, margin: '0 0 8px' }}><strong>At Higher Levels.</strong> {s.higherLevelSlot}</p>
+                      )}
+                      {s.cantripUpgrade && (
+                        <p style={{ ...styles.bodyText, margin: '0 0 8px' }}><strong>Cantrip Upgrade.</strong> {s.cantripUpgrade}</p>
+                      )}
+                      {editMode && (
+                        <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                          <button onClick={() => setEditing(s.id)}
+                            style={{ ...styles.button, fontSize: '11px', padding: '3px 10px' }}>Edit</button>
+                          <button onClick={() => removeSpell(s.id)}
+                            style={{ background: '#8b1414', color: '#f5ecd9', border: 'none', borderRadius: '2px',
+                              padding: '3px 10px', cursor: 'pointer', fontSize: '11px' }}>Delete</button>
+                        </div>
+                      )}
+                      {editing === s.id && (
+                        <SpellEditor spell={s} maxLevel={maxLevel} onSave={upsertSpell} onCancel={() => setEditing(null)} />
+                      )}
                     </div>
                   )}
                 </div>
