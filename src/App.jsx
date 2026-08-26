@@ -5294,16 +5294,51 @@ export default function Compendium() {
             const allItems = viewContent.items || [];
             const byName = (a, b) => (a.name || '').localeCompare(b.name || '');
 
-            // Derive filter options from data
+            // Semantic type tags — map a unified label to a predicate across category + subgroup
+            const TYPE_OPTIONS = [
+              { value: 'all',         label: 'All Types' },
+              { value: 'weapon',      label: 'Weapon' },
+              { value: 'armor',       label: 'Armor' },
+              { value: 'ring',        label: 'Ring' },
+              { value: 'staff',       label: 'Staff' },
+              { value: 'wand',        label: 'Wand' },
+              { value: 'rod',         label: 'Rod' },
+              { value: 'potion',      label: 'Potion' },
+              { value: 'scroll',      label: 'Scroll' },
+              { value: 'wondrous',    label: 'Wondrous Item' },
+              { value: 'gear',        label: 'Adventuring Gear' },
+              { value: 'tool',        label: 'Tool' },
+              { value: 'vehicle',     label: 'Mount / Vehicle' },
+            ];
+            const matchesType = (it, tval) => {
+              if (tval === 'all') return true;
+              const cat = it.category || '';
+              const sub = (it.subgroup || '').toLowerCase();
+              switch (tval) {
+                case 'weapon':   return cat === 'weapon'  || (cat === 'magic' && sub === 'weapon');
+                case 'armor':    return cat === 'armor'   || (cat === 'magic' && sub === 'armor');
+                case 'ring':     return cat === 'magic'   && sub === 'ring';
+                case 'staff':    return cat === 'magic'   && sub === 'staff';
+                case 'wand':     return cat === 'magic'   && sub === 'wand';
+                case 'rod':      return cat === 'magic'   && sub === 'rod';
+                case 'potion':   return cat === 'magic'   && sub === 'potion';
+                case 'scroll':   return cat === 'magic'   && sub === 'scroll';
+                case 'wondrous': return cat === 'magic'   && sub === 'wondrous item';
+                case 'gear':     return cat === 'gear';
+                case 'tool':     return cat === 'tool';
+                case 'vehicle':  return cat === 'vehicle';
+                default:         return true;
+              }
+            };
+
             const rarities = ['all', ...Array.from(new Set(allItems.filter(i=>i.rarity).map(i=>i.rarity))).sort()];
-            const types    = ['all', ...Array.from(new Set(allItems.filter(i=>i.category).map(i=>i.category))).sort()];
             const { rarity: fRarity, type: fType, attunement: fAttune } = itemFilters;
             const activeFilter = fRarity !== 'all' || fType !== 'all' || fAttune !== 'all';
 
             // Apply filters
             const items = allItems.filter((it) => {
               if (fRarity !== 'all' && it.rarity !== fRarity) return false;
-              if (fType !== 'all' && it.category !== fType) return false;
+              if (!matchesType(it, fType)) return false;
               if (fAttune === 'yes' && !it.requiresAttunement) return false;
               if (fAttune === 'no'  &&  it.requiresAttunement) return false;
               return true;
@@ -5397,8 +5432,7 @@ export default function Compendium() {
                   </div>
                   <div style={{ display: 'flex', gap: '4px' }}>
                     <select value={fType} onChange={e => setItemFilters(f => ({...f, type: e.target.value}))} style={selStyle}>
-                      <option value="all">All Types</option>
-                      {types.filter(t=>t!=='all').map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
+                      {TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                     <select value={fAttune} onChange={e => setItemFilters(f => ({...f, attunement: e.target.value}))} style={{...selStyle, flex:'0 0 auto', width:'auto'}}>
                       <option value="all">Any</option>
