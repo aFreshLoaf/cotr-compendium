@@ -38,3 +38,5 @@ WD_*.txt
 #   classes-data-blanks.mjs    — reusable blank-class template
 #   classes-data.mjs           — base-class definitions (generic 5.5e scaffolding)
 srd-items.json
+import-feats.mjs
+cleanup-items.mjs

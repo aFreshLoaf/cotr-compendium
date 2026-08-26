@@ -6433,7 +6433,7 @@ function ItemsPage({ content, activeId, viewContent, editMode, persistChange, go
     return (
       <div>
         <h1 style={styles.pageHeading}>Items</h1>
-        <p style={styles.bodyText}>No items yet.{editMode ? ' Use “+ New Item” in the sidebar to create one.' : ''}</p>
+        <p style={styles.bodyText}>No items yet.{editMode ? ' Use "+ New Item" in the sidebar to create one.' : ''}</p>
       </div>
     );
   }
@@ -6441,6 +6441,47 @@ function ItemsPage({ content, activeId, viewContent, editMode, persistChange, go
     persistChange({ ...content, items: items.map((x) => x.id === item.id ? { ...x, ...fields } : x) });
   };
   const knownGroups = Array.from(new Set(items.map((x) => (x.group || '').trim()).filter(Boolean)));
+
+  const RARITY_COLORS = {
+    'Common':    { bg: 'rgba(100,100,100,0.12)', color: '#404040' },
+    'Uncommon':  { bg: 'rgba(30,120,30,0.12)',   color: '#1a5c1a' },
+    'Rare':      { bg: 'rgba(20,60,160,0.12)',   color: '#1a3a8c' },
+    'Very Rare': { bg: 'rgba(100,20,160,0.12)',  color: '#5c1a8c' },
+    'Legendary': { bg: 'rgba(180,120,0,0.15)',   color: '#7a5000' },
+    'Artifact':  { bg: 'rgba(160,20,20,0.15)',   color: '#7a0000' },
+    'Varies':    { bg: 'rgba(80,80,80,0.1)',      color: '#404040' },
+  };
+  const pillStyle = (bg, color) => ({
+    ...styles.pill, background: bg, color, border: `1px solid ${color}44`,
+    fontFamily: '"Cinzel", serif', fontSize: '11px', padding: '2px 10px',
+  });
+  const metaTags = [];
+  if (item.category === 'magic') {
+    const rc = RARITY_COLORS[item.rarity] || RARITY_COLORS['Common'];
+    if (item.rarity) metaTags.push({ label: item.rarity, ...rc });
+    if (item.subgroup && item.subgroup !== 'Wondrous Item') metaTags.push({ label: item.subgroup, bg: 'rgba(92,20,20,0.1)', color: '#5c1414' });
+    if (item.requiresAttunement) metaTags.push({ label: 'Requires Attunement', bg: 'rgba(139,105,20,0.1)', color: '#5c4020' });
+  } else if (item.category === 'weapon') {
+    const wcat = item.weaponCategory; const wtype = item.weaponType;
+    if (wcat && wtype) metaTags.push({ label: `${wcat.charAt(0).toUpperCase()+wcat.slice(1)} ${wtype.charAt(0).toUpperCase()+wtype.slice(1)}`, bg: 'rgba(92,20,20,0.1)', color: '#5c1414' });
+    if (item.damage) metaTags.push({ label: item.damage, bg: 'rgba(20,20,92,0.1)', color: '#14145c' });
+    if (item.mastery) metaTags.push({ label: `Mastery: ${item.mastery}`, bg: 'rgba(20,80,20,0.1)', color: '#143214' });
+  } else if (item.category === 'armor') {
+    if (item.armorCategory) metaTags.push({ label: `${item.armorCategory} Armor`, bg: 'rgba(92,20,20,0.1)', color: '#5c1414' });
+    if (item.armorClass) metaTags.push({ label: `AC: ${item.armorClass}`, bg: 'rgba(20,20,92,0.1)', color: '#14145c' });
+    if (item.stealthDisadvantage) metaTags.push({ label: 'Stealth Disadvantage', bg: 'rgba(139,60,20,0.1)', color: '#5c2a0a' });
+    if (item.strengthReq) metaTags.push({ label: `Str ${item.strengthReq}`, bg: 'rgba(80,50,20,0.1)', color: '#402810' });
+  } else if (item.category === 'tool') {
+    if (item.ability) metaTags.push({ label: item.ability, bg: 'rgba(20,80,20,0.1)', color: '#143214' });
+    if (item.subgroup) metaTags.push({ label: item.subgroup, bg: 'rgba(92,20,20,0.1)', color: '#5c1414' });
+  } else if (item.category === 'vehicle') {
+    if (item.subgroup) metaTags.push({ label: item.subgroup, bg: 'rgba(20,50,80,0.1)', color: '#0a2840' });
+  } else if (item.category === 'gear') {
+    if (item.subgroup && item.subgroup !== 'Adventuring Gear') metaTags.push({ label: item.subgroup, bg: 'rgba(92,20,20,0.1)', color: '#5c1414' });
+  }
+  if (item.cost && item.cost !== '—') metaTags.push({ label: item.cost, bg: 'rgba(139,105,20,0.1)', color: '#5c4020' });
+  if (item.weight && item.weight !== '—' && item.weight !== '—') metaTags.push({ label: item.weight, bg: 'rgba(80,80,80,0.08)', color: '#404040' });
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
@@ -6457,10 +6498,15 @@ function ItemsPage({ content, activeId, viewContent, editMode, persistChange, go
           </button>
         )}
       </div>
-
       {editMode && <DmOnlyBar entry={item} update={updateItem} />}
-
-      {editMode ? (
+      {!editMode && metaTags.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px', marginBottom: '12px' }}>
+          {metaTags.map(({ label, bg, color }, idx) => (
+            <span key={idx} style={pillStyle(bg, color)}>{label}</span>
+          ))}
+        </div>
+      )}
+      {editMode && (
         <div style={{ ...styles.card, marginTop: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ fontSize: '11px', color: '#8b6914', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Group</span>
           <input value={item.group || ''} placeholder="Optional — e.g. Weapons, Artifacts…"
@@ -6471,12 +6517,7 @@ function ItemsPage({ content, activeId, viewContent, editMode, persistChange, go
             {knownGroups.map((g) => <option key={g} value={g} />)}
           </datalist>
         </div>
-      ) : item.group ? (
-        <div style={{ marginTop: '4px', marginBottom: '8px' }}>
-          <span style={styles.pill}>{item.group}</span>
-        </div>
-      ) : null}
-
+      )}
       <Sections
         sections={item.sections || []}
         editMode={editMode}
@@ -6491,6 +6532,7 @@ function ItemsPage({ content, activeId, viewContent, editMode, persistChange, go
     </div>
   );
 }
+
 
 // Spell library browser. Renders the single spell-library `magic` entry as a
 // level-grouped, filterable list. Level comes from the sidebar (activeId: 'all'
