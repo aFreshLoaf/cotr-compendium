@@ -48,9 +48,11 @@ function canAuthorHidden(viewer, pageOwnerCharId) {
 // ============================================================
 const DEFAULT_CONTENT = {
   items: [],
+  feats: [],
   locations: [],
   magic: [],
   itemGroupOrder: [],
+  featGroupOrder: [],
   magicGroupOrder: [],
   meta: {
     title: "Chronicles of the Realms",
@@ -4049,7 +4051,6 @@ export default function Compendium() {
   const [expandedRaces, setExpandedRaces] = useState(new Set());
   const [expandedCampaigns, setExpandedCampaigns] = useState(new Set());
   const [expandedLocations, setExpandedLocations] = useState(new Set());
-  const [expandedItemGroups, setExpandedItemGroups] = useState(new Set()); // collapsed by default
   const [expandedSections, setExpandedSections] = useState(new Set()); // collapsed by default
 
   // Force exit of edit mode on mobile resize
@@ -4062,15 +4063,6 @@ export default function Compendium() {
       const next = new Set(prev);
       if (next.has(campaign)) next.delete(campaign);
       else next.add(campaign);
-      return next;
-    });
-  };
-
-  const toggleItemGroupExpanded = (group) => {
-    setExpandedItemGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(group)) next.delete(group);
-      else next.add(group);
       return next;
     });
   };
@@ -4137,6 +4129,7 @@ export default function Compendium() {
       ...content,
       characters: stripDmOnly(content.characters),
       items: stripDmOnly(content.items),
+      feats: stripDmOnly(content.feats),
       magic: stripDmOnly(content.magic),
       locations: stripDmOnly(content.locations),
     };
@@ -4685,6 +4678,7 @@ export default function Compendium() {
     content.subclasses.forEach((s) => scan(s, 'Subclass', 'subclasses', s.parentClass));
     content.characters.forEach((ch) => { if (okDm(ch)) scan(ch, 'Character', 'characters', ch.campaign); });
     (content.items || []).forEach((it) => { if (okDm(it)) scan(it, 'Item', 'items', it.group || null); });
+    (content.feats || []).forEach((ft) => { if (okDm(ft)) scan(ft, 'Feat', 'feats', ft.subgroup || null); });
     (content.magic || []).forEach((m) => { if (okDm(m)) scan(m, 'Magic', 'magic', m.group || null); });
     (content.locations || []).forEach((loc) => {
       if (!okDm(loc)) return;
@@ -4715,7 +4709,7 @@ export default function Compendium() {
         next.add('classes-and-subclasses');
         return next;
       });
-    } else if (['races', 'characters', 'items', 'locations', 'magic'].includes(sect)) {
+    } else if (['races', 'characters', 'items', 'feats', 'locations', 'magic'].includes(sect)) {
       setExpandedSections((prev) => {
         const next = new Set(prev);
         next.add(sect);
@@ -5236,6 +5230,50 @@ export default function Compendium() {
             );
           })()}
 
+          {/* FEATS — grouped by category */}
+          <SectionToggle
+            label="Feats"
+            expanded={expandedSections.has('feats')}
+            onClick={() => toggleSectionExpanded('feats')}
+          />
+          {expandedSections.has('feats') && (() => {
+            const feats = viewContent.feats || [];
+            const byName = (a, b) => (a.name || '').localeCompare(b.name || '');
+            const groupMap = {};
+            feats.forEach((ft) => {
+              const g = (ft.subgroup || ft.featCategory && ft.featCategory + ' Feats' || 'General Feats').trim();
+              if (!groupMap[g]) groupMap[g] = [];
+              groupMap[g].push(ft);
+            });
+            const FEAT_ORDER = ['Origin Feats','General Feats','Fighting Style Feats','Epic Boon Feats'];
+            const ordered = [...FEAT_ORDER.filter(g => groupMap[g]),
+              ...Object.keys(groupMap).filter(g => !FEAT_ORDER.includes(g)).sort()];
+            Object.keys(groupMap).forEach(g => groupMap[g].sort(byName));
+            return (
+              <>
+                {ordered.map((g) => (
+                  <div key={g}>
+                    <div style={{ padding: '4px 20px 2px 44px', marginTop: '4px' }}>
+                      <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em',
+                        color: '#8b6914', fontWeight: 700, fontFamily: '"Cinzel", serif' }}>{g}</span>
+                    </div>
+                    {(groupMap[g] || []).map((ft) => {
+                      const isActive = section === 'feats' && activeId === ft.id;
+                      return (
+                        <div key={ft.id}
+                          style={{ ...styles.subclassChild, ...(isActive ? styles.subclassChildActive : {}) }}
+                          onClick={() => goTo('feats', ft.id)}
+                        >
+                          <span>{ft.name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </>
+            );
+          })()}
+
           {/* ITEMS — flat list with optional freeform groups */}
           <SectionToggle
             label="Items"
@@ -5270,44 +5308,35 @@ export default function Compendium() {
                 </div>
               );
             };
-            const groupHeader = (label, gi) => {
-              const isOpen = expandedItemGroups.has(label);
-              const hasActive = section === 'items' && groupMap[label] && groupMap[label].some((it) => it.id === activeId);
-              return (
-                <div key={label}>
-                  <div
-                    style={{ padding: '4px 20px 2px 44px', display: 'flex', alignItems: 'center', gap: '4px',
-                      marginTop: '4px', cursor: 'pointer',
-                      background: hasActive ? 'rgba(201,165,92,0.08)' : 'none' }}
-                    onClick={() => toggleItemGroupExpanded(label)}
-                  >
-                    <ChevronRight size={10} style={{ color: '#8b6914', flexShrink: 0,
-                      transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }} />
-                    <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em',
-                      color: '#8b6914', fontWeight: 700, fontFamily: '"Cinzel", serif', flex: 1 }}>{label}</span>
-                    {editMode && isAdmin && gi != null && (
-                      <span style={{ display: 'flex', gap: '2px' }}>
-                        <button onClick={(e) => { e.stopPropagation(); moveInOrder('itemGroupOrder', label, -1); }}
-                          disabled={gi === 0} title="Move group up"
-                          style={{ background: 'none', border: 'none', cursor: gi === 0 ? 'default' : 'pointer',
-                            color: '#8b6914', opacity: gi === 0 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▲</button>
-                        <button onClick={(e) => { e.stopPropagation(); moveInOrder('itemGroupOrder', label, 1); }}
-                          disabled={gi === groups.length - 1} title="Move group down"
-                          style={{ background: 'none', border: 'none', cursor: gi === groups.length - 1 ? 'default' : 'pointer',
-                            color: '#8b6914', opacity: gi === groups.length - 1 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▼</button>
-                      </span>
-                    )}
-                  </div>
-                  {isOpen && groupMap[label] && groupMap[label].map(renderItem)}
-                </div>
-              );
-            };
+            const groupHeader = (label, gi) => (
+              <div style={{ padding: '4px 20px 2px 44px', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em',
+                  color: '#8b6914', fontWeight: 700, fontFamily: '"Cinzel", serif', flex: 1 }}>{label}</span>
+                {editMode && isAdmin && gi != null && (
+                  <span style={{ display: 'flex', gap: '2px' }}>
+                    <button onClick={(e) => { e.stopPropagation(); moveInOrder('itemGroupOrder', label, -1); }}
+                      disabled={gi === 0} title="Move group up"
+                      style={{ background: 'none', border: 'none', cursor: gi === 0 ? 'default' : 'pointer',
+                        color: '#8b6914', opacity: gi === 0 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▲</button>
+                    <button onClick={(e) => { e.stopPropagation(); moveInOrder('itemGroupOrder', label, 1); }}
+                      disabled={gi === groups.length - 1} title="Move group down"
+                      style={{ background: 'none', border: 'none', cursor: gi === groups.length - 1 ? 'default' : 'pointer',
+                        color: '#8b6914', opacity: gi === groups.length - 1 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▼</button>
+                  </span>
+                )}
+              </div>
+            );
             return (
               <>
-                {groups.map((g, gi) => groupHeader(g, gi))}
+                {groups.map((g, gi) => (
+                  <div key={g}>
+                    {groupHeader(g, gi)}
+                    {groupMap[g].map(renderItem)}
+                  </div>
+                ))}
                 {ungrouped.length > 0 && (
                   <>
-                    {groups.length > 0 && <div style={{ padding: '4px 20px 2px 44px', marginTop: '4px' }}><span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8b6914', fontWeight: 700, fontFamily: '"Cinzel", serif' }}>Ungrouped</span></div>}
+                    {groups.length > 0 && groupHeader('Ungrouped', null)}
                     {ungrouped.map(renderItem)}
                   </>
                 )}
@@ -5394,7 +5423,7 @@ export default function Compendium() {
             {(() => {
               // If the active entry is a hidden DM-only entry (Reveal off), don't
               // resolve to it — let the page fall back to its first visible entry.
-              const hiddenActive = !showingDM && activeId && ['characters', 'items', 'magic', 'locations'].includes(section)
+              const hiddenActive = !showingDM && activeId && ['characters', 'items', 'feats', 'magic', 'locations'].includes(section)
                 && (content[section] || []).some((e) => e.id === activeId && e.dmOnly);
               const aid = hiddenActive ? null : activeId;
               return (
@@ -5414,6 +5443,8 @@ export default function Compendium() {
               <SubclassesPage content={content} activeId={aid} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} />
             ) : section === 'characters' ? (
               <CharactersPage content={content} activeId={aid} viewContent={viewContent} editMode={editMode} canEditEntry={canEditEntry} persistChange={persistChange} goTo={goTo} isDM={showingDM} isStaff={isStaff} onCopyToCampaign={copyCharacterToCampaign} onDelete={deleteCharacter} />
+            ) : section === 'feats' ? (
+              <FeatsPage content={content} activeId={aid} viewContent={viewContent} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} />
             ) : section === 'items' ? (
               <ItemsPage content={content} activeId={aid} viewContent={viewContent} editMode={editMode && isStaff} persistChange={persistChange} goTo={goTo} isDM={showingDM} onDelete={deleteItem} />
             ) : section === 'magic' ? (
@@ -6334,6 +6365,62 @@ function DmOnlyBar({ entry, update }) {
           onChange={(e) => update({ dmOnly: e.target.checked })} />
         <Lock size={13} /> DM-Only Page {entry.dmOnly ? '(hidden from players)' : ''}
       </label>
+    </div>
+  );
+}
+
+function FeatsPage({ content, activeId, viewContent, editMode, persistChange, goTo, isDM }) {
+  const feats = content.feats || [];
+  const visible = (viewContent || content).feats || [];
+  const feat = visible.find((x) => x.id === activeId) || feats.find((x) => x.id === activeId) || visible[0];
+  if (!feat) {
+    return (
+      <div>
+        <h1 style={styles.pageHeading}>Feats</h1>
+        <p style={styles.bodyText}>No feats yet. Import them using import-feats.mjs.</p>
+      </div>
+    );
+  }
+  const FEAT_CAT_COLORS = {'Origin':'#5c1414','General':'#1a3a5c','Fighting Style':'#1a4a2a','Epic Boon':'#3a1a5c'};
+  const catColor = FEAT_CAT_COLORS[feat.featCategory] || '#5c1414';
+  return (
+    <div>
+      <h1 style={styles.pageHeading}>{feat.name}</h1>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
+        {feat.subgroup && (
+          <span style={{ ...styles.pill, background: catColor + '22', color: catColor,
+            border: `1px solid ${catColor}44` }}>{feat.subgroup}</span>
+        )}
+        {feat.prerequisite && (
+          <span style={{ ...styles.pill, background: 'rgba(139,105,20,0.12)', color: '#5c4020',
+            border: '1px solid rgba(139,105,20,0.3)' }}>
+            Prerequisite: {feat.prerequisite}
+          </span>
+        )}
+        {feat.repeatable && (
+          <span style={{ ...styles.pill, background: 'rgba(20,80,20,0.12)', color: '#143214',
+            border: '1px solid rgba(20,80,20,0.3)' }}>Repeatable</span>
+        )}
+      </div>
+      {feat.repeatableNote && !editMode && (
+        <p style={{ ...styles.bodyText, fontStyle: 'italic', color: '#5c4020', marginBottom: '8px' }}>
+          {feat.repeatableNote}
+        </p>
+      )}
+      <Sections
+        sections={feat.sections || []}
+        editMode={editMode}
+        onChange={(s) => {
+          const updated = feats.map((x) => x.id === feat.id ? { ...x, sections: s } : x);
+          persistChange({ ...content, feats: updated });
+        }}
+        headingStyle={styles.sectionHeading}
+        category="feats"
+        entryId={feat.id}
+        content={content}
+        goTo={goTo}
+        isDM={isDM}
+      />
     </div>
   );
 }

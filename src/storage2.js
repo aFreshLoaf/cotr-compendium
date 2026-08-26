@@ -55,6 +55,7 @@ const SINGLETON_CAMPAIGN_ORDER = '__campaignOrder';
 const SINGLETON_PARENT_CLASS_ORDER = '__parentClassOrder';
 const SINGLETON_ITEM_GROUP_ORDER = '__itemGroupOrder';
 const SINGLETON_MAGIC_GROUP_ORDER = '__magicGroupOrder';
+const SINGLETON_FEAT_GROUP_ORDER = '__featGroupOrder';
 
 // ── Auth ────────────────────────────────────────────────────────────────────
 
@@ -359,9 +360,9 @@ export async function loadContent2(isStaff) {
     }
 
     const content = {
-      subclasses: [], races: [], classes: [], characters: [], items: [], locations: [], magic: [],
+      subclasses: [], races: [], classes: [], characters: [], items: [], locations: [], magic: [], feats: [],
       meta: {}, home: {}, campaign: {}, campaigns: {},
-      raceOrder: [], campaignOrder: [], parentClassOrder: [], itemGroupOrder: [], magicGroupOrder: [],
+      raceOrder: [], campaignOrder: [], parentClassOrder: [], itemGroupOrder: [], magicGroupOrder: [], featGroupOrder: [],
     };
 
     for (const row of rows) {
@@ -379,6 +380,7 @@ export async function loadContent2(isStaff) {
         case 'race':     content.races.push(merged); break;
         case 'class':    content.classes.push(merged); break;
         case 'item':     content.items.push(merged); break;
+        case 'feat':     content.feats.push(merged); break;
         case 'location': content.locations.push(merged); break;
         case 'magic':    content.magic.push(merged); break;
         case 'character':
@@ -394,6 +396,7 @@ export async function loadContent2(isStaff) {
           else if (row.id === SINGLETON_PARENT_CLASS_ORDER) content.parentClassOrder = row.data.parentClassOrder || [];
           else if (row.id === SINGLETON_ITEM_GROUP_ORDER) content.itemGroupOrder = row.data.itemGroupOrder || [];
           else if (row.id === SINGLETON_MAGIC_GROUP_ORDER) content.magicGroupOrder = row.data.magicGroupOrder || [];
+          else if (row.id === SINGLETON_FEAT_GROUP_ORDER) content.featGroupOrder = row.data.featGroupOrder || [];
           break;
         default: break;
       }
@@ -456,6 +459,10 @@ function buildRowMap(content) {
     const { data, dm_data } = splitEntryForSave(e);
     push(e.id, 'magic', data, { dm_data, sort_order: i });
   });
+  (content.feats || []).forEach((e, i) => {
+    const { data, dm_data } = splitEntryForSave(e);
+    push(e.id, 'feat', data, { dm_data, sort_order: i });
+  });
   (content.locations || []).forEach((e, i) => {
     const { data, dm_data } = splitEntryForSave(e);
     push(e.id, 'location', data, { dm_data, sort_order: i });
@@ -470,6 +477,7 @@ function buildRowMap(content) {
   push(SINGLETON_PARENT_CLASS_ORDER, 'meta', { parentClassOrder: content.parentClassOrder || [] }, { sort_order: 10006 });
   push(SINGLETON_ITEM_GROUP_ORDER, 'meta', { itemGroupOrder: content.itemGroupOrder || [] }, { sort_order: 10007 });
   push(SINGLETON_MAGIC_GROUP_ORDER, 'meta', { magicGroupOrder: content.magicGroupOrder || [] }, { sort_order: 10008 });
+  push(SINGLETON_FEAT_GROUP_ORDER, 'meta', { featGroupOrder: content.featGroupOrder || [] }, { sort_order: 10009 });
 
   return rows;
 }
