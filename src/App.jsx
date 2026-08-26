@@ -4051,6 +4051,8 @@ export default function Compendium() {
   const [expandedRaces, setExpandedRaces] = useState(new Set());
   const [expandedCampaigns, setExpandedCampaigns] = useState(new Set());
   const [expandedLocations, setExpandedLocations] = useState(new Set());
+  const [expandedItemGroups, setExpandedItemGroups] = useState(new Set()); // collapsed by default
+  const [itemFilters, setItemFilters] = useState({ rarity: 'all', type: 'all', attunement: 'all' });
   const [expandedSections, setExpandedSections] = useState(new Set()); // collapsed by default
 
   // Force exit of edit mode on mobile resize
@@ -4063,6 +4065,14 @@ export default function Compendium() {
       const next = new Set(prev);
       if (next.has(campaign)) next.delete(campaign);
       else next.add(campaign);
+      return next;
+    });
+  };
+
+  const toggleItemGroupExpanded = (g) => {
+    setExpandedItemGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(g)) next.delete(g); else next.add(g);
       return next;
     });
   };
@@ -5274,15 +5284,42 @@ export default function Compendium() {
             );
           })()}
 
-          {/* ITEMS — flat list with optional freeform groups */}
+          {/* ITEMS — collapsible groups with rarity/type/attunement filters */}
           <SectionToggle
             label="Items"
             expanded={expandedSections.has('items')}
             onClick={() => toggleSectionExpanded('items')}
           />
           {expandedSections.has('items') && (() => {
-            const items = viewContent.items || [];
+            const allItems = viewContent.items || [];
             const byName = (a, b) => (a.name || '').localeCompare(b.name || '');
+
+            // Derive filter options from data
+            const rarities = ['all', ...Array.from(new Set(allItems.filter(i=>i.rarity).map(i=>i.rarity))).sort()];
+            const types    = ['all', ...Array.from(new Set(allItems.filter(i=>i.category).map(i=>i.category))).sort()];
+            const { rarity: fRarity, type: fType, attunement: fAttune } = itemFilters;
+            const activeFilter = fRarity !== 'all' || fType !== 'all' || fAttune !== 'all';
+
+            // Apply filters
+            const items = allItems.filter((it) => {
+              if (fRarity !== 'all' && it.rarity !== fRarity) return false;
+              if (fType !== 'all' && it.category !== fType) return false;
+              if (fAttune === 'yes' && !it.requiresAttunement) return false;
+              if (fAttune === 'no'  &&  it.requiresAttunement) return false;
+              return true;
+            });
+
+            const selStyle = { fontFamily: '"Cinzel", serif', fontSize: '10px', color: '#5c1414',
+              background: '#faf6ed', border: '1px solid #c9a55c', borderRadius: '3px',
+              padding: '3px 6px', cursor: 'pointer', flex: 1, minWidth: 0 };
+            const clearBtn = activeFilter ? (
+              <button onClick={() => setItemFilters({ rarity:'all', type:'all', attunement:'all' })}
+                title="Clear filters"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8b1414',
+                  fontSize: '11px', padding: '0 4px', flexShrink: 0 }}>✕</button>
+            ) : null;
+
+            // Build group map on filtered list
             const groupMap = {};
             const ungrouped = [];
             items.forEach((it) => {
@@ -5293,9 +5330,10 @@ export default function Compendium() {
             });
             const presentGroups = Object.keys(groupMap);
             const ordered = (content.itemGroupOrder || []).filter((g) => groupMap[g]);
-            const groups = [...ordered, ...presentGroups.filter((g) => !ordered.includes(g)).sort((a, b) => a.localeCompare(b))];
+            const groups = [...ordered, ...presentGroups.filter((g) => !ordered.includes(g)).sort((a,b) => a.localeCompare(b))];
             Object.keys(groupMap).forEach((g) => groupMap[g].sort(byName));
             ungrouped.sort(byName);
+
             const renderItem = (it) => {
               const isActive = section === 'items' && activeId === it.id;
               return (
@@ -5303,40 +5341,87 @@ export default function Compendium() {
                   style={{ ...styles.subclassChild, ...(isActive ? styles.subclassChildActive : {}) }}
                   onClick={() => goTo('items', it.id)}
                 >
-                  <span>{it.name}</span>
-                  {it.dmOnly && <Lock size={10} style={{ color: '#7a1f1f', marginLeft: '4px', flexShrink: 0 }} />}
+                  <span style={{ flex: 1 }}>{it.name}</span>
+                  {it.requiresAttunement && <span title="Requires Attunement" style={{ fontSize: '9px', color: '#8b6914', flexShrink: 0 }}>◈</span>}
+                  {it.dmOnly && <Lock size={10} style={{ color: '#7a1f1f', marginLeft: '2px', flexShrink: 0 }} />}
                 </div>
               );
             };
-            const groupHeader = (label, gi) => (
-              <div style={{ padding: '4px 20px 2px 44px', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-                <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em',
-                  color: '#8b6914', fontWeight: 700, fontFamily: '"Cinzel", serif', flex: 1 }}>{label}</span>
-                {editMode && isAdmin && gi != null && (
-                  <span style={{ display: 'flex', gap: '2px' }}>
-                    <button onClick={(e) => { e.stopPropagation(); moveInOrder('itemGroupOrder', label, -1); }}
-                      disabled={gi === 0} title="Move group up"
-                      style={{ background: 'none', border: 'none', cursor: gi === 0 ? 'default' : 'pointer',
-                        color: '#8b6914', opacity: gi === 0 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▲</button>
-                    <button onClick={(e) => { e.stopPropagation(); moveInOrder('itemGroupOrder', label, 1); }}
-                      disabled={gi === groups.length - 1} title="Move group down"
-                      style={{ background: 'none', border: 'none', cursor: gi === groups.length - 1 ? 'default' : 'pointer',
-                        color: '#8b6914', opacity: gi === groups.length - 1 ? 0.3 : 1, fontSize: '10px', padding: '0 2px' }}>▼</button>
-                  </span>
-                )}
-              </div>
-            );
+
+            const groupHeader = (label, gi) => {
+              const isOpen = expandedItemGroups.has(label);
+              const hasActive = section === 'items' && (groupMap[label] || []).some(it => it.id === activeId);
+              return (
+                <div key={label}>
+                  <div
+                    onClick={() => toggleItemGroupExpanded(label)}
+                    style={{ padding: '4px 20px 2px 28px', display: 'flex', alignItems: 'center', gap: '4px',
+                      marginTop: '4px', cursor: 'pointer',
+                      background: hasActive ? 'rgba(201,165,92,0.08)' : 'none' }}
+                  >
+                    <ChevronRight size={10} style={{ color: '#8b6914', flexShrink: 0,
+                      transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }} />
+                    <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em',
+                      color: '#8b6914', fontWeight: 700, fontFamily: '"Cinzel", serif', flex: 1 }}>{label}</span>
+                    <span style={{ fontSize: '9px', color: '#a08040', flexShrink: 0 }}>
+                      {(groupMap[label] || []).length}
+                    </span>
+                    {editMode && isAdmin && gi != null && (
+                      <span style={{ display: 'flex', gap: '2px' }}>
+                        <button onClick={(e) => { e.stopPropagation(); moveInOrder('itemGroupOrder', label, -1); }}
+                          disabled={gi === 0}
+                          style={{ background:'none', border:'none', cursor: gi===0?'default':'pointer',
+                            color:'#8b6914', opacity: gi===0?0.3:1, fontSize:'10px', padding:'0 2px' }}>▲</button>
+                        <button onClick={(e) => { e.stopPropagation(); moveInOrder('itemGroupOrder', label, 1); }}
+                          disabled={gi === groups.length - 1}
+                          style={{ background:'none', border:'none', cursor: gi===groups.length-1?'default':'pointer',
+                            color:'#8b6914', opacity: gi===groups.length-1?0.3:1, fontSize:'10px', padding:'0 2px' }}>▼</button>
+                      </span>
+                    )}
+                  </div>
+                  {isOpen && (groupMap[label] || []).map(renderItem)}
+                </div>
+              );
+            };
+
             return (
               <>
-                {groups.map((g, gi) => (
-                  <div key={g}>
-                    {groupHeader(g, gi)}
-                    {groupMap[g].map(renderItem)}
+                {/* Filter controls */}
+                <div style={{ padding: '6px 16px 4px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <select value={fRarity} onChange={e => setItemFilters(f => ({...f, rarity: e.target.value}))} style={selStyle}>
+                      <option value="all">All Rarities</option>
+                      {rarities.filter(r=>r!=='all').map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                    {clearBtn}
                   </div>
-                ))}
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <select value={fType} onChange={e => setItemFilters(f => ({...f, type: e.target.value}))} style={selStyle}>
+                      <option value="all">All Types</option>
+                      {types.filter(t=>t!=='all').map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
+                    </select>
+                    <select value={fAttune} onChange={e => setItemFilters(f => ({...f, attunement: e.target.value}))} style={{...selStyle, flex:'0 0 auto', width:'auto'}}>
+                      <option value="all">Any</option>
+                      <option value="yes">◈ Attune</option>
+                      <option value="no">No Attune</option>
+                    </select>
+                  </div>
+                  {activeFilter && (
+                    <div style={{ fontSize: '10px', color: '#8b6914', fontStyle: 'italic', fontFamily: '"Palatino Linotype", serif' }}>
+                      {items.length} of {allItems.length} items
+                    </div>
+                  )}
+                </div>
+
+                {groups.map((g, gi) => groupHeader(g, gi))}
                 {ungrouped.length > 0 && (
                   <>
-                    {groups.length > 0 && groupHeader('Ungrouped', null)}
+                    {groups.length > 0 && (
+                      <div style={{ padding: '4px 20px 2px 44px', marginTop: '4px' }}>
+                        <span style={{ fontSize:'10px', textTransform:'uppercase', letterSpacing:'0.08em',
+                          color:'#8b6914', fontWeight:700, fontFamily:'"Cinzel", serif' }}>Ungrouped</span>
+                      </div>
+                    )}
                     {ungrouped.map(renderItem)}
                   </>
                 )}
